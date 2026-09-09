@@ -18,9 +18,9 @@ environment; the shared schema rejects unknown fields, including token fields.
 Every save checks the revision observed by the caller while holding a writer
 lock, writes atomically, and returns the incremented revision. A stale editor
 receives `SettingsError::Conflict` and must reload before saving. A competing
-writer receives `SettingsError::Busy`. A process killed during a write can leave
-`settings.json.lock`; remove that lock only after confirming no settings writer
-is running. The document remains either the previous or newly committed version.
+writer receives `SettingsError::Busy`. The lock is owned by the operating
+system, so it is released automatically if a process exits unexpectedly. The
+document remains either the previous or newly committed version.
 
 Worklogger reads and writes this one document only. It does not import, merge,
 or modify previous per-frontend configuration files.

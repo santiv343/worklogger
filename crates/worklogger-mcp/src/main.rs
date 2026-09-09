@@ -148,8 +148,6 @@ enum CliError {
     Message(String),
     #[error(transparent)]
     Configuration(#[from] worklogger_mcp::ConfigurationError),
-    #[error(transparent)]
-    SettingsDraft(#[from] settings_draft::SettingsDraftError),
     #[error("no MCP configuration found; run `worklogger-mcp setup`")]
     NotConfigured,
     #[error(
@@ -685,17 +683,29 @@ fn register_headless_clients(
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn save_headless_configuration(configuration: &McpConfiguration) -> Result<(), CliError> {
+    #[cfg(feature = "jira")]
+    let jira_token = configuration
+        .module_enabled(ModuleId::Jira)
+        .then(|| required_jira(configuration).and_then(load_token))
+        .transpose()?;
+    #[cfg(feature = "bitbucket")]
+    let bitbucket_token = configuration
+        .module_enabled(ModuleId::Bitbucket)
+        .then(|| required_bitbucket(configuration).and_then(load_bitbucket_token))
+        .transpose()?;
     let mut saved = false;
     #[cfg(feature = "jira")]
     if configuration.module_enabled(ModuleId::Jira) {
-        let token = load_token(required_jira(configuration)?)?;
-        save_setup(configuration, &token)?;
+        let token = jira_token.as_deref().ok_or(CliError::MissingJiraToken)?;
+        save_setup(configuration, token)?;
         saved = true;
     }
     #[cfg(feature = "bitbucket")]
     if configuration.module_enabled(ModuleId::Bitbucket) {
-        let token = load_bitbucket_token(required_bitbucket(configuration)?)?;
-        save_bitbucket_setup(configuration, &token)?;
+        let token = bitbucket_token
+            .as_deref()
+            .ok_or(CliError::MissingBitbucketToken)?;
+        save_bitbucket_setup(configuration, token)?;
         saved = true;
     }
     if !saved {

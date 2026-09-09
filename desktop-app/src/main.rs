@@ -4,7 +4,7 @@ mod async_request;
 mod board_selector;
 #[cfg(any(all(windows, feature = "hours"), feature = "dev-desktop"))]
 mod connection_model;
-#[cfg(any(all(feature = "hours", any(windows, test)), feature = "dev-desktop"))]
+#[cfg(any(windows, feature = "dev-desktop", test))]
 mod copy;
 #[cfg(any(all(windows, feature = "hours"), feature = "dev-desktop"))]
 mod credentials;

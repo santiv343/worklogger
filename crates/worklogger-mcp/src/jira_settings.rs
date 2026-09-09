@@ -13,7 +13,10 @@ use super::{
     show_progress, terminal_error, tui_copy, validate_prompted_hours,
 };
 use settings_copy::settings_copy;
-use settings_draft::{JiraSettingsDraft, SettingsDraftStore};
+use settings_draft::JiraSettingsDraft;
+use worklogger_settings::{
+    HoursSettings, JiraSettings, McpSettings, ModuleSettings, SettingsStore,
+};
 
 #[derive(Clone, Copy)]
 enum Page {
@@ -52,12 +55,12 @@ pub(super) async fn run(profile: Option<&OrganizationProfile>) -> Result<(), Cli
 
 impl<'profile> Editor<'profile> {
     fn load(profile: Option<&'profile OrganizationProfile>) -> Result<Self, CliError> {
-        let store = ConfigurationStore::for_current_user()?;
-        let draft = SettingsDraftStore::for_configuration(store.path())?.load()?;
-        let current = store.load()?;
-        let values = draft
-            .and_then(|draft| draft.jira)
-            .unwrap_or_else(|| from_configuration(current.as_ref(), profile));
+        let settings =
+            SettingsStore::for_current_user().map_err(|error| message(error.to_string()))?;
+        let document = settings
+            .load()
+            .map_err(|error| message(error.to_string()))?;
+        let values = from_shared(document.as_ref(), profile);
         Ok(Self {
             values,
             profile,
@@ -513,11 +516,17 @@ impl<'profile> Editor<'profile> {
     }
 
     fn save_draft(&self) -> Result<(), CliError> {
-        let store = ConfigurationStore::for_current_user()?;
-        let drafts = SettingsDraftStore::for_configuration(store.path())?;
-        let mut draft = drafts.load()?.unwrap_or_default();
-        draft.jira = Some(self.values.clone());
-        drafts.save(&draft)?;
+        let store =
+            SettingsStore::for_current_user().map_err(|error| message(error.to_string()))?;
+        let mut document = store
+            .load()
+            .map_err(|error| message(error.to_string()))?
+            .unwrap_or_default();
+        update_shared_draft(&mut document, &self.values);
+        let revision = document.revision;
+        store
+            .save(&document, revision)
+            .map_err(|error| message(error.to_string()))?;
         Ok(())
     }
 
@@ -531,14 +540,6 @@ impl<'profile> Editor<'profile> {
         let configuration = self.configuration(current.as_ref())?;
         let configuration = apply_setup_profile(configuration, self.profile)?;
         store.save(&configuration)?;
-        let drafts = SettingsDraftStore::for_configuration(store.path())?;
-        let mut draft = drafts.load()?.unwrap_or_default();
-        draft.jira = None;
-        if draft.bitbucket.is_none() {
-            drafts.clear()?;
-        } else {
-            drafts.save(&draft)?;
-        }
         show_notice(&settings_copy().applied)
     }
 
@@ -589,6 +590,57 @@ impl<'profile> Editor<'profile> {
     }
 }
 
+fn update_shared_draft(
+    document: &mut worklogger_settings::SettingsDocument,
+    values: &JiraSettingsDraft,
+) {
+    let jira = document.jira.get_or_insert_with(JiraSettings::default);
+    jira.base_url.clone_from(&values.base_url);
+    jira.email.clone_from(&values.email);
+    jira.board_id = values.board_id;
+    jira.request_timeout_seconds = values.request_timeout_seconds;
+    jira.page_size = values.page_size;
+    jira.maximum_collection_items = values.maximum_collection_items;
+    jira.maximum_issue_search_results = values.maximum_issue_search_results;
+    update_shared_hours(document, values.hours.as_ref());
+    update_shared_permissions(document, values.capabilities.clone());
+}
+
+fn update_shared_hours(
+    document: &mut worklogger_settings::SettingsDocument,
+    hours: Option<&JiraHoursConfiguration>,
+) {
+    let Some(hours) = hours else {
+        return;
+    };
+    let jira = document.jira.get_or_insert_with(JiraSettings::default);
+    jira.maximum_concurrent_worklog_requests = Some(hours.maximum_concurrent_worklog_requests);
+    let shared = document.hours.get_or_insert_with(HoursSettings::default);
+    shared.weekly_target_hours = Some(hours.weekly_target_hours);
+    shared.utc_offset_minutes = Some(hours.utc_offset_minutes);
+}
+
+fn update_shared_permissions(
+    document: &mut worklogger_settings::SettingsDocument,
+    capabilities: BTreeSet<Capability>,
+) {
+    let Some(mcp) = document.mcp.as_mut() else {
+        if capabilities.is_empty() {
+            return;
+        }
+        document.mcp = Some(McpSettings::default());
+        update_shared_permissions(document, capabilities);
+        return;
+    };
+    let module = mcp.modules.entry(ModuleId::Jira).or_insert(ModuleSettings {
+        enabled: !capabilities.is_empty(),
+        capabilities: BTreeSet::new(),
+    });
+    module.enabled = !capabilities.is_empty();
+    module.capabilities = capabilities;
+}
+
+#[cfg(test)]
 fn from_configuration(
     current: Option<&McpConfiguration>,
     profile: Option<&OrganizationProfile>,
@@ -610,6 +662,41 @@ fn from_configuration(
         page_size: Some(jira.page_size),
         maximum_collection_items: Some(jira.maximum_collection_items),
         maximum_issue_search_results: Some(jira.maximum_issue_search_results),
+    }
+}
+
+fn from_shared(
+    document: Option<&worklogger_settings::SettingsDocument>,
+    profile: Option<&OrganizationProfile>,
+) -> JiraSettingsDraft {
+    let Some(jira) = document.and_then(|settings| settings.jira.as_ref()) else {
+        let _ = profile;
+        return JiraSettingsDraft::default();
+    };
+    let hours = document
+        .and_then(|settings| settings.hours.as_ref())
+        .and_then(|hours| {
+            Some(JiraHoursConfiguration {
+                weekly_target_hours: hours.weekly_target_hours?,
+                utc_offset_minutes: hours.utc_offset_minutes?,
+                maximum_concurrent_worklog_requests: jira.maximum_concurrent_worklog_requests?,
+            })
+        });
+    let capabilities = document
+        .and_then(|settings| settings.mcp.as_ref())
+        .and_then(|mcp| mcp.modules.get(&ModuleId::Jira))
+        .filter(|module| module.enabled)
+        .map_or_else(BTreeSet::new, |module| module.capabilities.clone());
+    JiraSettingsDraft {
+        base_url: jira.base_url.clone(),
+        email: jira.email.clone(),
+        board_id: jira.board_id,
+        capabilities,
+        hours,
+        request_timeout_seconds: jira.request_timeout_seconds,
+        page_size: jira.page_size,
+        maximum_collection_items: jira.maximum_collection_items,
+        maximum_issue_search_results: jira.maximum_issue_search_results,
     }
 }
 

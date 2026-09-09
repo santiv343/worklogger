@@ -6998,6 +6998,7 @@ name = "worklogger-settings"
 version = "0.8.0"
 dependencies = [
  "atomic-write-file",
+ "nix",
  "serde",
  "serde_json",
  "thiserror 2.0.20",

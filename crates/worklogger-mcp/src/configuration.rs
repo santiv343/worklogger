@@ -13,7 +13,6 @@ pub use worklogger_profile::{Capability, IntegrationModuleId as ModuleId};
 use worklogger_profile::{OrganizationProfile, ProviderScopeMode};
 
 const CONFIGURATION_SCHEMA_VERSION: u16 = 2;
-const LEGACY_CONFIGURATION_SCHEMA_VERSION: u16 = 1;
 const MAXIMUM_EMAIL_LENGTH: usize = 254;
 const MAXIMUM_WEEKLY_HOURS: u16 = 168;
 const MAXIMUM_UTC_OFFSET_MINUTES: i16 = 14 * 60;
@@ -79,28 +78,6 @@ pub struct McpConfiguration {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bitbucket: Option<BitbucketConfiguration>,
     pub modules: BTreeMap<ModuleId, ModuleConfiguration>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyMcpConfiguration {
-    schema_version: u16,
-    jira: LegacyJiraConfiguration,
-    modules: BTreeMap<ModuleId, ModuleConfiguration>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyJiraConfiguration {
-    base_url: String,
-    email: String,
-    board_id: u64,
-    weekly_target_hours: u16,
-    utc_offset_minutes: i16,
-    request_timeout_seconds: u64,
-    page_size: u16,
-    maximum_collection_items: usize,
-    maximum_concurrent_worklog_requests: usize,
 }
 
 #[derive(Debug, Error)]
@@ -662,13 +639,7 @@ fn decode_configuration(bytes: &[u8], path: &Path) -> Result<McpConfiguration, C
     if bytes.len() > MAXIMUM_CONFIGURATION_BYTES {
         return Err(ConfigurationError::TooLarge);
     }
-    let value = decode_value(bytes, path)?;
-    let schema = value.get("schemaVersion").and_then(Value::as_u64);
-    let configuration = if schema == Some(u64::from(LEGACY_CONFIGURATION_SCHEMA_VERSION)) {
-        migrate_legacy(value, path)?
-    } else {
-        decode_current(value, path)?
-    };
+    let configuration = decode_current(decode_value(bytes, path)?, path)?;
     configuration.validate_persisted()?;
     Ok(configuration)
 }
@@ -681,50 +652,10 @@ fn decode_current(value: Value, path: &Path) -> Result<McpConfiguration, Configu
     serde_json::from_value(value).map_err(|source| decode_error(path, source))
 }
 
-fn migrate_legacy(value: Value, path: &Path) -> Result<McpConfiguration, ConfigurationError> {
-    let legacy: LegacyMcpConfiguration =
-        serde_json::from_value(value).map_err(|source| decode_error(path, source))?;
-    if legacy.schema_version != LEGACY_CONFIGURATION_SCHEMA_VERSION {
-        return Err(ConfigurationError::UnsupportedSchema);
-    }
-    Ok(legacy.into_current())
-}
-
 fn decode_error(path: &Path, source: serde_json::Error) -> ConfigurationError {
     ConfigurationError::Decode {
         path: path.to_path_buf(),
         source,
-    }
-}
-
-impl LegacyMcpConfiguration {
-    fn into_current(self) -> McpConfiguration {
-        let jira = self.jira.into_current();
-        McpConfiguration {
-            schema_version: CONFIGURATION_SCHEMA_VERSION,
-            jira: Some(jira),
-            bitbucket: None,
-            modules: self.modules,
-        }
-    }
-}
-
-impl LegacyJiraConfiguration {
-    fn into_current(self) -> JiraConfiguration {
-        JiraConfiguration {
-            base_url: self.base_url,
-            email: self.email,
-            board_id: self.board_id,
-            request_timeout_seconds: self.request_timeout_seconds,
-            page_size: self.page_size,
-            maximum_collection_items: self.maximum_collection_items,
-            maximum_issue_search_results: DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS,
-            hours: Some(JiraHoursConfiguration {
-                weekly_target_hours: self.weekly_target_hours,
-                utc_offset_minutes: self.utc_offset_minutes,
-                maximum_concurrent_worklog_requests: self.maximum_concurrent_worklog_requests,
-            }),
-        }
     }
 }
 

@@ -1,17 +1,21 @@
 //! Independent Bitbucket settings editors. Incomplete values remain a secret-free draft.
 
-use super::settings_draft::{BitbucketSettingsDraft, SettingsDraftStore};
+use super::settings_draft::BitbucketSettingsDraft;
 use super::{
-    BITBUCKET_CLOUD_API_ORIGIN, BTreeSet, BitbucketConfiguration, BitbucketModuleProfile, CliError,
-    ConfigurationStore, CredentialPurpose, CredentialStore, McpConfiguration, ModuleId,
-    OrganizationProfile, ProviderRequestLimits, apply_setup_profile, bitbucket_environment_token,
-    bitbucket_profile_limits, bitbucket_pull_request_defaults, bitbucket_request_limits_allowed,
-    choose, choose_bitbucket_capabilities, choose_bitbucket_workspace, credential_transaction,
+    BITBUCKET_CLOUD_API_ORIGIN, BTreeSet, BitbucketConfiguration, BitbucketModuleProfile,
+    BitbucketPullRequestDefaults, Capability, CliError, ConfigurationStore, CredentialPurpose,
+    CredentialStore, McpConfiguration, ModuleId, OrganizationProfile, ProviderRequestLimits,
+    apply_setup_profile, bitbucket_environment_token, bitbucket_profile_limits,
+    bitbucket_pull_request_defaults, bitbucket_request_limits_allowed, choose,
+    choose_bitbucket_capabilities, choose_bitbucket_workspace, credential_transaction,
     default_provider_request_limits, discover_bitbucket, enabled_bitbucket_module, message, prompt,
     read_bitbucket_setup_token, scoped_bitbucket_repositories, select_bitbucket_repositories,
     settings_copy, show_progress, terminal_error, tui_copy,
 };
 use settings_copy::settings_copy;
+use worklogger_settings::{
+    BitbucketSettings, McpSettings, ModuleSettings, PullRequestDefaults, SettingsStore,
+};
 
 #[derive(Clone, Copy)]
 enum Page {
@@ -48,13 +52,12 @@ pub(super) async fn run(profile: Option<&OrganizationProfile>) -> Result<(), Cli
 
 impl<'profile> Editor<'profile> {
     fn load(profile: Option<&'profile OrganizationProfile>) -> Result<Self, CliError> {
-        let store = ConfigurationStore::for_current_user()?;
-        let drafts = SettingsDraftStore::for_configuration(store.path())?;
-        let current = store.load()?;
-        let values = drafts
-            .load()?
-            .and_then(|draft| draft.bitbucket)
-            .unwrap_or_else(|| from_configuration(current.as_ref()));
+        let settings =
+            SettingsStore::for_current_user().map_err(|error| message(error.to_string()))?;
+        let document = settings
+            .load()
+            .map_err(|error| message(error.to_string()))?;
+        let values = from_shared(document.as_ref());
         Ok(Self {
             values,
             profile,
@@ -347,11 +350,17 @@ impl<'profile> Editor<'profile> {
     }
 
     fn save_draft(&self) -> Result<(), CliError> {
-        let store = ConfigurationStore::for_current_user()?;
-        let drafts = SettingsDraftStore::for_configuration(store.path())?;
-        let mut draft = drafts.load()?.unwrap_or_default();
-        draft.bitbucket = Some(self.values.clone());
-        drafts.save(&draft)?;
+        let store =
+            SettingsStore::for_current_user().map_err(|error| message(error.to_string()))?;
+        let mut document = store
+            .load()
+            .map_err(|error| message(error.to_string()))?
+            .unwrap_or_default();
+        update_shared_draft(&mut document, &self.values);
+        let revision = document.revision;
+        store
+            .save(&document, revision)
+            .map_err(|error| message(error.to_string()))?;
         Ok(())
     }
 
@@ -366,7 +375,6 @@ impl<'profile> Editor<'profile> {
         let configuration =
             apply_setup_profile(self.configuration(current.as_ref())?, self.profile)?;
         store.save(&configuration)?;
-        Self::clear_draft(&store)?;
         show_notice(&settings_copy().applied);
         Ok(())
     }
@@ -390,35 +398,73 @@ impl<'profile> Editor<'profile> {
         }
         .map_err(CliError::from)
     }
-
-    fn clear_draft(store: &ConfigurationStore) -> Result<(), CliError> {
-        let drafts = SettingsDraftStore::for_configuration(store.path())?;
-        let mut draft = drafts.load()?.unwrap_or_default();
-        draft.bitbucket = None;
-        if draft.jira.is_none() {
-            drafts.clear()?;
-        } else {
-            drafts.save(&draft)?;
-        }
-        Ok(())
-    }
 }
 
-fn from_configuration(current: Option<&McpConfiguration>) -> BitbucketSettingsDraft {
-    let Some(bitbucket) = current.and_then(|configuration| configuration.bitbucket.as_ref()) else {
+fn update_shared_draft(
+    document: &mut worklogger_settings::SettingsDocument,
+    values: &BitbucketSettingsDraft,
+) {
+    let bitbucket = document
+        .bitbucket
+        .get_or_insert_with(BitbucketSettings::default);
+    bitbucket.email.clone_from(&values.email);
+    bitbucket.workspaces = Some(values.workspaces.clone());
+    bitbucket.request_timeout_seconds = values.request_timeout_seconds;
+    bitbucket.page_size = values.page_size;
+    bitbucket.maximum_collection_items = values.maximum_collection_items;
+    bitbucket.pull_request_defaults = Some(PullRequestDefaults {
+        reviewer_account_ids: values.pull_request_defaults.reviewer_account_ids.clone(),
+        close_source_branch: values.pull_request_defaults.close_source_branch,
+    });
+    update_shared_permissions(document, values.capabilities.clone());
+}
+
+fn update_shared_permissions(
+    document: &mut worklogger_settings::SettingsDocument,
+    capabilities: BTreeSet<Capability>,
+) {
+    let Some(mcp) = document.mcp.as_mut() else {
+        if capabilities.is_empty() {
+            return;
+        }
+        document.mcp = Some(McpSettings::default());
+        update_shared_permissions(document, capabilities);
+        return;
+    };
+    let module = mcp
+        .modules
+        .entry(ModuleId::Bitbucket)
+        .or_insert(ModuleSettings {
+            enabled: !capabilities.is_empty(),
+            capabilities: BTreeSet::new(),
+        });
+    module.enabled = !capabilities.is_empty();
+    module.capabilities = capabilities;
+}
+
+fn from_shared(document: Option<&worklogger_settings::SettingsDocument>) -> BitbucketSettingsDraft {
+    let Some(bitbucket) = document.and_then(|settings| settings.bitbucket.as_ref()) else {
         return BitbucketSettingsDraft::default();
     };
+    let capabilities = document
+        .and_then(|settings| settings.mcp.as_ref())
+        .and_then(|mcp| mcp.modules.get(&ModuleId::Bitbucket))
+        .filter(|module| module.enabled)
+        .map_or_else(BTreeSet::new, |module| module.capabilities.clone());
     BitbucketSettingsDraft {
-        email: Some(bitbucket.email.clone()),
-        workspaces: bitbucket.workspaces.clone(),
-        capabilities: current
-            .and_then(|configuration| configuration.modules.get(&ModuleId::Bitbucket))
-            .filter(|module| module.enabled)
-            .map_or_else(BTreeSet::new, |module| module.capabilities.clone()),
-        pull_request_defaults: bitbucket.pull_request_defaults.clone(),
-        request_timeout_seconds: Some(bitbucket.request_timeout_seconds),
-        page_size: Some(bitbucket.page_size),
-        maximum_collection_items: Some(bitbucket.maximum_collection_items),
+        email: bitbucket.email.clone(),
+        workspaces: bitbucket.workspaces.clone().unwrap_or_default(),
+        capabilities,
+        pull_request_defaults: bitbucket.pull_request_defaults.as_ref().map_or_else(
+            BitbucketPullRequestDefaults::default,
+            |defaults| BitbucketPullRequestDefaults {
+                reviewer_account_ids: defaults.reviewer_account_ids.clone(),
+                close_source_branch: defaults.close_source_branch,
+            },
+        ),
+        request_timeout_seconds: bitbucket.request_timeout_seconds,
+        page_size: bitbucket.page_size,
+        maximum_collection_items: bitbucket.maximum_collection_items,
     }
 }
 

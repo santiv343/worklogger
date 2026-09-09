@@ -24,7 +24,7 @@ tokio = { workspace = true, optional = true }
 worklogger-credentials = { path = "../crates/worklogger-credentials", optional = true }
 worklogger-mcp = { path = "../crates/worklogger-mcp", default-features = false, optional = true }
 worklogger-profile = { path = "../crates/worklogger-profile" }
-worklogger-settings = { path = "../crates/worklogger-settings", optional = true }
+worklogger-settings = { path = "../crates/worklogger-settings" }
 
 [features]
 default = ["hours", "reports", "mcp-jira", "mcp-bitbucket", "configurable-organization"]
@@ -58,7 +58,6 @@ hours = [
     "dep:thiserror",
     "dep:time",
     "dep:worklogger-credentials",
-    "dep:worklogger-settings",
 ]
 
 [target.'cfg(windows)'.dependencies]

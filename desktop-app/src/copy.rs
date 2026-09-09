@@ -1,9 +1,12 @@
-use std::collections::HashMap;
-use std::sync::OnceLock;
+#[cfg(any(feature = "hours", feature = "dev-desktop", test))]
+use std::{collections::HashMap, sync::OnceLock};
 
+#[cfg(any(feature = "hours", feature = "dev-desktop", test))]
 const ENGLISH_COPY: &str = include_str!("../resources/en.json");
+#[cfg(any(feature = "hours", feature = "dev-desktop", test))]
 const SPANISH_COPY: &str = include_str!("../resources/es.json");
 
+#[cfg(any(feature = "hours", feature = "dev-desktop", test))]
 pub(crate) fn text(key: &str) -> &'static str {
     static COPY: OnceLock<HashMap<String, String>> = OnceLock::new();
     let values = COPY.get_or_init(|| {
@@ -16,6 +19,7 @@ pub(crate) fn text(key: &str) -> &'static str {
     )
 }
 
+#[cfg(any(feature = "hours", feature = "dev-desktop", test))]
 fn selected_copy() -> &'static str {
     match preferred_language() {
         worklogger_settings::Language::English => ENGLISH_COPY,
@@ -31,6 +35,7 @@ pub(crate) fn preferred_language() -> worklogger_settings::Language {
         .unwrap_or_default()
 }
 
+#[cfg(any(feature = "hours", feature = "dev-desktop"))]
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn save_language(language: worklogger_settings::Language) -> Result<(), String> {
     let store = worklogger_settings::SettingsStore::for_current_user()

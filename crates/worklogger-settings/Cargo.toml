@@ -12,5 +12,8 @@ serde_json.workspace = true
 thiserror.workspace = true
 worklogger-profile = { path = "../worklogger-profile" }
 
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["fs"] }
+
 [lints]
 workspace = true

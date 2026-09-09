@@ -3,6 +3,8 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use atomic_write_file::AtomicWriteFile;
+#[cfg(unix)]
+use nix::fcntl::{Flock, FlockArg, OFlag};
 use thiserror::Error;
 
 use crate::SettingsDocument;
@@ -89,7 +91,7 @@ impl SettingsStore {
     ) -> Result<SettingsDocument, SettingsError> {
         document.validate()?;
         create_parent(&self.path)?;
-        let _lock = WriteLock::acquire(self.path.with_extension("json.lock"))?;
+        let _lock = WriteLock::acquire(&self.path.with_extension("json.lock"))?;
         let actual = self.load()?.map_or(0, |saved| saved.revision);
         if actual != expected_revision {
             return Err(SettingsError::Conflict {
@@ -107,32 +109,72 @@ impl SettingsStore {
 }
 
 struct WriteLock {
-    path: PathBuf,
+    #[cfg(unix)]
+    _lock: Flock<File>,
+    #[cfg(windows)]
+    _file: File,
+    #[cfg(not(any(unix, windows)))]
     _file: File,
 }
 
 impl WriteLock {
-    fn acquire(path: PathBuf) -> Result<Self, SettingsError> {
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .map_err(|error| {
-                if error.kind() == std::io::ErrorKind::AlreadyExists {
-                    SettingsError::Busy
-                } else {
-                    error.into()
-                }
-            })?;
-        restrict_file_permissions(&file)?;
-        Ok(Self { path, _file: file })
+    fn acquire(path: &Path) -> Result<Self, SettingsError> {
+        acquire_platform_lock(path)
     }
 }
 
-impl Drop for WriteLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
+#[cfg(unix)]
+fn acquire_platform_lock(path: &Path) -> Result<WriteLock, SettingsError> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .custom_flags(OFlag::O_NOFOLLOW.bits())
+        .open(path)?;
+    restrict_file_permissions(&file)?;
+    let lock =
+        Flock::lock(file, FlockArg::LockExclusiveNonblock).map_err(|_| SettingsError::Busy)?;
+    Ok(WriteLock { _lock: lock })
+}
+
+#[cfg(windows)]
+fn acquire_platform_lock(path: &Path) -> Result<WriteLock, SettingsError> {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    const EXCLUSIVE_SHARE_MODE: u32 = 0;
+    const WINDOWS_SHARING_VIOLATION: i32 = 32;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .share_mode(EXCLUSIVE_SHARE_MODE)
+        .open(path)
+        .map_err(|error| {
+            if error.raw_os_error() == Some(WINDOWS_SHARING_VIOLATION) {
+                SettingsError::Busy
+            } else {
+                error.into()
+            }
+        })?;
+    restrict_file_permissions(&file)?;
+    Ok(WriteLock { _file: file })
+}
+
+#[cfg(not(any(unix, windows)))]
+fn acquire_platform_lock(path: &Path) -> Result<WriteLock, SettingsError> {
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)?;
+    restrict_file_permissions(&file)?;
+    Ok(WriteLock { _file: file })
 }
 
 fn write_document(path: &Path, document: &SettingsDocument) -> Result<(), SettingsError> {

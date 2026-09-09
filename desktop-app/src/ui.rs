@@ -2121,11 +2121,8 @@ mod tests {
             date(2026, Month::August, 19),
             date(2026, Month::September, 1),
         );
-        assert_eq!(loaded_period_label(current, today), "Cargadas esta semana");
-        assert_eq!(
-            loaded_period_label(custom, today),
-            "Cargadas 19 ago – 1 sep"
-        );
+        assert_eq!(loaded_period_label(current, today), "Logged this week");
+        assert_eq!(loaded_period_label(custom, today), "Logged Aug 19 – Sep 1");
     }
 
     #[test]

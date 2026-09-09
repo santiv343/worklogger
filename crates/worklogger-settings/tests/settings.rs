@@ -51,15 +51,13 @@ fn stale_frontend_cannot_overwrite_newer_settings() {
 }
 
 #[test]
-fn existing_write_lock_prevents_a_second_writer() {
+fn orphaned_lock_file_does_not_block_a_new_writer() {
     let directory = Directory::new();
     let store = SettingsStore::at(directory.0.join("settings.json"));
     fs::write(directory.0.join("settings.json.lock"), []).unwrap();
-    assert!(matches!(
-        store.save(&SettingsDocument::default(), 0),
-        Err(SettingsError::Busy)
-    ));
-    assert_eq!(store.load().unwrap(), None);
+    let saved = store.save(&SettingsDocument::default(), 0).unwrap();
+    assert_eq!(saved.revision, 1);
+    assert_eq!(store.load().unwrap(), Some(saved));
 }
 
 #[cfg(unix)]
