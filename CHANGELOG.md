@@ -3,6 +3,24 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.5] - 2026-09-09
+
+### Cambiado
+
+- La configuración presenta Jira y Bitbucket como tarjetas descriptivas y
+  agrupa las capacidades de cada integración en una única selección.
+- Los campos de texto ahora permiten editar valores predeterminados, mover el
+  cursor y pegar contenido; los secretos permanecen enmascarados.
+- Las listas usan una jerarquía visual consistente, color de foco y navegación
+  por teclado o mouse.
+
+### Corregido
+
+- `Esc` y `q` cancelan el paso actual sin elegir accidentalmente otra opción;
+  al volver desde el menú principal se conserva el dashboard.
+- Los clics fuera de una lista y los clics sobre listas desplazadas ya no
+  seleccionan elementos incorrectos.
+
 ## [0.7.4] - 2026-09-09
 
 ### Cambiado

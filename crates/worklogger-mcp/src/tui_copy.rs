@@ -46,8 +46,12 @@ pub(crate) struct TuiCopy {
     pub provider_title: String,
     #[cfg(feature = "jira")]
     pub provider_jira: String,
+    #[cfg(all(feature = "jira", feature = "bitbucket"))]
+    pub provider_jira_description: String,
     #[cfg(feature = "bitbucket")]
     pub provider_bitbucket: String,
+    #[cfg(all(feature = "jira", feature = "bitbucket"))]
+    pub provider_bitbucket_description: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub invalid_provider_selection: String,
     #[cfg(feature = "jira")]
@@ -112,6 +116,8 @@ pub(crate) struct TuiCopy {
     #[cfg(feature = "jira")]
     pub enable_hours: String,
     #[cfg(feature = "jira")]
+    pub jira_capabilities_title: String,
+    #[cfg(feature = "jira")]
     pub enable_hours_write: String,
     #[cfg(feature = "jira")]
     pub weekly_target_hours: String,
@@ -133,6 +139,8 @@ pub(crate) struct TuiCopy {
     pub enable_issue_transition: String,
     #[cfg(feature = "bitbucket")]
     pub enable_bitbucket_read: String,
+    #[cfg(feature = "bitbucket")]
+    pub bitbucket_capabilities_title: String,
     #[cfg(feature = "bitbucket")]
     pub enable_bitbucket_create: String,
     #[cfg(feature = "bitbucket")]

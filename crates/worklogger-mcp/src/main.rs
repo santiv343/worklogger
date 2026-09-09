@@ -49,7 +49,8 @@ mod tui_copy;
 
 use skill_installation::AgentSkillInstaller;
 use terminal_ui::{
-    Dashboard, choose, choose_dashboard, choose_many, confirm as tui_confirm, read_text,
+    Dashboard, DetailedChoice, choose, choose_dashboard, choose_detailed, choose_many,
+    confirm as tui_confirm, read_text,
 };
 use tui_copy::tui_copy;
 
@@ -105,6 +106,8 @@ enum SetupProvider {
 
 #[derive(Debug, thiserror::Error)]
 enum CliError {
+    #[error("operación cancelada")]
+    Cancelled,
     #[error("{0}")]
     Message(String),
     #[error(transparent)]
@@ -195,13 +198,18 @@ fn parse_command(mut arguments: impl Iterator<Item = String>) -> Result<Command,
 
 async fn menu() -> Result<(), CliError> {
     loop {
-        match choose_menu_action()? {
-            MenuAction::Configure => setup(None).await?,
-            MenuAction::Clients => manage_clients()?,
-            MenuAction::Refresh => {}
-            MenuAction::Skills => install_skills()?,
-            MenuAction::Uninstall => uninstall()?,
+        let result = match choose_menu_action()? {
+            MenuAction::Configure => setup(None).await,
+            MenuAction::Clients => manage_clients(),
+            MenuAction::Refresh => Ok(()),
+            MenuAction::Skills => install_skills(),
+            MenuAction::Uninstall => uninstall(),
             MenuAction::Exit => return Ok(()),
+        };
+        if let Err(error) = result {
+            if !matches!(error, CliError::Cancelled) {
+                return Err(error);
+            }
         }
     }
 }
@@ -656,8 +664,17 @@ fn choose_setup_provider(profile: Option<&OrganizationProfile>) -> Result<SetupP
         _ => {}
     }
     let copy = tui_copy();
-    let options = vec![copy.provider_jira.clone(), copy.provider_bitbucket.clone()];
-    match choose(&copy.provider_title, &options).map_err(|error| message(error.to_string()))? {
+    let options = vec![
+        DetailedChoice::new(
+            copy.provider_jira.clone(),
+            copy.provider_jira_description.clone(),
+        ),
+        DetailedChoice::new(
+            copy.provider_bitbucket.clone(),
+            copy.provider_bitbucket_description.clone(),
+        ),
+    ];
+    match choose_detailed(&copy.provider_title, &options).map_err(|error| terminal_error(&error))? {
         0 => Ok(SetupProvider::Jira),
         1 => Ok(SetupProvider::Bitbucket),
         _ => Err(message(&copy.invalid_provider_selection)),
@@ -972,7 +989,7 @@ fn choose_jira_profile_site(
         .map(|site| format!("{} ({})", site.name, site.url))
         .collect::<Vec<_>>();
     let index = choose(&tui_copy().profile_sites_title, &options)
-        .map_err(|error| message(error.to_string()))?;
+        .map_err(|error| terminal_error(&error))?;
     Ok(sites[index].url.clone())
 }
 
@@ -999,7 +1016,7 @@ fn choose_profile_workspace(
 ) -> Result<String, CliError> {
     let options = workspaces.keys().cloned().collect::<Vec<_>>();
     let index = choose(&tui_copy().profile_workspaces_title, &options)
-        .map_err(|error| message(error.to_string()))?;
+        .map_err(|error| terminal_error(&error))?;
     workspaces
         .keys()
         .nth(index)
@@ -1067,7 +1084,7 @@ fn choose_board(boards: &[BoardDto]) -> Result<u64, CliError> {
         .map(|board| format!("{} ({})", board.name, board.board_type))
         .collect::<Vec<_>>();
     let selected =
-        choose(&tui_copy().boards_title, &options).map_err(|error| message(error.to_string()))?;
+        choose(&tui_copy().boards_title, &options).map_err(|error| terminal_error(&error))?;
     boards
         .get(selected)
         .map(|board| board.id)
@@ -1088,7 +1105,7 @@ fn choose_repositories(repositories: &[Repository]) -> Result<BTreeSet<String>, 
         &options,
         vec![false; repositories.len()],
     )
-    .map_err(|error| message(error.to_string()))?;
+    .map_err(|error| terminal_error(&error))?;
     if !selected.iter().any(|is_selected| *is_selected) {
         return Err(message(&tui_copy().invalid_repository_selection));
     }
@@ -1507,9 +1524,43 @@ fn choose_jira_capabilities(
     allowed: Option<&BTreeSet<Capability>>,
 ) -> Result<BTreeSet<Capability>, CliError> {
     let copy = tui_copy();
-    let mut capabilities = BTreeSet::new();
-    choose_jira_read_capabilities(copy, allowed, &mut capabilities)?;
-    choose_jira_write_capabilities(copy, allowed, &mut capabilities)?;
+    let mut capabilities = select_capabilities(
+        &copy.jira_capabilities_title,
+        allowed,
+        vec![
+            (
+                Capability::ReadOwnTimeEntries,
+                copy.enable_hours.clone(),
+                true,
+            ),
+            (
+                Capability::WriteOwnTimeEntries,
+                copy.enable_hours_write.clone(),
+                false,
+            ),
+            (
+                Capability::ReadJiraIssues,
+                copy.enable_issue_read.clone(),
+                true,
+            ),
+            (
+                Capability::EditJiraIssues,
+                copy.enable_issue_edit.clone(),
+                false,
+            ),
+            (
+                Capability::CommentJiraIssues,
+                copy.enable_issue_comment.clone(),
+                false,
+            ),
+            (
+                Capability::TransitionJiraIssues,
+                copy.enable_issue_transition.clone(),
+                false,
+            ),
+        ],
+    )?;
+    disable_dependent_jira_capabilities(&mut capabilities);
     Ok(capabilities)
 }
 
@@ -1518,192 +1569,75 @@ fn choose_bitbucket_capabilities(
     allowed: Option<&BTreeSet<Capability>>,
 ) -> Result<BTreeSet<Capability>, CliError> {
     let copy = tui_copy();
-    let mut capabilities = BTreeSet::new();
-    choose_bitbucket_content_capabilities(copy, allowed, &mut capabilities)?;
-    choose_bitbucket_review_capabilities(copy, allowed, &mut capabilities)?;
+    let mut capabilities = select_capabilities(
+        &copy.bitbucket_capabilities_title,
+        allowed,
+        vec![
+            (
+                Capability::ReadBitbucketPullRequests,
+                copy.enable_bitbucket_read.clone(),
+                true,
+            ),
+            (
+                Capability::CreateBitbucketPullRequests,
+                copy.enable_bitbucket_create.clone(),
+                false,
+            ),
+            (
+                Capability::EditBitbucketPullRequests,
+                copy.enable_bitbucket_edit.clone(),
+                false,
+            ),
+            (
+                Capability::CommentBitbucketPullRequests,
+                copy.enable_bitbucket_comment.clone(),
+                false,
+            ),
+            (
+                Capability::ReviewBitbucketPullRequests,
+                copy.enable_bitbucket_review.clone(),
+                false,
+            ),
+            (
+                Capability::MergeBitbucketPullRequests,
+                copy.enable_bitbucket_merge.clone(),
+                false,
+            ),
+            (
+                Capability::DeclineBitbucketPullRequests,
+                copy.enable_bitbucket_decline.clone(),
+                false,
+            ),
+        ],
+    )?;
+    disable_dependent_bitbucket_capabilities(&mut capabilities);
     Ok(capabilities)
 }
 
-#[cfg(feature = "jira")]
-fn choose_jira_read_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_and_record(
-        capabilities,
-        &copy.enable_hours,
-        Capability::ReadOwnTimeEntries,
-        allowed,
-        true,
-    )?;
-    choose_and_record(
-        capabilities,
-        &copy.enable_issue_read,
-        Capability::ReadJiraIssues,
-        allowed,
-        true,
-    )
-}
-
-#[cfg(feature = "jira")]
-fn choose_jira_write_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_hours_write_capability(copy, allowed, capabilities)?;
-    choose_jira_issue_write_capabilities(copy, allowed, capabilities)
-}
-
-#[cfg(feature = "jira")]
-fn choose_hours_write_capability(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    if capabilities.contains(&Capability::ReadOwnTimeEntries) {
-        return choose_and_record(
-            capabilities,
-            &copy.enable_hours_write,
-            Capability::WriteOwnTimeEntries,
-            allowed,
-            false,
-        );
-    }
-    Ok(())
-}
-
-#[cfg(feature = "jira")]
-fn choose_jira_issue_write_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    let options = [
-        (&copy.enable_issue_edit, Capability::EditJiraIssues),
-        (&copy.enable_issue_comment, Capability::CommentJiraIssues),
-        (
-            &copy.enable_issue_transition,
-            Capability::TransitionJiraIssues,
-        ),
-    ];
-    for (label, capability) in options {
-        choose_and_record(capabilities, label, capability, allowed, false)?;
-    }
-    Ok(())
-}
-
-#[cfg(feature = "bitbucket")]
-fn choose_bitbucket_content_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_bitbucket_read_capability(copy, allowed, capabilities)?;
-    choose_bitbucket_change_capabilities(copy, allowed, capabilities)
-}
-
-#[cfg(feature = "bitbucket")]
-fn choose_bitbucket_read_capability(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_read,
-        Capability::ReadBitbucketPullRequests,
-        allowed,
-        true,
-    )
-}
-
-#[cfg(feature = "bitbucket")]
-fn choose_bitbucket_change_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_create,
-        Capability::CreateBitbucketPullRequests,
-        allowed,
-        false,
-    )?;
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_edit,
-        Capability::EditBitbucketPullRequests,
-        allowed,
-        false,
-    )?;
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_comment,
-        Capability::CommentBitbucketPullRequests,
-        allowed,
-        false,
-    )
-}
-
-#[cfg(feature = "bitbucket")]
-fn choose_bitbucket_review_capabilities(
-    copy: &tui_copy::TuiCopy,
-    allowed: Option<&BTreeSet<Capability>>,
-    capabilities: &mut BTreeSet<Capability>,
-) -> Result<(), CliError> {
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_review,
-        Capability::ReviewBitbucketPullRequests,
-        allowed,
-        false,
-    )?;
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_merge,
-        Capability::MergeBitbucketPullRequests,
-        allowed,
-        false,
-    )?;
-    choose_and_record(
-        capabilities,
-        &copy.enable_bitbucket_decline,
-        Capability::DeclineBitbucketPullRequests,
-        allowed,
-        false,
-    )
-}
-
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn choose_and_record(
-    capabilities: &mut BTreeSet<Capability>,
-    label: &str,
-    capability: Capability,
+fn select_capabilities(
+    title: &str,
     allowed: Option<&BTreeSet<Capability>>,
-    enabled_by_default: bool,
-) -> Result<(), CliError> {
-    let enabled = choose_capability(label, capability, allowed, enabled_by_default)?;
-    record_capability(capabilities, capability, enabled);
-    Ok(())
-}
-
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn choose_capability(
-    label: &str,
-    capability: Capability,
-    allowed: Option<&BTreeSet<Capability>>,
-    enabled_by_default: bool,
-) -> Result<bool, CliError> {
-    if !capability_available(allowed, capability) {
-        return Ok(false);
-    }
-    if enabled_by_default {
-        return confirm_yes(label);
-    }
-    confirm(label)
+    options: Vec<(Capability, String, bool)>,
+) -> Result<BTreeSet<Capability>, CliError> {
+    let available = options
+        .into_iter()
+        .filter(|(capability, _, _)| capability_available(allowed, *capability))
+        .collect::<Vec<_>>();
+    let labels = available
+        .iter()
+        .map(|(_, label, _)| label.clone())
+        .collect::<Vec<_>>();
+    let defaults = available
+        .iter()
+        .map(|(_, _, enabled)| *enabled)
+        .collect::<Vec<_>>();
+    let selected = choose_many(title, &labels, defaults).map_err(|error| terminal_error(&error))?;
+    Ok(available
+        .into_iter()
+        .zip(selected)
+        .filter_map(|((capability, _, _), enabled)| enabled.then_some(capability))
+        .collect())
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -1712,14 +1646,28 @@ fn capability_available(allowed: Option<&BTreeSet<Capability>>, capability: Capa
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn record_capability(
-    capabilities: &mut BTreeSet<Capability>,
-    capability: Capability,
-    enabled: bool,
-) {
-    if enabled {
-        capabilities.insert(capability);
+fn disable_dependent_jira_capabilities(capabilities: &mut BTreeSet<Capability>) {
+    if !capabilities.contains(&Capability::ReadOwnTimeEntries) {
+        capabilities.remove(&Capability::WriteOwnTimeEntries);
     }
+    if !capabilities.contains(&Capability::ReadJiraIssues) {
+        capabilities.remove(&Capability::EditJiraIssues);
+        capabilities.remove(&Capability::CommentJiraIssues);
+        capabilities.remove(&Capability::TransitionJiraIssues);
+    }
+}
+
+#[cfg(feature = "bitbucket")]
+fn disable_dependent_bitbucket_capabilities(capabilities: &mut BTreeSet<Capability>) {
+    if capabilities.contains(&Capability::ReadBitbucketPullRequests) {
+        return;
+    }
+    capabilities.remove(&Capability::CreateBitbucketPullRequests);
+    capabilities.remove(&Capability::EditBitbucketPullRequests);
+    capabilities.remove(&Capability::CommentBitbucketPullRequests);
+    capabilities.remove(&Capability::ReviewBitbucketPullRequests);
+    capabilities.remove(&Capability::MergeBitbucketPullRequests);
+    capabilities.remove(&Capability::DeclineBitbucketPullRequests);
 }
 
 #[cfg(all(any(windows, target_os = "linux"), feature = "jira"))]
@@ -2399,7 +2347,7 @@ fn configure_clients() -> Result<(), CliError> {
         &options,
         vec![false; candidates.len()],
     )
-    .map_err(|error| message(error.to_string()))?;
+    .map_err(|error| terminal_error(&error))?;
     register_selected_clients(&registration, &server, &candidates, &selected)
 }
 
@@ -2438,7 +2386,7 @@ fn apply_selected_client(
 ) -> Result<(), CliError> {
     let options = clients.iter().map(client_status_option).collect::<Vec<_>>();
     let selected =
-        choose(&tui_copy().clients_title, &options).map_err(|error| message(error.to_string()))?;
+        choose(&tui_copy().clients_title, &options).map_err(|error| terminal_error(&error))?;
     let status = clients
         .get(selected)
         .ok_or_else(|| message(tui_copy().invalid_client_selection.clone()))?;
@@ -2610,7 +2558,7 @@ fn install_current_server() -> Result<std::path::PathBuf, CliError> {
 }
 
 fn prompt(label: &str, default: Option<&str>) -> Result<String, CliError> {
-    let input = read_text(label, default, false).map_err(|error| message(error.to_string()))?;
+    let input = read_text(label, default, false).map_err(|error| terminal_error(&error))?;
     let value = input.trim();
     match (value.is_empty(), default) {
         (true, Some(value)) => Ok(value.to_owned()),
@@ -2644,16 +2592,11 @@ fn read_provider_token(
         );
         return Ok(token);
     }
-    read_text(&tui_copy().token_prompt, None, true).map_err(|error| message(error.to_string()))
+    read_text(&tui_copy().token_prompt, None, true).map_err(|error| terminal_error(&error))
 }
 
 fn confirm(label: &str) -> Result<bool, CliError> {
-    tui_confirm(label, false).map_err(|error| message(error.to_string()))
-}
-
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn confirm_yes(label: &str) -> Result<bool, CliError> {
-    tui_confirm(label, true).map_err(|error| message(error.to_string()))
+    tui_confirm(label, false).map_err(|error| terminal_error(&error))
 }
 
 fn print_setup_header() {
@@ -2682,6 +2625,13 @@ fn message(value: impl Into<String>) -> CliError {
     CliError::Message(value.into())
 }
 
+fn terminal_error(error: &std::io::Error) -> CliError {
+    if error.kind() == std::io::ErrorKind::Interrupted {
+        return CliError::Cancelled;
+    }
+    message(error.to_string())
+}
+
 #[cfg(all(test, any(feature = "jira", feature = "bitbucket")))]
 fn organization_profile_fixture() -> OrganizationProfile {
     OrganizationProfile::from_json(include_str!("../../../config/example.organization.json"))
@@ -2703,6 +2653,14 @@ mod command_tests {
     fn menu_selection_wraps_at_both_ends() {
         assert_eq!(terminal_ui::move_selection(0, -1, 6), 5);
         assert_eq!(terminal_ui::move_selection(5, 1, 6), 0);
+    }
+
+    #[test]
+    fn terminal_cancellation_is_preserved_for_the_menu() {
+        let interrupted = std::io::Error::from(std::io::ErrorKind::Interrupted);
+        let error = terminal_error(&interrupted);
+
+        assert!(matches!(error, CliError::Cancelled));
     }
 
     #[test]
