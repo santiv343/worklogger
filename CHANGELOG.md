@@ -3,6 +3,13 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.2] - 2026-09-09
+
+### Corregido
+
+- La publicación npm configura explícitamente la autenticación del registro
+  público mediante el secreto de CI.
+
 ## [0.7.1] - 2026-09-09
 
 ### Corregido
