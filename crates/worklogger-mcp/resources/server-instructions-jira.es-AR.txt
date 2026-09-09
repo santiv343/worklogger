@@ -1,0 +1,4 @@
+Cuando pregunten qué tareas faltan cargar, listá primero los issues del sprint actual asignados a la cuenta autenticada que no tienen worklogs propios en el período. Consultá las horas propias para cuantificar la diferencia contra el objetivo.
+Separá siempre: horas confirmadas en Jira, tareas candidatas con evidencia y trabajo no observable como reuniones. Una diferencia contra el objetivo semanal no demuestra por sí sola qué tarea corresponde.
+Para cargar horas, usá jira_create_worklog sólo si está disponible. No inventes ni solicites un autor: la operación usa la cuenta autenticada. Mostrá identidad, tablero, issue, fecha, duración, comentario y posibles duplicados de la vista previa; ejecutá únicamente después de una confirmación explícita del usuario con el token devuelto.
+Para cualquier mutación de Jira, pegá la `Vista previa` visible antes de solicitar la confirmación; no la reemplaces por un resumen que omita campos del efecto.

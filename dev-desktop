@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly WORKSPACE_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly LOCAL_CONFIGURATION="${WORKSPACE_DIRECTORY}/config/worklogger.local.json"
+readonly DEVELOPMENT_MCP_EXECUTABLE="${WORKSPACE_DIRECTORY}/target/debug/worklogger-mcp"
+readonly WSLG_DIRECTORY="${WSLG_DIRECTORY:-/mnt/wslg}"
+readonly USER_BIN_DIRECTORY="${XDG_BIN_HOME:-${HOME}/.local/bin}"
+DX_EXECUTABLE="${DX_EXECUTABLE:-$(command -v dx || true)}"
+
+if [[ -z "${DX_EXECUTABLE}" ]]; then
+    DX_EXECUTABLE="${USER_BIN_DIRECTORY}/dx"
+fi
+
+if [[ ! -x "${DX_EXECUTABLE}" ]]; then
+    echo "No se encontró Dioxus CLI. Instalá dx 0.7.9 antes de continuar." >&2
+    exit 1
+fi
+
+if [[ ! -S "${WSLG_DIRECTORY}/runtime-dir/wayland-0" ]]; then
+    echo "WSLg no está disponible en esta distribución." >&2
+    exit 1
+fi
+
+export DISPLAY="${WSLG_DISPLAY:-:0}"
+export WAYLAND_DISPLAY="${WSLG_WAYLAND_DISPLAY:-wayland-0}"
+export XDG_RUNTIME_DIR="${WSLG_RUNTIME_DIRECTORY:-${WSLG_DIRECTORY}/runtime-dir}"
+export PULSE_SERVER="${PULSE_SERVER:-unix:${WSLG_DIRECTORY}/PulseServer}"
+export GDK_BACKEND="${WORKLOGGER_DESKTOP_GDK_BACKEND:-wayland}"
+export LIBGL_ALWAYS_SOFTWARE="${WORKLOGGER_DESKTOP_SOFTWARE_RENDERING:-1}"
+export WEBKIT_DISABLE_COMPOSITING_MODE="${WORKLOGGER_DESKTOP_DISABLE_COMPOSITING:-1}"
+if [[ "${WORKLOGGER_CLEAN_START:-0}" == "1" ]]; then
+    unset WORKLOGGER_CONFIG
+    unset WORKLOGGER_DEVELOPMENT_CONFIG_DIRECTORY
+else
+    if [[ -z "${WORKLOGGER_CONFIG:-}" && -f "${LOCAL_CONFIGURATION}" ]]; then
+        export WORKLOGGER_CONFIG="${LOCAL_CONFIGURATION}"
+    fi
+fi
+
+cd "${WORKSPACE_DIRECTORY}"
+cargo build --package worklogger-mcp --locked
+export WORKLOGGER_MCP_BINARY="${WORKLOGGER_MCP_BINARY:-${DEVELOPMENT_MCP_EXECUTABLE}}"
+exec "${DX_EXECUTABLE}" serve \
+    --desktop \
+    --package worklogger-desktop \
+    --no-default-features \
+    --features dev-desktop \
+    --wsl-file-poll-interval 1 \
+    --always-on-top "${WORKLOGGER_DESKTOP_ALWAYS_ON_TOP:-false}" \
+    --interactive false

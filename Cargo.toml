@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bitbucket-adapter",
+    "crates/hours-core",
+    "crates/jira-adapter",
+    "crates/worklogger-credentials",
+    "crates/worklogger-profile",
+    "crates/worklogger-mcp",
+    "desktop-app",
+]
+
+[workspace.package]
+version = "0.7.0"
+edition = "2024"
+rust-version = "1.88"
+license = "UNLICENSED"
+
+[workspace.dependencies]
+dioxus = { version = "=0.7.9", default-features = false, features = ["launch", "lib"] }
+futures-util = "0.3"
+reqwest = { version = "0.13", default-features = false, features = ["json", "system-proxy"] }
+rmcp = { version = "=3.2.0", default-features = false, features = ["macros", "server", "transport-io"] }
+schemars = "1"
+rpassword = "7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+time = { version = "=0.3.47", features = ["formatting", "macros", "parsing", "serde"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "deny"
+pedantic = "deny"

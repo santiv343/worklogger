@@ -1,0 +1,34 @@
+{
+  "name": "@santiv343/worklogger",
+  "version": "0.0.0",
+  "description": "Interactive installer for the standalone Worklogger MCP server",
+  "type": "module",
+  "bin": {
+    "worklogger": "index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "arguments.mjs",
+    "platform.mjs",
+    "bin/linux-x64/worklogger-mcp",
+    "bin/windows-x64/worklogger-mcp.exe",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/santiv343/worklogger-community.git",
+    "directory": "packages/setup"
+  },
+  "license": "MIT"
+}

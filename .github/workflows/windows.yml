@@ -1,0 +1,194 @@
+name: Worklogger distribution
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  DIOXUS_CLI_VERSION: 0.7.9
+  DIOXUS_CLI_WINDOWS_URL: https://github.com/DioxusLabs/dioxus/releases/download/v0.7.9/dx-x86_64-pc-windows-msvc.zip
+  DIOXUS_CLI_WINDOWS_SHA256: 0423b94dd36372d09936a9a288c4a6e7903a9f1bddd193b60bba9659890c87c4
+  DISTRIBUTION_REQUESTED: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.88.0
+      - name: Restore Cargo cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/dx.exe
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: windows-${{ env.DIOXUS_CLI_VERSION }}-${{ hashFiles('Cargo.lock') }}
+      - name: Install verified Dioxus CLI
+        run: |
+          $installed = if (Get-Command dx -ErrorAction SilentlyContinue) { dx --version } else { '' }
+          if ($installed -notmatch [regex]::Escape($env:DIOXUS_CLI_VERSION)) {
+            $archive = Join-Path $env:RUNNER_TEMP 'dx.zip'
+            $directory = Join-Path $env:RUNNER_TEMP 'dx'
+            Invoke-WebRequest -Uri $env:DIOXUS_CLI_WINDOWS_URL -OutFile $archive
+            if ((Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant() -ne $env:DIOXUS_CLI_WINDOWS_SHA256) {
+              throw 'Dioxus CLI checksum mismatch'
+            }
+            Expand-Archive -Path $archive -DestinationPath $directory -Force
+            $binary = Get-ChildItem -Path $directory -Filter dx.exe -Recurse | Select-Object -First 1
+            New-Item -ItemType Directory -Force -Path ~/.cargo/bin | Out-Null
+            Copy-Item -Force $binary.FullName ~/.cargo/bin/dx.exe
+          }
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Verify Community
+        run: |
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test --workspace --locked
+      - name: Verify managed profile
+        env:
+          WORKLOGGER_DISTRIBUTION_PROFILE: ${{ github.workspace }}\config\example.organization.json
+        run: |
+          cargo clippy --workspace --all-targets --no-default-features --features 'hours reports mcp-jira mcp-bitbucket managed-distribution' --locked -- -D warnings
+          cargo test --workspace --no-default-features --features 'hours reports mcp-jira mcp-bitbucket managed-distribution' --locked
+      - name: Verify MCP bootstrap
+        working-directory: packages/setup
+        run: npm test
+      - name: Bundle Community
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        run: .\scripts\build-windows.ps1 -Edition Community -SkipChecks
+      - name: Checksum Windows MCP server
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        run: |
+          $binary = 'target\x86_64-pc-windows-msvc\release\worklogger-mcp.exe'
+          $checksum = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
+          "$checksum  worklogger-mcp.exe" | Set-Content -NoNewline -Encoding ascii "$binary.sha256"
+      - name: Upload Windows MCP server
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Worklogger-MCP-Windows-x64-${{ github.sha }}
+          path: |
+            target/x86_64-pc-windows-msvc/release/worklogger-mcp.exe
+            target/x86_64-pc-windows-msvc/release/worklogger-mcp.exe.sha256
+          if-no-files-found: error
+      - name: Upload Community installer
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Worklogger-Community-${{ github.sha }}
+          path: dist/Worklogger-Community-*-Setup.exe*
+          if-no-files-found: error
+      - name: Upload Community portable
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Worklogger-Community-Portable-${{ github.sha }}
+          path: dist/Worklogger-Community-*-Portable.zip*
+          if-no-files-found: error
+
+  verify_linux_mcp:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.88.0
+      - name: Restore Cargo cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: linux-mcp-${{ hashFiles('Cargo.lock') }}
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Verify Linux MCP
+        run: |
+          cargo clippy --package worklogger-mcp --all-targets --locked -- -D warnings
+          cargo test --package worklogger-mcp --locked
+      - name: Build Linux MCP
+        run: |
+          cargo build --package worklogger-mcp --release --locked
+          cd target/release
+          sha256sum worklogger-mcp > worklogger-mcp.sha256
+      - name: Read package version
+        id: metadata
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "worklogger-mcp") | .version')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Verify Linux bootstrap
+        working-directory: packages/setup
+        run: |
+          mkdir -p bin/linux-x64
+          cp ../../target/release/worklogger-mcp bin/linux-x64/worklogger-mcp
+          npm test
+          node index.mjs --help
+      - name: Upload Linux MCP server
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Worklogger-MCP-Linux-x64-${{ github.sha }}
+          path: |
+            target/release/worklogger-mcp
+            target/release/worklogger-mcp.sha256
+          if-no-files-found: error
+
+  publish_mcp:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [verify, verify_linux_mcp]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download Windows MCP server
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-MCP-Windows-x64-${{ github.sha }}
+          path: packages/setup/bin/windows-x64
+      - name: Download Linux MCP server
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-MCP-Linux-x64-${{ github.sha }}
+          path: packages/setup/bin/linux-x64
+      - name: Publish public MCP bootstrap
+        working-directory: packages/setup
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          WORKLOGGER_VERSION: ${{ needs.verify_linux_mcp.outputs.version }}
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$WORKLOGGER_VERSION"
+          (cd bin/windows-x64 && sha256sum -c worklogger-mcp.exe.sha256)
+          (cd bin/linux-x64 && sha256sum -c worklogger-mcp.sha256)
+          npm test
+          node index.mjs --help
+          expected=$(jq -r '.files[] | select(startswith("bin/"))' package.json | sort)
+          actual=$(npm pack --dry-run --json | jq -r '.[0].files[].path | select(startswith("bin/"))' | sort)
+          test "$actual" = "$expected"
+          npm version "$WORKLOGGER_VERSION" --no-git-tag-version --allow-same-version
+          npm publish --access public

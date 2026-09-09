@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "jira": {
+    "baseUrl": "https://example.atlassian.net",
+    "email": "person@example.com",
+    "boardId": 42,
+    "requestTimeoutSeconds": 30,
+    "pageSize": 100,
+    "maximumCollectionItems": 2000,
+    "maximumIssueSearchResults": 1000,
+    "hours": {
+      "weeklyTargetHours": 40,
+      "utcOffsetMinutes": 0,
+      "maximumConcurrentWorklogRequests": 8
+    }
+  },
+  "bitbucket": {
+    "email": "person@example.com",
+    "workspaces": {
+      "example-workspace": ["example-repository"]
+    },
+    "requestTimeoutSeconds": 30,
+    "pageSize": 50,
+    "maximumCollectionItems": 1000
+  },
+  "modules": {
+    "jira": {
+      "enabled": true,
+      "capabilities": [
+        "jira.issue.read",
+        "jira.issue.edit",
+        "jira.issue.comment",
+        "jira.issue.transition",
+        "jira.hours.read.self",
+        "jira.hours.write.self"
+      ]
+    },
+    "bitbucket": {
+      "enabled": true,
+      "capabilities": [
+        "bitbucket.pr.read",
+        "bitbucket.pr.create",
+        "bitbucket.pr.edit",
+        "bitbucket.pr.comment",
+        "bitbucket.pr.review"
+      ]
+    }
+  }
+}

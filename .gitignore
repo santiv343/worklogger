@@ -1,0 +1,8 @@
+/target/
+/dist/
+/packages/setup/bin/
+/config/*
+!/config/example.organization.json
+!/config/example.mcp.json
+*.pdb
+/desktop-app/Dioxus.toml

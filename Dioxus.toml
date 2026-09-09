@@ -1,0 +1,13 @@
+[application]
+name = "Worklogger"
+
+[bundle]
+identifier = "com.worklogger.desktop"
+publisher = "Worklogger"
+category = "Productivity"
+short_description = "Herramientas de escritorio para los flujos de trabajo del equipo."
+long_description = "Worklogger integra capacidades opcionales para consultar y administrar horas propias en Jira."
+external_bin = ["target/worklogger-sidecars/worklogger-mcp"]
+
+[bundle.windows.webview_install_mode.EmbedBootstrapper]
+silent = true

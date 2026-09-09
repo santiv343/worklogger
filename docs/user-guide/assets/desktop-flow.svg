@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
+  <title id="title">Flujo de uso de Worklogger Desktop</title>
+  <desc id="description">Cinco pasos: abrir Worklogger, conectar Jira, elegir tablero, cargar horas y consultar reportes.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#f4f7ff"/>
+      <stop offset="1" stop-color="#eefbf7"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#1b2c4f" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="url(#background)"/>
+  <text x="60" y="66" fill="#182b49" font-family="Arial, sans-serif" font-size="29" font-weight="700">Tu recorrido en Worklogger Desktop</text>
+  <text x="60" y="98" fill="#52647d" font-family="Arial, sans-serif" font-size="17">Conectá una vez y después registrá tu trabajo en pocos pasos.</text>
+  <g font-family="Arial, sans-serif">
+    <path d="M252 204H287M469 204H504M686 204H721M903 204H938" stroke="#70a3e9" stroke-width="4" stroke-linecap="round"/>
+    <g filter="url(#shadow)">
+      <rect x="55" y="137" width="197" height="136" rx="18" fill="#ffffff"/>
+      <rect x="272" y="137" width="197" height="136" rx="18" fill="#ffffff"/>
+      <rect x="489" y="137" width="197" height="136" rx="18" fill="#ffffff"/>
+      <rect x="706" y="137" width="197" height="136" rx="18" fill="#ffffff"/>
+      <rect x="923" y="137" width="222" height="136" rx="18" fill="#ffffff"/>
+    </g>
+    <g font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">
+      <circle cx="88" cy="166" r="17" fill="#2d6cdf"/><text x="88" y="171">1</text>
+      <circle cx="305" cy="166" r="17" fill="#2d6cdf"/><text x="305" y="171">2</text>
+      <circle cx="522" cy="166" r="17" fill="#2d6cdf"/><text x="522" y="171">3</text>
+      <circle cx="739" cy="166" r="17" fill="#2d6cdf"/><text x="739" y="171">4</text>
+      <circle cx="956" cy="166" r="17" fill="#2d6cdf"/><text x="956" y="171">5</text>
+    </g>
+    <g fill="#182b49" font-size="18" font-weight="700">
+      <text x="80" y="206">Abrí</text><text x="80" y="230">Worklogger</text>
+      <text x="297" y="206">Conectá</text><text x="297" y="230">Jira</text>
+      <text x="514" y="206">Elegí tu</text><text x="514" y="230">tablero</text>
+      <text x="731" y="206">Cargá tus</text><text x="731" y="230">horas</text>
+      <text x="948" y="206">Consultá</text><text x="948" y="230">reportes</text>
+    </g>
+    <g fill="#5d6e85" font-size="13">
+      <text x="80" y="253">Desktop</text><text x="297" y="253">Cuenta verificada</text><text x="514" y="253">Ámbito seguro</text><text x="731" y="253">Con revisión</text><text x="948" y="253">Exportables</text>
+    </g>
+  </g>
+</svg>

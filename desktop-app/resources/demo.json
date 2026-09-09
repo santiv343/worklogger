@@ -1,0 +1,14 @@
+{
+  "jiraBrowseUrl": "https://example.atlassian.net/browse",
+  "weeklyTargetHours": 30,
+  "worklogStartHour": 12,
+  "defaultComment": "Trabajo realizado durante la jornada",
+  "personalAccount": "demo-current-user",
+  "personalWorklogs": [
+    { "issue": "DEMO-101", "summary": "Ajustar flujo de facturación", "dayOffset": 0, "minutes": 240 },
+    { "issue": "DEMO-101", "summary": "Ajustar flujo de facturación", "dayOffset": 1, "minutes": 180 },
+    { "issue": "DEMO-112", "summary": "Validar reglas del cierre semanal", "dayOffset": 2, "minutes": 360 },
+    { "issue": "DEMO-121", "summary": "Corregir conciliación de órdenes", "dayOffset": 3, "minutes": 270 },
+    { "issue": "DEMO-126", "summary": "Revisión técnica y pruebas", "dayOffset": 4, "minutes": 240 }
+  ]
+}

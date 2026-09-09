@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "branding": {
+    "companyName": "Example Company",
+    "logoUrl": null,
+    "primaryColor": "#3157D5",
+    "textColor": "#20242C",
+    "mutedColor": "#667085",
+    "surfaceColor": "#F4F7FF",
+    "borderColor": "#D9E0F0",
+    "chartPalette": ["#3157D5", "#17A673", "#F0A04B", "#775DA6", "#2F7D8C", "#8B9A46"]
+  },
+  "jira": {
+    "sites": [
+      {
+        "name": "Company Jira",
+        "url": "https://example.atlassian.net"
+      }
+    ],
+    "requestTimeoutSeconds": 30,
+    "pageSize": 100,
+    "maximumCollectionItems": 2000,
+    "maximumIssueSearchResults": 20,
+    "maximumConcurrentWorklogRequests": 8,
+    "maximumAllowedRequestTimeoutSeconds": 120,
+    "maximumAllowedPageSize": 100,
+    "maximumAllowedCollectionItems": 100000,
+    "maximumAllowedIssueSearchResults": 1000,
+    "maximumAllowedConcurrentWorklogRequests": 32
+  },
+  "hours": {
+    "minimumWeeklyTargetHours": 1,
+    "maximumWeeklyTargetHours": 168,
+    "suggestedWeeklyTargetHours": 40,
+    "maximumDailyHours": 24,
+    "defaultWorklogStartHour": 9,
+    "defaultWorklogStartMinute": 0,
+    "defaultDurationMinutes": 60,
+    "maximumCustomRangeDays": 31,
+    "suggestedUtcOffsetMinutes": 0,
+    "utcOffsetOptions": [
+      { "minutes": 60, "label": "UTC+01:00" },
+      { "minutes": -180, "label": "UTC−03:00" },
+      { "minutes": -240, "label": "UTC−04:00" },
+      { "minutes": -300, "label": "UTC−05:00" },
+      { "minutes": 0, "label": "UTC±00:00" }
+    ]
+  },
+  "reports": {
+    "pdfExportEnabled": true,
+    "teamReportAccessPolicy": "projectAdmin",
+    "maximumTaskSlices": 6,
+    "maximumTrendLabels": 7,
+    "maximumTeamChartMembers": 10,
+    "tablePageSize": 10
+  }
+}
