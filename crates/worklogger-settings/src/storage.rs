@@ -148,6 +148,13 @@ fn write_document(path: &Path, document: &SettingsDocument) -> Result<(), Settin
     Ok(())
 }
 
+#[cfg_attr(
+    not(unix),
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "the Windows implementation matches the fallible Unix permission contract"
+    )
+)]
 fn restrict_file_permissions(file: &File) -> Result<(), SettingsError> {
     #[cfg(unix)]
     {
@@ -159,6 +166,13 @@ fn restrict_file_permissions(file: &File) -> Result<(), SettingsError> {
     Ok(())
 }
 
+#[cfg_attr(
+    not(unix),
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "the Windows implementation matches the fallible Unix permission contract"
+    )
+)]
 fn restrict_atomic_permissions(file: &AtomicWriteFile) -> Result<(), SettingsError> {
     #[cfg(unix)]
     {
