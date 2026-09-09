@@ -3,6 +3,13 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.3] - 2026-09-09
+
+### Cambiado
+
+- El menú interactivo ahora usa una TUI con paneles, colores, navegación por
+  teclado y selección mediante mouse.
+
 ## [0.7.2] - 2026-09-09
 
 ### Corregido

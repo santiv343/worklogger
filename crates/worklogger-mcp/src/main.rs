@@ -45,9 +45,11 @@ use worklogger_profile::OrganizationProfile;
 use worklogger_profile::OrganizationProfileStore;
 
 mod skill_installation;
+mod terminal_ui;
 mod tui_copy;
 
 use skill_installation::AgentSkillInstaller;
+use terminal_ui::{Dashboard, choose_dashboard};
 use tui_copy::tui_copy;
 
 const EMBEDDED_ORGANIZATION_PROFILE: &str = include_str!(concat!(
@@ -130,13 +132,6 @@ enum MenuAction {
     Exit,
 }
 
-const MENU_CONFIGURE_SELECTION: &str = "1";
-const MENU_CLIENTS_SELECTION: &str = "2";
-const MENU_REFRESH_SELECTION: &str = "3";
-const MENU_SKILLS_SELECTION: &str = "4";
-const MENU_UNINSTALL_SELECTION: &str = "5";
-const MENU_EXIT_SELECTION: &str = "0";
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StatusDocument {
@@ -199,7 +194,6 @@ fn parse_command(mut arguments: impl Iterator<Item = String>) -> Result<Command,
 
 async fn menu() -> Result<(), CliError> {
     loop {
-        print_menu()?;
         match choose_menu_action()? {
             MenuAction::Configure => setup(None).await?,
             MenuAction::Clients => manage_clients()?,
@@ -211,36 +205,43 @@ async fn menu() -> Result<(), CliError> {
     }
 }
 
-fn print_menu() -> Result<(), CliError> {
-    let copy = tui_copy();
-    println!("\n{}", copy.menu_title);
-    println!("{}", copy.menu_separator);
-    print_menu_overview()?;
-    print_menu_options();
-    Ok(())
+fn choose_menu_action() -> Result<MenuAction, CliError> {
+    let dashboard = menu_dashboard()?;
+    let selected = choose_dashboard(&dashboard).map_err(|error| message(error.to_string()))?;
+    Ok(menu_action_from_index(selected))
 }
 
-fn print_menu_overview() -> Result<(), CliError> {
+fn menu_dashboard() -> Result<Dashboard, CliError> {
     let store = ConfigurationStore::for_current_user()?;
     let configuration = effective_configuration(store.load()?)?;
     let document = status_document(&store, configuration.as_ref());
     let server = installed_server_path()?;
-    print_menu_configuration(&document, &server);
-    print_menu_clients(&document.clients);
-    Ok(())
+    Ok(Dashboard::new(
+        tui_copy().menu_title.clone(),
+        menu_overview(&document, &server),
+        menu_actions(),
+        tui_copy().tui_navigation_hint.clone(),
+        document.configured,
+        server.exists(),
+    ))
 }
 
-fn print_menu_configuration(document: &StatusDocument, server: &Path) {
+fn menu_overview(document: &StatusDocument, server: &Path) -> Vec<String> {
     let copy = tui_copy();
     let state = if document.configured {
         &copy.state_configured
     } else {
         &copy.state_not_configured
     };
-    println!("{}: {state}", copy.configuration_label);
-    println!("{}: {}", copy.modules_label, menu_modules(document));
-    println!("{}: {}", copy.server_label, server.display());
-    println!("{}: {}", copy.server_state_label, yes_no(server.exists()));
+    let mut lines = vec![
+        format!("{}: {state}", copy.configuration_label),
+        format!("{}: {}", copy.modules_label, menu_modules(document)),
+        format!("{}: {}", copy.server_label, server.display()),
+        format!("{}: {}", copy.server_state_label, yes_no(server.exists())),
+        format!("{}:", copy.clients_label),
+    ];
+    lines.extend(menu_client_lines(&document.clients));
+    lines
 }
 
 fn menu_modules(document: &StatusDocument) -> String {
@@ -257,45 +258,40 @@ fn yes_no(value: bool) -> &'static str {
     &tui_copy().no
 }
 
-fn print_menu_clients(clients: &[ClientStatusDocument]) {
-    println!("{}:", tui_copy().clients_label);
-    for client in clients {
-        println!(
-            "  • {} · {} · {}",
-            client.name,
-            registration_state_label(client.state),
-            client.target
-        );
-    }
+fn menu_client_lines(clients: &[ClientStatusDocument]) -> Vec<String> {
+    clients
+        .iter()
+        .map(|client| {
+            format!(
+                "  • {} · {} · {}",
+                client.name,
+                registration_state_label(client.state),
+                client.target
+            )
+        })
+        .collect()
 }
 
-fn print_menu_options() {
+fn menu_actions() -> Vec<String> {
     let copy = tui_copy();
-    println!("\n{}", copy.menu_actions_title);
-    println!(
-        "  {MENU_CONFIGURE_SELECTION}) {}",
-        copy.menu_configure_action
-    );
-    println!("  {MENU_CLIENTS_SELECTION}) {}", copy.menu_clients_action);
-    println!("  {MENU_REFRESH_SELECTION}) {}", copy.menu_refresh_action);
-    println!("  {MENU_SKILLS_SELECTION}) {}", copy.menu_skills_action);
-    println!(
-        "  {MENU_UNINSTALL_SELECTION}) {}",
-        copy.menu_uninstall_action
-    );
-    println!("  {MENU_EXIT_SELECTION}) {}", copy.menu_exit_action);
+    vec![
+        copy.menu_configure_action.clone(),
+        copy.menu_clients_action.clone(),
+        copy.menu_refresh_action.clone(),
+        copy.menu_skills_action.clone(),
+        copy.menu_uninstall_action.clone(),
+        copy.menu_exit_action.clone(),
+    ]
 }
 
-fn choose_menu_action() -> Result<MenuAction, CliError> {
-    let selection = prompt(&tui_copy().choose_number, Some(MENU_EXIT_SELECTION))?;
-    match selection.as_str() {
-        MENU_CONFIGURE_SELECTION => Ok(MenuAction::Configure),
-        MENU_CLIENTS_SELECTION => Ok(MenuAction::Clients),
-        MENU_REFRESH_SELECTION => Ok(MenuAction::Refresh),
-        MENU_SKILLS_SELECTION => Ok(MenuAction::Skills),
-        MENU_UNINSTALL_SELECTION => Ok(MenuAction::Uninstall),
-        MENU_EXIT_SELECTION => Ok(MenuAction::Exit),
-        _ => Err(message(&tui_copy().invalid_menu_selection)),
+fn menu_action_from_index(index: usize) -> MenuAction {
+    match index {
+        0 => MenuAction::Configure,
+        1 => MenuAction::Clients,
+        2 => MenuAction::Refresh,
+        3 => MenuAction::Skills,
+        4 => MenuAction::Uninstall,
+        _ => MenuAction::Exit,
     }
 }
 
@@ -2797,6 +2793,12 @@ mod command_tests {
         let command = parse_command(std::iter::empty()).expect("empty arguments are valid");
 
         assert_eq!(command, Command::Menu);
+    }
+
+    #[test]
+    fn menu_selection_wraps_at_both_ends() {
+        assert_eq!(terminal_ui::move_selection(0, -1, 6), 5);
+        assert_eq!(terminal_ui::move_selection(5, 1, 6), 0);
     }
 
     #[test]

@@ -11,14 +11,16 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.2"
+version = "0.7.3"
 edition = "2024"
 rust-version = "1.88"
 license = "UNLICENSED"
 
 [workspace.dependencies]
+crossterm = "=0.29.0"
 dioxus = { version = "=0.7.9", default-features = false, features = ["launch", "lib"] }
 futures-util = "0.3"
+ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "system-proxy"] }
 rmcp = { version = "=3.2.0", default-features = false, features = ["macros", "server", "transport-io"] }
 schemars = "1"

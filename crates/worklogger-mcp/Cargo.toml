@@ -17,11 +17,13 @@ managed-distribution = []
 
 [dependencies]
 atomic-write-file = "0.3"
+crossterm.workspace = true
 bitbucket-adapter = { path = "../bitbucket-adapter", optional = true }
 hours-core = { path = "../hours-core", optional = true }
 jira-adapter = { path = "../jira-adapter", optional = true }
 rmcp.workspace = true
 rpassword.workspace = true
+ratatui.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
