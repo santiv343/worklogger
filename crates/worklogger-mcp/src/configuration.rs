@@ -47,6 +47,8 @@ pub struct JiraConfiguration {
 pub struct JiraHoursConfiguration {
     pub weekly_target_hours: u16,
     pub utc_offset_minutes: i16,
+    #[serde(default = "default_maximum_daily_hours")]
+    pub maximum_daily_hours: u8,
     pub maximum_concurrent_worklog_requests: usize,
 }
 
@@ -699,16 +701,26 @@ fn validate_jira(jira: &JiraConfiguration) -> Result<(), ConfigurationError> {
 }
 
 fn validate_jira_hours(hours: &JiraHoursConfiguration) -> Result<(), ConfigurationError> {
-    if hours.weekly_target_hours == 0 || hours.maximum_concurrent_worklog_requests == 0 {
+    if hours.weekly_target_hours == 0
+        || hours.maximum_daily_hours == 0
+        || hours.maximum_concurrent_worklog_requests == 0
+    {
         return Err(invalid_jira("hours limits"));
     }
     if hours.weekly_target_hours > MAXIMUM_WEEKLY_HOURS {
         return Err(invalid_jira("weeklyTargetHours"));
     }
+    if hours.maximum_daily_hours > 24 {
+        return Err(invalid_jira("maximumDailyHours"));
+    }
     if hours.utc_offset_minutes.abs() > MAXIMUM_UTC_OFFSET_MINUTES {
         return Err(invalid_jira("utcOffsetMinutes"));
     }
     Ok(())
+}
+
+const fn default_maximum_daily_hours() -> u8 {
+    24
 }
 
 fn validate_bitbucket(

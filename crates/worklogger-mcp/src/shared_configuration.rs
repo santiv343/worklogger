@@ -110,6 +110,7 @@ fn project_hours(document: &SettingsDocument) -> Option<JiraHoursConfiguration> 
     Some(JiraHoursConfiguration {
         weekly_target_hours: hours.weekly_target_hours?,
         utc_offset_minutes: hours.utc_offset_minutes?,
+        maximum_daily_hours: hours.maximum_daily_hours.unwrap_or(24),
         maximum_concurrent_worklog_requests: document
             .jira
             .as_ref()?
@@ -185,4 +186,5 @@ fn update_hours(document: &mut SettingsDocument, hours: Option<&JiraHoursConfigu
     let current = document.hours.get_or_insert_with(Default::default);
     current.weekly_target_hours = Some(hours.weekly_target_hours);
     current.utc_offset_minutes = Some(hours.utc_offset_minutes);
+    current.maximum_daily_hours = Some(hours.maximum_daily_hours);
 }

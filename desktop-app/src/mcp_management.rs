@@ -475,6 +475,7 @@ fn jira_hours_configuration(application: &ConnectionConfiguration) -> JiraHoursC
     JiraHoursConfiguration {
         weekly_target_hours: application.hours.weekly_target_hours,
         utc_offset_minutes: application.hours.utc_offset_minutes,
+        maximum_daily_hours: application.hours.maximum_daily_hours,
         maximum_concurrent_worklog_requests: application.jira.maximum_concurrent_worklog_requests,
     }
 }
@@ -496,6 +497,7 @@ fn jira_configuration_from_request(
         hours: Some(JiraHoursConfiguration {
             weekly_target_hours,
             utc_offset_minutes: request.utc_offset_minutes,
+            maximum_daily_hours: request.maximum_daily_hours,
             maximum_concurrent_worklog_requests: request.maximum_concurrent_worklog_requests,
         }),
     })

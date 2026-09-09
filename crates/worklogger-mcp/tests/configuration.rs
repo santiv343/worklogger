@@ -498,6 +498,7 @@ fn jira_configuration() -> JiraConfiguration {
         hours: Some(JiraHoursConfiguration {
             weekly_target_hours: 40,
             utc_offset_minutes: 0,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 8,
         }),
     }

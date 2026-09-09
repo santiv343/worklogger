@@ -1810,6 +1810,7 @@ const fn default_jira_hours() -> JiraHoursConfiguration {
     JiraHoursConfiguration {
         weekly_target_hours: DEFAULT_WEEKLY_TARGET_HOURS,
         utc_offset_minutes: DEFAULT_UTC_OFFSET_MINUTES,
+        maximum_daily_hours: 24,
         maximum_concurrent_worklog_requests: DEFAULT_MAXIMUM_CONCURRENT_REQUESTS,
     }
 }
@@ -1837,6 +1838,7 @@ fn prompt_jira_hours(
     let hours = JiraHoursConfiguration {
         weekly_target_hours,
         utc_offset_minutes,
+        maximum_daily_hours: defaults.maximum_daily_hours,
         maximum_concurrent_worklog_requests: defaults.maximum_concurrent_worklog_requests,
     };
     validate_prompted_hours(&hours, profile)?;
@@ -1915,6 +1917,7 @@ fn profile_jira_hours(profile: &JiraModuleProfile) -> Result<JiraHoursConfigurat
     Ok(JiraHoursConfiguration {
         weekly_target_hours,
         utc_offset_minutes: profile.hours.suggested_utc_offset_minutes,
+        maximum_daily_hours: 24,
         maximum_concurrent_worklog_requests: profile.maximum_concurrent_worklog_requests,
     })
 }
@@ -3268,6 +3271,7 @@ mod jira_setup_tests {
         let expected = JiraHoursConfiguration {
             weekly_target_hours: 30,
             utc_offset_minutes: -180,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 4,
         };
         let current = jira_setup_configuration(expected.clone());
@@ -3285,6 +3289,7 @@ mod jira_setup_tests {
         let current = jira_setup_configuration(JiraHoursConfiguration {
             weekly_target_hours: 30,
             utc_offset_minutes: 120,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 40,
         });
 

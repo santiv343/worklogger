@@ -618,6 +618,7 @@ fn update_shared_hours(
     let shared = document.hours.get_or_insert_with(HoursSettings::default);
     shared.weekly_target_hours = Some(hours.weekly_target_hours);
     shared.utc_offset_minutes = Some(hours.utc_offset_minutes);
+    shared.maximum_daily_hours = Some(hours.maximum_daily_hours);
 }
 
 fn update_shared_permissions(
@@ -679,6 +680,7 @@ fn from_shared(
             Some(JiraHoursConfiguration {
                 weekly_target_hours: hours.weekly_target_hours?,
                 utc_offset_minutes: hours.utc_offset_minutes?,
+                maximum_daily_hours: hours.maximum_daily_hours.unwrap_or(24),
                 maximum_concurrent_worklog_requests: jira.maximum_concurrent_worklog_requests?,
             })
         });
