@@ -3,6 +3,13 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.1] - 2026-09-09
+
+### Corregido
+
+- El paquete npm se valida y publica independientemente del instalador desktop.
+- El fixture de estado de Codex es portable entre shells Unix de CI.
+
 ## [0.7.0] - 2026-09-09
 
 ### Agregado

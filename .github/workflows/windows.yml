@@ -18,7 +18,7 @@ env:
   DISTRIBUTION_REQUESTED: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
 jobs:
-  verify:
+  verify_desktop:
     runs-on: windows-latest
     defaults:
       run:
@@ -73,21 +73,6 @@ jobs:
       - name: Bundle Community
         if: env.DISTRIBUTION_REQUESTED == 'true'
         run: .\scripts\build-windows.ps1 -Edition Community -SkipChecks
-      - name: Checksum Windows MCP server
-        if: env.DISTRIBUTION_REQUESTED == 'true'
-        run: |
-          $binary = 'target\x86_64-pc-windows-msvc\release\worklogger-mcp.exe'
-          $checksum = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
-          "$checksum  worklogger-mcp.exe" | Set-Content -NoNewline -Encoding ascii "$binary.sha256"
-      - name: Upload Windows MCP server
-        if: env.DISTRIBUTION_REQUESTED == 'true'
-        uses: actions/upload-artifact@v6
-        with:
-          name: Worklogger-MCP-Windows-x64-${{ github.sha }}
-          path: |
-            target/x86_64-pc-windows-msvc/release/worklogger-mcp.exe
-            target/x86_64-pc-windows-msvc/release/worklogger-mcp.exe.sha256
-          if-no-files-found: error
       - name: Upload Community installer
         if: env.DISTRIBUTION_REQUESTED == 'true'
         uses: actions/upload-artifact@v6
@@ -101,6 +86,52 @@ jobs:
         with:
           name: Worklogger-Community-Portable-${{ github.sha }}
           path: dist/Worklogger-Community-*-Portable.zip*
+          if-no-files-found: error
+
+  verify_windows_mcp:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.88.0
+      - name: Restore Cargo cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: windows-mcp-${{ hashFiles('Cargo.lock') }}
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Verify Windows MCP
+        run: |
+          cargo clippy --package worklogger-mcp --all-targets --locked -- -D warnings
+          cargo test --package worklogger-mcp --locked
+      - name: Verify MCP bootstrap
+        working-directory: packages/setup
+        run: npm test
+      - name: Build Windows MCP
+        run: |
+          cargo build --package worklogger-mcp --release --locked
+          $binary = 'target\release\worklogger-mcp.exe'
+          $checksum = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
+          "$checksum  worklogger-mcp.exe" | Set-Content -NoNewline -Encoding ascii 'target\release\worklogger-mcp.exe.sha256'
+      - name: Upload Windows MCP server
+        if: env.DISTRIBUTION_REQUESTED == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Worklogger-MCP-Windows-x64-${{ github.sha }}
+          path: |
+            target/release/worklogger-mcp.exe
+            target/release/worklogger-mcp.exe.sha256
           if-no-files-found: error
 
   verify_linux_mcp:
@@ -159,7 +190,7 @@ jobs:
 
   publish_mcp:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [verify, verify_linux_mcp]
+    needs: [verify_windows_mcp, verify_linux_mcp]
     runs-on: ubuntu-latest
     permissions:
       contents: read

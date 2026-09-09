@@ -366,7 +366,7 @@ fn create_fake_codex_status(path: &Path, server: &Path) {
             "args": [MCP_SERVER_SERVE_ARGUMENT]
         }
     }]);
-    let script = format!("#!/bin/sh\nprintf '%s\\n' '{output}'\n");
+    let script = format!("#!/bin/sh\ncat <<'JSON'\n{output}\nJSON\n");
     fs::write(path, script).expect("fake client is created");
 }
 
