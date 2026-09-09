@@ -1,6 +1,5 @@
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 use std::sync::Arc;
@@ -49,7 +48,9 @@ mod terminal_ui;
 mod tui_copy;
 
 use skill_installation::AgentSkillInstaller;
-use terminal_ui::{Dashboard, choose_dashboard};
+use terminal_ui::{
+    Dashboard, choose, choose_dashboard, choose_many, confirm as tui_confirm, read_text,
+};
 use tui_copy::tui_copy;
 
 const EMBEDDED_ORGANIZATION_PROFILE: &str = include_str!(concat!(
@@ -655,12 +656,10 @@ fn choose_setup_provider(profile: Option<&OrganizationProfile>) -> Result<SetupP
         _ => {}
     }
     let copy = tui_copy();
-    println!("\n{}", copy.provider_title);
-    println!("  1) {}", copy.provider_jira);
-    println!("  2) {}", copy.provider_bitbucket);
-    match prompt(&copy.choose_number, Some(&copy.default_selection))?.as_str() {
-        "1" => Ok(SetupProvider::Jira),
-        "2" => Ok(SetupProvider::Bitbucket),
+    let options = vec![copy.provider_jira.clone(), copy.provider_bitbucket.clone()];
+    match choose(&copy.provider_title, &options).map_err(|error| message(error.to_string()))? {
+        0 => Ok(SetupProvider::Jira),
+        1 => Ok(SetupProvider::Bitbucket),
         _ => Err(message(&copy.invalid_provider_selection)),
     }
 }
@@ -968,11 +967,12 @@ fn choose_jira_site(profile: Option<&JiraModuleProfile>) -> Result<String, CliEr
 fn choose_jira_profile_site(
     sites: &[worklogger_profile::JiraSiteProfile],
 ) -> Result<String, CliError> {
-    println!("\n{}", tui_copy().profile_sites_title);
-    for (index, site) in sites.iter().enumerate() {
-        println!("  {}) {} ({})", index + 1, site.name, site.url);
-    }
-    let index = choose_index(sites.len())?;
+    let options = sites
+        .iter()
+        .map(|site| format!("{} ({})", site.name, site.url))
+        .collect::<Vec<_>>();
+    let index = choose(&tui_copy().profile_sites_title, &options)
+        .map_err(|error| message(error.to_string()))?;
     Ok(sites[index].url.clone())
 }
 
@@ -997,11 +997,9 @@ fn choose_bitbucket_workspace(
 fn choose_profile_workspace(
     workspaces: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<String, CliError> {
-    println!("\n{}", tui_copy().profile_workspaces_title);
-    for (index, workspace) in workspaces.keys().enumerate() {
-        println!("  {}) {workspace}", index + 1);
-    }
-    let index = choose_index(workspaces.len())?;
+    let options = workspaces.keys().cloned().collect::<Vec<_>>();
+    let index = choose(&tui_copy().profile_workspaces_title, &options)
+        .map_err(|error| message(error.to_string()))?;
     workspaces
         .keys()
         .nth(index)
@@ -1059,37 +1057,19 @@ fn select_bitbucket_repositories(
     choose_repositories(repositories)
 }
 
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn choose_index(item_count: usize) -> Result<usize, CliError> {
-    let selected = prompt(
-        &tui_copy().choose_number,
-        Some(&tui_copy().default_selection),
-    )?
-    .parse::<usize>()
-    .map_err(|_| message(&tui_copy().selection_not_number))?;
-    selected
-        .checked_sub(1)
-        .filter(|index| *index < item_count)
-        .ok_or_else(|| message(&tui_copy().invalid_provider_selection))
-}
-
 #[cfg(feature = "jira")]
 fn choose_board(boards: &[BoardDto]) -> Result<u64, CliError> {
     if boards.is_empty() {
         return Err(message(&tui_copy().no_boards));
     }
-    println!("\n{}", tui_copy().boards_title);
-    for (index, board) in boards.iter().enumerate() {
-        println!("  {}) {} ({})", index + 1, board.name, board.board_type);
-    }
-    let selected = prompt(
-        &tui_copy().choose_number,
-        Some(&tui_copy().default_selection),
-    )?
-    .parse::<usize>()
-    .map_err(|_| message(&tui_copy().selection_not_number))?;
+    let options = boards
+        .iter()
+        .map(|board| format!("{} ({})", board.name, board.board_type))
+        .collect::<Vec<_>>();
+    let selected =
+        choose(&tui_copy().boards_title, &options).map_err(|error| message(error.to_string()))?;
     boards
-        .get(selected.saturating_sub(1))
+        .get(selected)
         .map(|board| board.id)
         .ok_or_else(|| message(&tui_copy().invalid_board_selection))
 }
@@ -1099,41 +1079,24 @@ fn choose_repositories(repositories: &[Repository]) -> Result<BTreeSet<String>, 
     if repositories.is_empty() {
         return Err(message(&tui_copy().no_repositories));
     }
-    println!("\n{}", tui_copy().repositories_title);
-    for (index, repository) in repositories.iter().enumerate() {
-        println!("  {}) {} ({})", index + 1, repository.name, repository.slug);
+    let options = repositories
+        .iter()
+        .map(|repository| format!("{} ({})", repository.name, repository.slug))
+        .collect::<Vec<_>>();
+    let selected = choose_many(
+        &tui_copy().repositories_title,
+        &options,
+        vec![false; repositories.len()],
+    )
+    .map_err(|error| message(error.to_string()))?;
+    if !selected.iter().any(|is_selected| *is_selected) {
+        return Err(message(&tui_copy().invalid_repository_selection));
     }
-    let selection = prompt(
-        &tui_copy().choose_repositories,
-        Some(&tui_copy().default_selection),
-    )?;
-    selected_repository_slugs(repositories, &selection)
-}
-
-#[cfg(feature = "bitbucket")]
-fn selected_repository_slugs(
-    repositories: &[Repository],
-    selection: &str,
-) -> Result<BTreeSet<String>, CliError> {
-    selection
-        .split(',')
-        .map(str::trim)
-        .map(|value| selected_repository_slug(repositories, value))
-        .collect()
-}
-
-#[cfg(feature = "bitbucket")]
-fn selected_repository_slug(
-    repositories: &[Repository],
-    selection: &str,
-) -> Result<String, CliError> {
-    let index = selection
-        .parse::<usize>()
-        .map_err(|_| message(&tui_copy().selection_not_number))?;
-    repositories
-        .get(index.saturating_sub(1))
-        .map(|repository| repository.slug.clone())
-        .ok_or_else(|| message(&tui_copy().invalid_repository_selection))
+    Ok(repositories
+        .iter()
+        .zip(selected)
+        .filter_map(|(repository, is_selected)| is_selected.then_some(repository.slug.clone()))
+        .collect())
 }
 
 #[cfg(feature = "jira")]
@@ -2419,12 +2382,25 @@ fn configure_clients() -> Result<(), CliError> {
         .map_err(|error| message(error.to_string()))?;
     let server = install_current_server()?;
     let clients = registration.statuses(&server);
-    let selectable = print_client_options(&clients);
-    if selectable == 0 {
+    let candidates = clients
+        .iter()
+        .filter(|status| setup_candidate(status.state))
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
         println!("\n{}", tui_copy().no_pending_clients);
         return Ok(());
     }
-    register_selected_clients(&registration, &server, &clients)
+    let options = candidates
+        .iter()
+        .map(|status| client_status_option(status))
+        .collect::<Vec<_>>();
+    let selected = choose_many(
+        &tui_copy().detected_clients_title,
+        &options,
+        vec![false; candidates.len()],
+    )
+    .map_err(|error| message(error.to_string()))?;
+    register_selected_clients(&registration, &server, &candidates, &selected)
 }
 
 fn manage_clients() -> Result<(), CliError> {
@@ -2436,7 +2412,6 @@ fn manage_clients() -> Result<(), CliError> {
         println!("{}", tui_copy().no_compatible_clients);
         return Ok(());
     }
-    print_numbered_clients(&clients);
     apply_selected_client(&registration, &server, &clients)
 }
 
@@ -2456,32 +2431,16 @@ fn actionable_clients(clients: Vec<McpClientStatus>) -> Vec<McpClientStatus> {
         .collect()
 }
 
-fn print_numbered_clients(clients: &[McpClientStatus]) {
-    println!("{}", tui_copy().clients_title);
-    for (index, status) in clients.iter().enumerate() {
-        println!(
-            "  {}) {} · {} · {}",
-            index + 1,
-            status.client.display_name(),
-            registration_state_label(status.state),
-            status.target.display()
-        );
-    }
-}
-
 fn apply_selected_client(
     registration: &ClientRegistrationService,
     server: &std::path::Path,
     clients: &[McpClientStatus],
 ) -> Result<(), CliError> {
-    let selected = prompt(
-        &tui_copy().choose_number,
-        Some(&tui_copy().default_selection),
-    )?
-    .parse::<usize>()
-    .map_err(|_| message(tui_copy().selection_not_number.clone()))?;
+    let options = clients.iter().map(client_status_option).collect::<Vec<_>>();
+    let selected =
+        choose(&tui_copy().clients_title, &options).map_err(|error| message(error.to_string()))?;
     let status = clients
-        .get(selected.saturating_sub(1))
+        .get(selected)
         .ok_or_else(|| message(tui_copy().invalid_client_selection.clone()))?;
     apply_client_action(registration, server, status)
 }
@@ -2530,46 +2489,36 @@ fn change_client_registration(
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn print_client_options(clients: &[McpClientStatus]) -> usize {
-    println!("\n{}", tui_copy().detected_clients_title);
-    for status in clients
-        .iter()
-        .filter(|status| status.state != RegistrationState::Unavailable)
-    {
-        print_client_status(status);
-    }
-    clients
-        .iter()
-        .filter(|status| setup_candidate(status.state))
-        .count()
+fn client_status_option(status: &McpClientStatus) -> String {
+    format!(
+        "{} · {} · {}",
+        status.client.display_name(),
+        registration_state_label(status.state),
+        status.target.display()
+    )
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn register_selected_clients(
     registration: &ClientRegistrationService,
     server: &std::path::Path,
-    clients: &[McpClientStatus],
+    candidates: &[&McpClientStatus],
+    selected: &[bool],
 ) -> Result<(), CliError> {
-    for status in clients
-        .iter()
-        .filter(|status| setup_candidate(status.state))
-    {
-        register_client_if_confirmed(registration, server, status)?;
+    for (status, selected) in candidates.iter().zip(selected) {
+        if *selected {
+            register_client(registration, server, status)?;
+        }
     }
     Ok(())
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn register_client_if_confirmed(
+fn register_client(
     registration: &ClientRegistrationService,
     server: &std::path::Path,
     status: &McpClientStatus,
 ) -> Result<(), CliError> {
-    let action = setup_action(status.state);
-    let label = format!("¿{action} {}?", status.client.display_name());
-    if !confirm(&label)? {
-        return Ok(());
-    }
     registration
         .register(status.client, server)
         .map_err(|error| message(error.to_string()))?;
@@ -2579,24 +2528,6 @@ fn register_client_if_confirmed(
         status.client.display_name()
     );
     Ok(())
-}
-
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn print_client_status(status: &McpClientStatus) {
-    println!(
-        "  {} · {} · {}",
-        status.client.display_name(),
-        registration_state_label(status.state),
-        status.target.display()
-    );
-}
-
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
-fn setup_action(state: RegistrationState) -> &'static str {
-    if state == RegistrationState::Available {
-        return &tui_copy().register_action;
-    }
-    &tui_copy().update_action
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -2679,10 +2610,7 @@ fn install_current_server() -> Result<std::path::PathBuf, CliError> {
 }
 
 fn prompt(label: &str, default: Option<&str>) -> Result<String, CliError> {
-    let suffix = default.map_or_else(String::new, |value| format!(" [{value}]"));
-    print!("{label}{suffix}: ");
-    flush_output()?;
-    let input = read_line()?;
+    let input = read_text(label, default, false).map_err(|error| message(error.to_string()))?;
     let value = input.trim();
     match (value.is_empty(), default) {
         (true, Some(value)) => Ok(value.to_owned()),
@@ -2716,40 +2644,16 @@ fn read_provider_token(
         );
         return Ok(token);
     }
-    rpassword::prompt_password(&tui_copy().token_prompt).map_err(|error| message(error.to_string()))
+    read_text(&tui_copy().token_prompt, None, true).map_err(|error| message(error.to_string()))
 }
 
 fn confirm(label: &str) -> Result<bool, CliError> {
-    print!("{label} {}", tui_copy().confirmation_suffix);
-    flush_output()?;
-    let response = read_line()?;
-    Ok(matches!(
-        response.trim().to_ascii_lowercase().as_str(),
-        "s" | "si" | "sí"
-    ))
+    tui_confirm(label, false).map_err(|error| message(error.to_string()))
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn confirm_yes(label: &str) -> Result<bool, CliError> {
-    print!("{label} {}", tui_copy().confirmation_yes_suffix);
-    flush_output()?;
-    let response = read_line()?;
-    let value = response.trim().to_ascii_lowercase();
-    Ok(value.is_empty() || matches!(value.as_str(), "s" | "si" | "sí"))
-}
-
-fn flush_output() -> Result<(), CliError> {
-    io::stdout()
-        .flush()
-        .map_err(|error| message(error.to_string()))
-}
-
-fn read_line() -> Result<String, CliError> {
-    let mut input = String::new();
-    io::stdin()
-        .read_line(&mut input)
-        .map_err(|error| message(error.to_string()))?;
-    Ok(input)
+    tui_confirm(label, true).map_err(|error| message(error.to_string()))
 }
 
 fn print_setup_header() {

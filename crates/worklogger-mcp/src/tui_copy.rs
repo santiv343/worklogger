@@ -73,9 +73,6 @@ pub(crate) struct TuiCopy {
     pub no_boards: String,
     #[cfg(feature = "jira")]
     pub boards_title: String,
-    pub choose_number: String,
-    pub default_selection: String,
-    pub selection_not_number: String,
     #[cfg(feature = "jira")]
     pub invalid_board_selection: String,
     #[cfg(feature = "bitbucket")]
@@ -83,7 +80,6 @@ pub(crate) struct TuiCopy {
     #[cfg(feature = "bitbucket")]
     pub repositories_title: String,
     #[cfg(feature = "bitbucket")]
-    pub choose_repositories: String,
     #[cfg(feature = "bitbucket")]
     pub invalid_repository_selection: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -99,8 +95,6 @@ pub(crate) struct TuiCopy {
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub detected_clients_title: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
-    pub register_action: String,
-    #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub client_registered: String,
     pub state_unavailable: String,
     pub state_available: String,
@@ -115,9 +109,6 @@ pub(crate) struct TuiCopy {
     pub token_environment_notice: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub token_prompt: String,
-    pub confirmation_suffix: String,
-    #[cfg(any(feature = "jira", feature = "bitbucket"))]
-    pub confirmation_yes_suffix: String,
     #[cfg(feature = "jira")]
     pub enable_hours: String,
     #[cfg(feature = "jira")]

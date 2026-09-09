@@ -3,6 +3,14 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.4] - 2026-09-09
+
+### Cambiado
+
+- Todo el asistente MCP usa la TUI: proveedores, sitios, tableros,
+  repositorios, capacidades, clientes, confirmaciones y campos de texto.
+- Los tokens se ingresan en un campo enmascarado dentro de la TUI.
+
 ## [0.7.3] - 2026-09-09
 
 ### Cambiado

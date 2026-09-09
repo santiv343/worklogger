@@ -22,7 +22,6 @@ bitbucket-adapter = { path = "../bitbucket-adapter", optional = true }
 hours-core = { path = "../hours-core", optional = true }
 jira-adapter = { path = "../jira-adapter", optional = true }
 rmcp.workspace = true
-rpassword.workspace = true
 ratatui.workspace = true
 schemars.workspace = true
 serde.workspace = true
