@@ -12,30 +12,26 @@ const MAX_TOKEN_LENGTH: usize = 4_096;
 const DESKTOP_SERVICE_NAME: &str = "com.worklogger.jira.desktop";
 #[cfg(any(windows, target_os = "linux", test))]
 const MCP_SERVICE_NAME: &str = "com.worklogger.mcp";
-#[cfg(windows)]
-const LEGACY_SERVICE_NAME: &str = "com.worklogger.jira";
-#[cfg(windows)]
-const LEGACY_MCP_SERVICE_NAME: &str = "com.worklogger.jira.mcp";
 #[cfg(any(windows, target_os = "linux", test))]
 const ACCOUNT_SEPARATOR: char = '|';
 
 #[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
 pub enum CredentialError {
-    #[error("el origen de la conexión no tiene un formato válido")]
+    #[error("the connection origin has an invalid format")]
     InvalidSite,
-    #[error("el correo de la cuenta no tiene un formato válido")]
+    #[error("the account email has an invalid format")]
     InvalidEmail,
-    #[error("el API token está vacío o supera el tamaño permitido")]
+    #[error("the API token is empty or exceeds the allowed size")]
     InvalidToken,
-    #[error("el almacén seguro del sistema operativo no está disponible")]
+    #[error("the operating system secure store is unavailable")]
     Unavailable,
-    #[error("no se pudo guardar el API token")]
+    #[error("could not save the API token")]
     SaveFailed,
-    #[error("no se pudo leer el API token")]
+    #[error("could not read the API token")]
     ReadFailed,
-    #[error("no se pudo eliminar el API token")]
+    #[error("could not delete the API token")]
     DeleteFailed,
-    #[error("otra instancia está actualizando la configuración segura")]
+    #[error("another process is updating the secure configuration")]
     TransactionBusy,
 }
 
@@ -51,14 +47,6 @@ impl CredentialPurpose {
         match self {
             Self::Desktop => DESKTOP_SERVICE_NAME,
             Self::Mcp => MCP_SERVICE_NAME,
-        }
-    }
-
-    #[cfg(windows)]
-    const fn legacy_service_name(self) -> &'static str {
-        match self {
-            Self::Desktop => LEGACY_SERVICE_NAME,
-            Self::Mcp => LEGACY_MCP_SERVICE_NAME,
         }
     }
 }
@@ -126,7 +114,6 @@ mod platform {
     #[derive(Clone, Copy, Debug)]
     pub struct CredentialStore {
         service_name: &'static str,
-        legacy_service_name: &'static str,
     }
 
     impl CredentialStore {
@@ -139,7 +126,6 @@ mod platform {
             (*INITIALIZED.get_or_init(configure_store))?;
             Ok(Self {
                 service_name: purpose.service_name(),
-                legacy_service_name: purpose.legacy_service_name(),
             })
         }
 
@@ -174,11 +160,7 @@ mod platform {
             email: &str,
         ) -> Result<Option<String>, CredentialError> {
             let account = credential_account(site, email)?;
-            let token = with_entry(self.service_name, &account, read_entry)?;
-            match token {
-                Some(value) => Ok(Some(value)),
-                None => with_entry(self.legacy_service_name, &account, read_entry),
-            }
+            with_entry(self.service_name, &account, read_entry)
         }
 
         /// Deletes one token. A missing token is accepted.
@@ -189,7 +171,6 @@ mod platform {
         pub fn delete_api_token(self, site: &str, email: &str) -> Result<(), CredentialError> {
             let account = credential_account(site, email)?;
             with_entry(self.service_name, &account, delete_entry)?;
-            with_entry(self.legacy_service_name, &account, delete_entry)?;
             Ok(())
         }
     }

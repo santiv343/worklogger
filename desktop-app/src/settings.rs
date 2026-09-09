@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+#[cfg(test)]
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufReader, Write};
@@ -11,8 +13,10 @@ use thiserror::Error;
 use crate::copy::text;
 use crate::defaults::product_defaults;
 
-#[cfg(windows)]
-const APP_DIRECTORY: &str = "Worklogger";
+#[path = "shared_settings.rs"]
+mod shared;
+
+#[cfg(test)]
 const CONFIG_FILE: &str = "config.json";
 const HOURS_PER_DAY: u16 = 24;
 const DAYS_PER_WEEK: u16 = 7;
@@ -20,7 +24,6 @@ const MINIMUM_POSITIVE_HOURS: u16 = 1;
 const MINUTES_PER_HOUR: i16 = 60;
 const MAX_EMAIL_LENGTH: usize = 254;
 const MAX_UTC_OFFSET_MINUTES: i16 = 14 * MINUTES_PER_HOUR;
-const OFFSET_GRANULARITY_MINUTES: i16 = 15;
 const MAX_WEEKLY_HOURS: u16 = HOURS_PER_DAY * DAYS_PER_WEEK;
 pub(crate) const SETTINGS_SCHEMA_VERSION: u16 = 1;
 
@@ -71,36 +74,43 @@ pub(crate) struct ReportsSettings {
 
 #[derive(Debug, Error)]
 pub(crate) enum SettingsError {
-    #[error("APPDATA no está disponible; no se puede ubicar la configuración")]
-    #[cfg(windows)]
-    MissingAppData,
-    #[error("la configuración no es válida: {0}")]
+    #[error(transparent)]
+    Shared(#[from] worklogger_settings::SettingsError),
+    #[error("the configuration is invalid: {0}")]
     Invalid(String),
-    #[error("no se pudo leer la configuración en {path}: {source}")]
+    #[error("could not read the configuration at {path}: {source}")]
     Read {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-    #[error("el JSON de configuración en {path} no es válido: {source}")]
+    #[error("the configuration JSON at {path} is invalid: {source}")]
     Decode {
         path: PathBuf,
         #[source]
         source: serde_json::Error,
     },
-    #[error("no se pudo guardar la configuración en {path}: {source}")]
+    #[error("could not save the configuration at {path}: {source}")]
     Write {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-    #[error("no se pudo serializar la configuración: {0}")]
+    #[error("could not serialize the configuration: {0}")]
     Encode(#[source] serde_json::Error),
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsStore {
     path: PathBuf,
+    shared: Option<worklogger_settings::SettingsStore>,
+    observed: RefCell<ObservedSettings>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ObservedSettings {
+    loaded: bool,
+    document: Option<worklogger_settings::SettingsDocument>,
 }
 
 impl AppSettings {
@@ -112,22 +122,43 @@ impl AppSettings {
 }
 
 impl SettingsStore {
-    #[cfg(windows)]
+    #[cfg(any(windows, feature = "dev-desktop"))]
     pub(crate) fn for_current_user() -> Result<Self, SettingsError> {
-        let app_data = env::var_os("APPDATA").filter(|value| !value.is_empty());
-        let directory = app_data.ok_or(SettingsError::MissingAppData)?;
-        Ok(Self::at(
-            PathBuf::from(directory)
-                .join(APP_DIRECTORY)
-                .join(CONFIG_FILE),
-        ))
+        let store = worklogger_settings::SettingsStore::for_current_user()?;
+        Ok(Self::shared(store))
     }
 
+    #[cfg(test)]
     pub(crate) fn at(path: PathBuf) -> Self {
-        Self { path }
+        Self {
+            path,
+            shared: None,
+            observed: RefCell::default(),
+        }
+    }
+
+    fn shared(store: worklogger_settings::SettingsStore) -> Self {
+        Self {
+            path: store.path().to_path_buf(),
+            shared: Some(store),
+            observed: RefCell::default(),
+        }
     }
 
     pub(crate) fn load(&self) -> Result<Option<AppSettings>, SettingsError> {
+        if let Some(store) = &self.shared {
+            let document = store.load()?;
+            let settings = document
+                .as_ref()
+                .map(AppSettings::from_shared)
+                .transpose()?
+                .flatten();
+            *self.observed.borrow_mut() = ObservedSettings {
+                loaded: true,
+                document,
+            };
+            return Ok(settings);
+        }
         let file = match File::open(&self.path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -138,6 +169,21 @@ impl SettingsStore {
 
     pub(crate) fn save(&self, settings: &AppSettings) -> Result<(), SettingsError> {
         settings.validate()?;
+        if let Some(store) = &self.shared {
+            let observed = self.observed.borrow().clone();
+            let mut document = if observed.loaded {
+                observed.document.unwrap_or_default()
+            } else {
+                store.load()?.unwrap_or_default()
+            };
+            settings.update_shared(&mut document)?;
+            let committed = store.save(&document, document.revision)?;
+            *self.observed.borrow_mut() = ObservedSettings {
+                loaded: true,
+                document: Some(committed),
+            };
+            return Ok(());
+        }
         create_parent(&self.path)?;
         let mut bytes = serde_json::to_vec_pretty(settings).map_err(SettingsError::Encode)?;
         bytes.push(b'\n');
@@ -145,6 +191,10 @@ impl SettingsStore {
     }
 
     pub(crate) fn clear(&self) -> Result<(), SettingsError> {
+        // Disconnect removes Desktop credentials; shared preferences belong to both frontends.
+        if self.shared.is_some() {
+            return Ok(());
+        }
         match fs::remove_file(&self.path) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -209,7 +259,7 @@ fn validate_jira(settings: &JiraSettings) -> Result<(), SettingsError> {
         || settings.maximum_issue_search_results == 0
         || settings.maximum_concurrent_worklog_requests == 0
     {
-        return Err(invalid("los límites de Jira deben ser mayores que cero"));
+        return Err(invalid("Jira limits must be greater than zero"));
     }
     validate_jira_maxima(settings)?;
     Ok(())
@@ -225,7 +275,7 @@ fn validate_jira_maxima(settings: &JiraSettings) -> Result<(), SettingsError> {
         && settings.maximum_concurrent_worklog_requests
             <= limits.maximum_allowed_concurrent_worklog_requests;
     if !valid {
-        return Err(invalid("los límites de Jira superan los máximos seguros"));
+        return Err(invalid("Jira limits exceed the safe maximums"));
     }
     Ok(())
 }
@@ -244,7 +294,7 @@ fn validate_email(email: &str) -> Result<(), SettingsError> {
     let value = email.trim();
     let valid_length = !value.is_empty() && value.len() <= MAX_EMAIL_LENGTH;
     if !valid_length || value.chars().any(char::is_whitespace) || !value.contains('@') {
-        return Err(invalid("jira.email no tiene un formato válido"));
+        return Err(invalid("jira.email has an invalid format"));
     }
     Ok(())
 }
@@ -264,13 +314,13 @@ fn validate_hours(settings: &HoursSettings) -> Result<(), SettingsError> {
     if u16::from(settings.default_worklog_start_hour) >= HOURS_PER_DAY
         || i16::from(settings.default_worklog_start_minute) >= MINUTES_PER_HOUR
     {
-        return Err(invalid("la hora inicial predeterminada no es válida"));
+        return Err(invalid("the default start hour is invalid"));
     }
     let offset = settings.utc_offset_minutes;
-    if offset.abs() > MAX_UTC_OFFSET_MINUTES || offset % OFFSET_GRANULARITY_MINUTES != 0 {
-        return Err(invalid(format!(
-            "hours.utcOffsetMinutes debe ser un huso horario válido en intervalos de {OFFSET_GRANULARITY_MINUTES} minutos"
-        )));
+    if offset.unsigned_abs() > MAX_UTC_OFFSET_MINUTES.unsigned_abs() {
+        return Err(invalid(
+            "hours.utcOffsetMinutes must be within -14:00 and +14:00",
+        ));
     }
     validate_hours_profile(settings)
 }
@@ -325,6 +375,88 @@ mod tests {
         assert_eq!(store.load().expect("load succeeds"), Some(settings));
         let json = fs::read_to_string(&store.path).expect("config is readable");
         assert!(!json.to_ascii_lowercase().contains("token"));
+    }
+
+    #[test]
+    fn desktop_reads_mcp_preferences_and_preserves_its_scope_when_saving() {
+        let fixture = TestDirectory::new();
+        let shared = worklogger_settings::SettingsStore::at(fixture.path.join("settings.json"));
+        let mut document = worklogger_settings::SettingsDocument::default();
+        valid_settings().update_shared(&mut document).unwrap();
+        document.bitbucket = Some(worklogger_settings::BitbucketSettings::default());
+        document.mcp = Some(worklogger_settings::McpSettings {
+            modules: [(
+                worklogger_profile::IntegrationModuleId::Jira,
+                worklogger_settings::ModuleSettings {
+                    enabled: true,
+                    capabilities: [worklogger_profile::Capability::ReadJiraIssues]
+                        .into_iter()
+                        .collect(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        });
+        let committed = shared.save(&document, 0).unwrap();
+        let store = SettingsStore::shared(shared.clone());
+        let mut settings = store.load().unwrap().unwrap();
+        settings.hours.weekly_target = 35;
+        store.save(&settings).unwrap();
+        let saved = shared.load().unwrap().unwrap();
+        assert_eq!(saved.mcp, committed.mcp);
+        assert_eq!(saved.bitbucket, committed.bitbucket);
+        assert_eq!(saved.hours.as_ref().unwrap().weekly_target_hours, Some(35));
+        store.clear().unwrap();
+        assert_eq!(shared.load().unwrap(), Some(saved));
+    }
+
+    #[test]
+    fn desktop_rejects_a_save_after_another_frontend_changed_settings() {
+        let fixture = TestDirectory::new();
+        let shared = worklogger_settings::SettingsStore::at(fixture.path.join("settings.json"));
+        let store = SettingsStore::shared(shared.clone());
+        store.save(&valid_settings()).unwrap();
+        let settings = store.load().unwrap().unwrap();
+        let mut other = shared.load().unwrap().unwrap();
+        other.jira.as_mut().unwrap().maximum_issue_search_results = Some(1);
+        let committed = shared.save(&other, other.revision).unwrap();
+        assert!(matches!(
+            store.save(&settings),
+            Err(SettingsError::Shared(
+                worklogger_settings::SettingsError::Conflict { .. }
+            ))
+        ));
+        assert_eq!(shared.load().unwrap(), Some(committed));
+    }
+
+    #[test]
+    fn shared_draft_does_not_invent_a_desktop_board() {
+        let document = worklogger_settings::SettingsDocument {
+            jira: Some(worklogger_settings::JiraSettings {
+                base_url: Some(TEST_JIRA_SITE.into()),
+                ..worklogger_settings::JiraSettings::default()
+            }),
+            ..worklogger_settings::SettingsDocument::default()
+        };
+        assert_eq!(AppSettings::from_shared(&document).unwrap(), None);
+    }
+
+    #[test]
+    fn first_desktop_setup_cannot_overwrite_concurrent_mcp_setup() {
+        let fixture = TestDirectory::new();
+        let shared = worklogger_settings::SettingsStore::at(fixture.path.join("settings.json"));
+        let store = SettingsStore::shared(shared.clone());
+        assert_eq!(store.load().unwrap(), None);
+        let committed = shared
+            .save(&worklogger_settings::SettingsDocument::default(), 0)
+            .unwrap();
+        assert!(matches!(
+            store.save(&valid_settings()),
+            Err(SettingsError::Shared(
+                worklogger_settings::SettingsError::Conflict { .. }
+            ))
+        ));
+        assert_eq!(shared.load().unwrap(), Some(committed));
     }
 
     #[test]
@@ -425,6 +557,13 @@ mod tests {
             settings.validate(),
             Err(SettingsError::Invalid(_))
         ));
+    }
+
+    #[test]
+    fn extreme_time_offset_is_rejected_without_overflowing() {
+        let mut settings = valid_settings();
+        settings.hours.utc_offset_minutes = i16::MIN;
+        assert!(settings.validate().is_err());
     }
 
     fn valid_settings() -> AppSettings {

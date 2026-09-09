@@ -37,6 +37,13 @@ Restart the registered client, run `npx @santiv343/worklogger status`, and make
 one read-only request such as “Show my worklogs for this week.” For Desktop,
 MCP, and troubleshooting instructions, see the [user guide](docs/user-guide/README.md).
 
+Desktop and MCP share `settings.json` for provider preferences. API tokens and
+MCP grants are deliberately separate: configuring Desktop never enables tools
+for an assistant. The interface language is also shared: choose English or
+Spanish in either Settings surface, then restart the affected app or MCP client.
+Worklogger uses this one settings document and does not import or modify older
+per-frontend configuration files.
+
 The current version can:
 
 - read, create, edit, and delete a person's own Jira worklogs;
@@ -77,10 +84,11 @@ in the profile, the user enables it, and the authenticated account has access
 within the configured scope. Local configuration can never expand provider
 permissions.
 
-Community Desktop and the MCP TUI use the same installed profile in the user's
+Community Desktop and the MCP TUI use the same installed profile and a shared,
+secret-free `settings.json` document in the user's
 configuration directory (`%APPDATA%\Worklogger` on Windows or
-`$XDG_CONFIG_HOME/worklogger`/`~/.config/worklogger` on Linux). A team can share
-the file while every member supplies only their own credentials. A Managed
+`$XDG_CONFIG_HOME/worklogger`/`~/.config/worklogger` on Linux). It is private
+to that user and computer: only `organization.json` is shareable with a team. A Managed
 edition embeds the same schema at build time and keeps it immutable for both
 Desktop and the MCP sidecar.
 
@@ -208,22 +216,19 @@ unrelated or invalid registration, never accepts tokens as arguments, and makes
 no client changes when it finds a conflict. When it finishes, restart the MCP
 client and run `npx @santiv343/worklogger status` to verify the result.
 
-The TUI configures Jira or Bitbucket and lets the user choose capabilities
-separately. In Jira, Time Tracking and Issues are groups within the same module;
-enabling Time Tracking asks for a weekly target and UTC offset. On a later run,
-the wizard proposes existing values and preserves the other provider's
-configuration and the account's other Bitbucket workspaces. Desktop can manage
-configured capabilities and registers clients only when every active provider
-has credentials.
+The TUI opens direct Settings. Jira and Bitbucket each have independent
+connection, scope, permission/default, and advanced-limit sections; MCP clients
+and assistant skills are available from the same settings menu. In Jira, Time
+Tracking and Issues are groups within the same module. Editing one section
+preserves all other shared preferences and MCP consent. Restart an MCP client
+after changing its settings.
 
 `organization.json` is the shareable source of modules, maximum scopes, limits,
-and allowed capabilities. `mcp.json` contains only the resolved local MCP server
-state—including that person's email address—and is never shared. `config.json`
-contains local Desktop preferences and connection. Tokens remain outside JSON:
+and allowed capabilities. `settings.json` contains local shared preferences and
+MCP consent but never tokens, and is never shared. Worklogger does not import
+or modify earlier `mcp.json` and `config.json` files. Tokens remain outside JSON:
 Windows uses Credential Manager and Linux uses an atomic per-user store protected
-by `0700/0600` permissions. Changing a capability in Desktop preserves the MCP
-scope already selected; an explicit Desktop connection change re-synchronizes it
-without exceeding the profile.
+by `0700/0600` permissions. Desktop and MCP credentials stay separate.
 
 The `skills` command installs or updates Worklogger's workflow skills for
 supported assistants. It manages only `worklogger-jira`, `worklogger-daily`, and

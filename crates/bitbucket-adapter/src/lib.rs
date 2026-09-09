@@ -28,29 +28,29 @@ enum CollectionLimitPolicy {
 pub enum BitbucketError {
     #[error("el correo y el token de Bitbucket son obligatorios")]
     MissingCredentials,
-    #[error("los límites de paginación deben ser mayores que cero")]
+    #[error("pagination limits must be greater than zero")]
     InvalidPageLimits,
-    #[error("los datos de la operación de Bitbucket no son válidos")]
+    #[error("the Bitbucket operation data is invalid")]
     InvalidInput,
-    #[error("Bitbucket devolvió una paginación insegura o inconsistente")]
+    #[error("Bitbucket returned unsafe or inconsistent pagination")]
     InvalidPagination,
-    #[error("la sesión de Bitbucket no es válida")]
+    #[error("the Bitbucket session is invalid")]
     AuthenticationRequired,
-    #[error("la cuenta no tiene permiso para esta operación")]
+    #[error("the account is not permitted to perform this operation")]
     Forbidden,
     #[error("el recurso solicitado no existe")]
     NotFound,
-    #[error("Bitbucket limitó temporalmente las solicitudes")]
+    #[error("Bitbucket temporarily rate limited requests")]
     RateLimited,
-    #[error("Bitbucket no está disponible temporalmente")]
+    #[error("Bitbucket is temporarily unavailable")]
     ServerUnavailable,
-    #[error("Bitbucket respondió con HTTP {0}")]
+    #[error("Bitbucket responded with HTTP {0}")]
     HttpStatus(u16),
     #[error("no fue posible comunicarse con Bitbucket")]
     Transport(#[source] reqwest::Error),
-    #[error("Bitbucket devolvió una respuesta inválida")]
+    #[error("Bitbucket returned an invalid response")]
     InvalidResponse(#[source] reqwest::Error),
-    #[error("Bitbucket devolvió datos incompletos")]
+    #[error("Bitbucket returned incomplete data")]
     InvalidResponseShape,
     #[error("no fue posible construir una URL segura de Bitbucket")]
     InvalidUrl,

@@ -3,6 +3,23 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.8.0] - 2026-09-09
+
+### Added
+
+- Desktop and MCP now use one secret-free `settings.json` document for shared
+  provider preferences, scopes, limits, and the selected interface language.
+- Direct hierarchical Jira and Bitbucket settings sections in the MCP TUI,
+  including connection, scope, permissions, defaults, and advanced limits.
+- English and Spanish interface resources. The chosen language is shared by
+  Desktop and MCP and takes effect after restart.
+
+### Changed
+
+- Desktop and MCP preserve each other's settings and MCP consent boundaries.
+- Worklogger no longer imports or modifies previous per-frontend settings
+  files; a new installation starts from the canonical shared document.
+
 ## [0.7.10] - 2026-09-09
 
 ### Changed

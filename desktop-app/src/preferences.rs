@@ -8,7 +8,7 @@ use crate::connection_model::{
     AccessibleBoard, ConfigurationUpdate, ConnectionConfiguration, HoursConfiguration,
     JiraConfigurationUpdate, ReportsConfiguration,
 };
-use crate::copy::text;
+use crate::copy::{preferred_language, save_language, text};
 use crate::defaults::product_defaults;
 #[cfg(organization_configuration_mutable)]
 use crate::organization_config::OrganizationConfigurationPicker;
@@ -324,10 +324,21 @@ fn GeneralSettings(
     on_configuration_loaded: EventHandler<()>,
 ) -> Element {
     let options = product_defaults().hours().utc_offset_options.clone();
+    let mut language = use_signal(preferred_language);
     rsx! { div { class: "settings-page",
         {organization_configuration(on_configuration_loaded)}
         section { class: "settings-section", aria_labelledby: "general-settings-title",
             SettingsHeading { id: "general-settings-title", mark: "W", title: text("preferences.generalTitle"), description: text("preferences.generalDescription"), module: false }
+            label { class: "field", r#for: "preferences-language", span { {text("preferences.languageLabel")} }
+                select { id: "preferences-language", value: language_value(language()), oninput: move |event| {
+                    let selected = parse_language(&event.value());
+                    if save_language(selected).is_ok() { language.set(selected); }
+                },
+                    option { value: "english", {text("preferences.languageEnglish")} }
+                    option { value: "spanish", {text("preferences.languageSpanish")} }
+                }
+                small { {text("preferences.languageRestart")} }
+            }
             label { class: "field", r#for: "preferences-offset", span { {text("setup.timeZoneLabel")} }
                 select { id: "preferences-offset", value: draft().hours.utc_offset_minutes, oninput: move |event| draft.write().hours.utc_offset_minutes = event.value(),
                     for option in options { option { value: option.minutes.to_string(), "{option.label}" } }
@@ -336,6 +347,20 @@ fn GeneralSettings(
             }
         }
     } }
+}
+
+fn language_value(language: worklogger_settings::Language) -> &'static str {
+    match language {
+        worklogger_settings::Language::English => "english",
+        worklogger_settings::Language::Spanish => "spanish",
+    }
+}
+
+fn parse_language(value: &str) -> worklogger_settings::Language {
+    if value == "spanish" {
+        return worklogger_settings::Language::Spanish;
+    }
+    worklogger_settings::Language::English
 }
 
 #[cfg(organization_configuration_mutable)]

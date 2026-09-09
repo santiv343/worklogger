@@ -23,9 +23,9 @@ pub struct OrganizationProfileStore {
 
 #[derive(Debug, Error)]
 pub enum ProfileStorageError {
-    #[error("no se pudo determinar el directorio de configuración del usuario")]
+    #[error("could not determine the user configuration directory")]
     MissingUserConfigurationDirectory,
-    #[error("el perfil supera el tamaño máximo permitido")]
+    #[error("the profile exceeds the maximum allowed size")]
     TooLarge,
     #[error("no se pudo acceder al perfil en {path}: {source}")]
     Storage {

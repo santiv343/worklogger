@@ -15,7 +15,7 @@ MCP uses your own Jira or Bitbucket account and permissions. Never share API tok
 | --- | --- |
 | Log time and read reports | [Use Desktop](#use-desktop) |
 | Ask an assistant about work | [Use MCP](#use-mcp) |
-| Use both | Configure Desktop, then enable **Configuration → MCP** |
+| Use both | Configure either surface; shared preferences are available to both |
 
 ## Use Desktop
 
@@ -45,6 +45,12 @@ If your edition includes **Reports**, choose a period from the sidebar. Personal
 
 Installation changes only the selected client's `worklogger` entry. It does not add tokens or alter other integrations.
 
+### Choose a language
+
+Open **Configuration → General** and choose **English** or **Spanish**. The
+choice is saved in the shared preferences, so the MCP TUI uses it too. Restart
+Desktop or the MCP client after changing it.
+
 ## Use MCP
 
 MCP connects Worklogger to Codex, Claude Code, Claude Desktop, Cursor, and Windsurf. The server runs locally and exposes only the capabilities you enable.
@@ -59,7 +65,11 @@ Run the installer in the same environment as the client: PowerShell for Windows 
 npx @santiv343/worklogger
 ```
 
-Choose the modules and capabilities you need, let the wizard verify your account, select a detected client, review the changed file, and confirm. Restart the client when it finishes.
+Open **Settings**. Choose **Language** at any time, then configure Jira or Bitbucket in its own sections, choose only
+the MCP permissions you need, then use **MCP clients** and **Assistant skills**
+from that same menu. Each section shows whether it still needs configuration,
+saves only its own values, and preserves the rest. Restart the client when it
+finishes.
 
 For a shared profile:
 
@@ -93,7 +103,7 @@ npx @santiv343/worklogger status
 
 | Command | Purpose |
 | --- | --- |
-| `npx @santiv343/worklogger` | Open the interactive wizard. |
+| `npx @santiv343/worklogger` | Open interactive settings. |
 | `npx @santiv343/worklogger status` | View modules, server, and detected clients. |
 | `npx @santiv343/worklogger clients` | Install or remove Worklogger from a client. |
 | `npx @santiv343/worklogger skills` | Install or update workflow skills. |
@@ -114,7 +124,7 @@ For pull requests, Worklogger merges effective Bitbucket default reviewers with 
 ## Security and troubleshooting
 
 - Never paste tokens into chat, tickets, `organization.json`, or MCP client configuration files.
-- `organization.json` is shareable; `mcp.json` and `config.json` are private and must not be shared.
+- `organization.json` is shareable. `settings.json`, `mcp.json`, and `config.json` are private and must not be shared.
 - A profile can restrict scopes but cannot grant provider permissions.
 - Restart the MCP client after updating Worklogger.
 

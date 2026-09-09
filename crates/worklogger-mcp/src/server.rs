@@ -56,13 +56,12 @@ use crate::{
 
 const SERVER_NAME: &str = "worklogger-mcp";
 const SERVER_TITLE: &str = "Worklogger MCP";
-const SERVER_INSTRUCTIONS: &str = include_str!("../resources/server-instructions.es-AR.txt");
+const SERVER_INSTRUCTIONS: &str = include_str!("../resources/server-instructions.en.txt");
 #[cfg(feature = "jira")]
-const JIRA_SERVER_INSTRUCTIONS: &str =
-    include_str!("../resources/server-instructions-jira.es-AR.txt");
+const JIRA_SERVER_INSTRUCTIONS: &str = include_str!("../resources/server-instructions-jira.en.txt");
 #[cfg(feature = "bitbucket")]
 const BITBUCKET_SERVER_INSTRUCTIONS: &str =
-    include_str!("../resources/server-instructions-bitbucket.es-AR.txt");
+    include_str!("../resources/server-instructions-bitbucket.en.txt");
 
 #[derive(Clone)]
 pub struct WorkloggerMcpServer {
@@ -475,9 +474,9 @@ fn visible_preview<Preview: Serialize>(preview: &Preview) -> String {
 #[cfg(feature = "jira")]
 #[tool_router(router = jira_tool_router)]
 impl WorkloggerMcpServer {
-    /// Obtiene las horas propias de la cuenta autenticada para un período de hasta 7 días.
+    /// Gets the authenticated account's own time entries for a period of up to seven days.
     #[tool(annotations(
-        title = "Consultar mis horas",
+        title = "Get my time entries",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -495,9 +494,9 @@ impl WorkloggerMcpServer {
         Json(response)
     }
 
-    /// Lista issues asignados a la cuenta autenticada sin horas propias en el período.
+    /// Lists issues assigned to the authenticated account without personal time entries in the period.
     #[tool(annotations(
-        title = "Consultar mis tareas sin horas",
+        title = "Get my unlogged issues",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -518,9 +517,9 @@ impl WorkloggerMcpServer {
         Json(response)
     }
 
-    /// Obtiene campos seleccionados de un issue visible para la cuenta autenticada.
+    /// Gets selected fields from an issue visible to the authenticated account.
     #[tool(annotations(
-        title = "Consultar issue Jira",
+        title = "Get Jira issue",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -533,9 +532,9 @@ impl WorkloggerMcpServer {
         Json(jira_response(self.jira_issues.get_issue(request).await))
     }
 
-    /// Busca issues mediante JQL con paginación y límites configurados.
+    /// Searches issues through JQL with configured pagination and limits.
     #[tool(annotations(
-        title = "Buscar issues Jira",
+        title = "Search Jira issues",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -548,9 +547,9 @@ impl WorkloggerMcpServer {
         Json(jira_response(self.jira_issues.search_issues(request).await))
     }
 
-    /// Lista los campos que Jira permite editar actualmente en un issue.
+    /// Lists fields Jira currently allows the authenticated account to edit on an issue.
     #[tool(annotations(
-        title = "Consultar campos editables Jira",
+        title = "Get editable Jira fields",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -565,9 +564,9 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Lista las transiciones disponibles actualmente para un issue.
+    /// Lists transitions currently available for an issue.
     #[tool(annotations(
-        title = "Consultar transiciones Jira",
+        title = "Get Jira transitions",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -582,9 +581,9 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Modifica campos explícitos de un issue como la cuenta autenticada.
+    /// Updates explicit issue fields as the authenticated account.
     #[tool(annotations(
-        title = "Editar issue Jira",
+        title = "Update Jira issue",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -602,9 +601,9 @@ impl WorkloggerMcpServer {
         Json(jira_response(self.jira_issues.update_issue(request).await))
     }
 
-    /// Agrega un comentario de texto como la cuenta autenticada.
+    /// Adds a text comment as the authenticated account.
     #[tool(annotations(
-        title = "Comentar issue Jira",
+        title = "Comment on Jira issue",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = false,
@@ -629,9 +628,9 @@ impl WorkloggerMcpServer {
         Json(jira_response(self.jira_issues.add_comment(request).await))
     }
 
-    /// Aplica una transición disponible por ID como la cuenta autenticada.
+    /// Applies an available transition by ID as the authenticated account.
     #[tool(annotations(
-        title = "Cambiar estado de issue Jira",
+        title = "Transition Jira issue",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = false,
@@ -802,10 +801,10 @@ impl WorkloggerMcpServer {
 #[cfg(feature = "bitbucket")]
 #[tool_router(router = bitbucket_tool_router)]
 impl WorkloggerMcpServer {
-    /// Lista repositorios visibles dentro de un workspace configurado.
+    /// Lists visible repositories within a configured workspace.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Listar repositorios Bitbucket",
+        title = "List Bitbucket repositories",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -820,10 +819,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Lista pull requests de un repositorio dentro del ámbito configurado.
+    /// Lists pull requests in a repository within the configured scope.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Listar pull requests Bitbucket",
+        title = "List Bitbucket pull requests",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -838,10 +837,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Obtiene el detalle de un pull request visible.
+    /// Gets details for a visible pull request.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Consultar pull request Bitbucket",
+        title = "Get Bitbucket pull request",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -856,10 +855,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Obtiene la actividad de un pull request visible.
+    /// Gets activity for a visible pull request.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Consultar actividad de pull request",
+        title = "Get pull request activity",
         read_only_hint = true,
         destructive_hint = false,
         idempotent_hint = true,
@@ -874,10 +873,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Crea un pull request con ramas y reviewers explícitos.
+    /// Creates a pull request with explicit branches and reviewers.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Crear pull request Bitbucket",
+        title = "Create Bitbucket pull request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = false,
@@ -896,10 +895,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Edita los atributos explícitos de un pull request.
+    /// Updates explicit pull-request attributes.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Editar pull request Bitbucket",
+        title = "Update Bitbucket pull request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -919,10 +918,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Agrega un comentario al pull request como la cuenta autenticada.
+    /// Adds a pull-request comment as the authenticated account.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Comentar pull request Bitbucket",
+        title = "Comment on Bitbucket pull request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = false,
@@ -942,10 +941,10 @@ impl WorkloggerMcpServer {
         ))
     }
 
-    /// Aprueba el pull request como la cuenta autenticada.
+    /// Approves the pull request as the authenticated account.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Aprobar pull request Bitbucket",
+        title = "Approve Bitbucket pull request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -959,10 +958,10 @@ impl WorkloggerMcpServer {
             .await
     }
 
-    /// Retira la aprobación propia del pull request.
+    /// Removes the authenticated account's pull-request approval.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Retirar aprobación Bitbucket",
+        title = "Remove Bitbucket approval",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -976,10 +975,10 @@ impl WorkloggerMcpServer {
             .await
     }
 
-    /// Solicita cambios en el pull request como la cuenta autenticada.
+    /// Requests changes on the pull request as the authenticated account.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Solicitar cambios Bitbucket",
+        title = "Request Bitbucket changes",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -993,10 +992,10 @@ impl WorkloggerMcpServer {
             .await
     }
 
-    /// Retira la solicitud propia de cambios del pull request.
+    /// Removes the authenticated account's change request from a pull request.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Retirar solicitud de cambios Bitbucket",
+        title = "Remove Bitbucket change request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = true,
@@ -1010,10 +1009,10 @@ impl WorkloggerMcpServer {
             .await
     }
 
-    /// Fusiona el pull request con estrategia y destino explícitos.
+    /// Merges the pull request with an explicit strategy and destination.
     #[cfg(feature = "bitbucket")]
     #[tool(annotations(
-        title = "Fusionar pull request Bitbucket",
+        title = "Merge Bitbucket pull request",
         read_only_hint = false,
         destructive_hint = true,
         idempotent_hint = false,
@@ -1506,7 +1505,7 @@ mod instruction_tests {
     fn instructions_always_include_common_safety_guidance() {
         assert!(server_instructions().contains(SERVER_INSTRUCTIONS.trim()));
         assert!(server_instructions().contains("confirmation.visiblePreview"));
-        assert!(server_instructions().contains("Vista previa"));
+        assert!(server_instructions().contains("Preview"));
     }
 
     #[test]

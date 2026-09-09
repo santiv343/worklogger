@@ -450,18 +450,12 @@ fn organization_profile_accepts_bitbucket_limits_above_defaults_within_maxima() 
 
 #[test]
 #[cfg(feature = "jira")]
-fn legacy_hours_capability_migrates_under_the_jira_module() {
+fn unsupported_configuration_schema_is_rejected() {
     let directory = TestDirectory::new();
     let store = ConfigurationStore::at(directory.path.join("mcp.json"));
     fs::write(store.path(), legacy_configuration()).expect("legacy fixture is written");
 
-    let configuration = store.load().expect("legacy configuration migrates");
-    let configuration = configuration.expect("configuration exists");
-
-    assert!(configuration.capability_enabled(Capability::ReadOwnTimeEntries));
-    let jira = configuration.jira.expect("Jira configuration exists");
-    assert_eq!(jira.maximum_issue_search_results, 1_000);
-    assert!(jira.hours.is_some());
+    assert!(store.load().is_err());
 }
 
 #[cfg(feature = "jira")]
@@ -504,6 +498,7 @@ fn jira_configuration() -> JiraConfiguration {
         hours: Some(JiraHoursConfiguration {
             weekly_target_hours: 40,
             utc_offset_minutes: 0,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 8,
         }),
     }

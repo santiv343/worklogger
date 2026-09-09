@@ -44,6 +44,12 @@ use worklogger_profile::OrganizationProfile;
 #[cfg(not(feature = "managed-distribution"))]
 use worklogger_profile::OrganizationProfileStore;
 
+#[cfg(feature = "bitbucket")]
+mod bitbucket_settings;
+#[cfg(feature = "jira")]
+mod jira_settings;
+mod settings_copy;
+mod settings_draft;
 mod skill_installation;
 mod terminal_ui;
 mod tui_copy;
@@ -164,6 +170,18 @@ enum MenuAction {
     Skills,
     Uninstall,
     Exit,
+}
+
+#[derive(Clone, Copy)]
+enum SettingsAction {
+    #[cfg(feature = "jira")]
+    Jira,
+    #[cfg(feature = "bitbucket")]
+    Bitbucket,
+    Clients,
+    Skills,
+    Language,
+    Back,
 }
 
 #[derive(Serialize)]
@@ -349,7 +367,7 @@ fn parse_client_name(value: &str) -> Result<McpClientId, CliError> {
 async fn menu() -> Result<(), CliError> {
     loop {
         let result = match choose_menu_action()? {
-            MenuAction::Configure => setup(None).await,
+            MenuAction::Configure => settings(None).await,
             MenuAction::Clients => manage_clients(),
             MenuAction::Refresh => Ok(()),
             MenuAction::Skills => install_skills(),
@@ -665,17 +683,29 @@ fn register_headless_clients(
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn save_headless_configuration(configuration: &McpConfiguration) -> Result<(), CliError> {
+    #[cfg(feature = "jira")]
+    let jira_token = configuration
+        .module_enabled(ModuleId::Jira)
+        .then(|| required_jira(configuration).and_then(load_token))
+        .transpose()?;
+    #[cfg(feature = "bitbucket")]
+    let bitbucket_token = configuration
+        .module_enabled(ModuleId::Bitbucket)
+        .then(|| required_bitbucket(configuration).and_then(load_bitbucket_token))
+        .transpose()?;
     let mut saved = false;
     #[cfg(feature = "jira")]
     if configuration.module_enabled(ModuleId::Jira) {
-        let token = load_token(required_jira(configuration)?)?;
-        save_setup(configuration, &token)?;
+        let token = jira_token.as_deref().ok_or(CliError::MissingJiraToken)?;
+        save_setup(configuration, token)?;
         saved = true;
     }
     #[cfg(feature = "bitbucket")]
     if configuration.module_enabled(ModuleId::Bitbucket) {
-        let token = load_bitbucket_token(required_bitbucket(configuration)?)?;
-        save_bitbucket_setup(configuration, &token)?;
+        let token = bitbucket_token
+            .as_deref()
+            .ok_or(CliError::MissingBitbucketToken)?;
+        save_bitbucket_setup(configuration, token)?;
         saved = true;
     }
     if !saved {
@@ -780,6 +810,102 @@ async fn setup(profile_path: Option<PathBuf>) -> Result<(), CliError> {
     install_selected_profile(profile_path, profile.as_ref())?;
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     configure_clients()?;
+    Ok(())
+}
+
+async fn settings(profile_path: Option<PathBuf>) -> Result<(), CliError> {
+    loop {
+        let copy = settings_copy::settings_copy();
+        let actions = settings_actions();
+        let options = actions
+            .iter()
+            .map(|action| settings_action_label(*action, copy))
+            .collect::<Vec<_>>();
+        let selected = choose(&copy.title, &options).map_err(|error| terminal_error(&error));
+        let action = match selected {
+            Ok(index) => actions.get(index).copied().unwrap_or(SettingsAction::Back),
+            Err(CliError::Cancelled) => SettingsAction::Back,
+            Err(error) => return Err(error),
+        };
+        match action {
+            #[cfg(feature = "jira")]
+            SettingsAction::Jira => {
+                let profile = load_setup_profile(profile_path.as_deref())?;
+                jira_settings::run(profile.as_ref()).await?;
+            }
+            #[cfg(feature = "bitbucket")]
+            SettingsAction::Bitbucket => {
+                let profile = load_setup_profile(profile_path.as_deref())?;
+                bitbucket_settings::run(profile.as_ref()).await?;
+            }
+            SettingsAction::Clients => manage_clients()?,
+            SettingsAction::Skills => install_skills()?,
+            SettingsAction::Language => configure_language()?,
+            SettingsAction::Back => return Ok(()),
+        }
+    }
+}
+
+fn settings_actions() -> Vec<SettingsAction> {
+    let mut actions = vec![SettingsAction::Language];
+    #[cfg(feature = "jira")]
+    actions.push(SettingsAction::Jira);
+    #[cfg(feature = "bitbucket")]
+    actions.push(SettingsAction::Bitbucket);
+    actions.extend([
+        SettingsAction::Clients,
+        SettingsAction::Skills,
+        SettingsAction::Back,
+    ]);
+    actions
+}
+
+fn settings_action_label(action: SettingsAction, copy: &settings_copy::SettingsCopy) -> String {
+    match action {
+        #[cfg(feature = "jira")]
+        SettingsAction::Jira => copy.jira.clone(),
+        #[cfg(feature = "bitbucket")]
+        SettingsAction::Bitbucket => copy.bitbucket.clone(),
+        SettingsAction::Clients => copy.mcp_clients.clone(),
+        SettingsAction::Skills => copy.assistant_skills.clone(),
+        SettingsAction::Language => copy.language.clone(),
+        SettingsAction::Back => copy.back.clone(),
+    }
+}
+
+fn configure_language() -> Result<(), CliError> {
+    let options = ["English".to_owned(), "Español".to_owned()];
+    let selected = choose(&settings_copy::settings_copy().language, &options)
+        .map_err(|error| terminal_error(&error))?;
+    let language = match selected {
+        0 => worklogger_settings::Language::English,
+        1 => worklogger_settings::Language::Spanish,
+        _ => return Err(message("the language selection is invalid")),
+    };
+    save_language(language)?;
+    terminal_notice(settings_copy::settings_copy().language_saved.clone());
+    Ok(())
+}
+
+pub(crate) fn preferred_language() -> worklogger_settings::Language {
+    worklogger_settings::SettingsStore::for_current_user()
+        .ok()
+        .and_then(|store| store.load().ok().flatten())
+        .and_then(|settings| settings.language)
+        .unwrap_or_default()
+}
+
+fn save_language(language: worklogger_settings::Language) -> Result<(), CliError> {
+    let store = worklogger_settings::SettingsStore::for_current_user()
+        .map_err(|error| message(error.to_string()))?;
+    let mut settings = store
+        .load()
+        .map_err(|error| message(error.to_string()))?
+        .unwrap_or_default();
+    settings.language = Some(language);
+    store
+        .save(&settings, settings.revision)
+        .map_err(|error| message(error.to_string()))?;
     Ok(())
 }
 
@@ -1684,6 +1810,7 @@ const fn default_jira_hours() -> JiraHoursConfiguration {
     JiraHoursConfiguration {
         weekly_target_hours: DEFAULT_WEEKLY_TARGET_HOURS,
         utc_offset_minutes: DEFAULT_UTC_OFFSET_MINUTES,
+        maximum_daily_hours: 24,
         maximum_concurrent_worklog_requests: DEFAULT_MAXIMUM_CONCURRENT_REQUESTS,
     }
 }
@@ -1711,6 +1838,7 @@ fn prompt_jira_hours(
     let hours = JiraHoursConfiguration {
         weekly_target_hours,
         utc_offset_minutes,
+        maximum_daily_hours: defaults.maximum_daily_hours,
         maximum_concurrent_worklog_requests: defaults.maximum_concurrent_worklog_requests,
     };
     validate_prompted_hours(&hours, profile)?;
@@ -1789,6 +1917,7 @@ fn profile_jira_hours(profile: &JiraModuleProfile) -> Result<JiraHoursConfigurat
     Ok(JiraHoursConfiguration {
         weekly_target_hours,
         utc_offset_minutes: profile.hours.suggested_utc_offset_minutes,
+        maximum_daily_hours: 24,
         maximum_concurrent_worklog_requests: profile.maximum_concurrent_worklog_requests,
     })
 }
@@ -3142,6 +3271,7 @@ mod jira_setup_tests {
         let expected = JiraHoursConfiguration {
             weekly_target_hours: 30,
             utc_offset_minutes: -180,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 4,
         };
         let current = jira_setup_configuration(expected.clone());
@@ -3159,6 +3289,7 @@ mod jira_setup_tests {
         let current = jira_setup_configuration(JiraHoursConfiguration {
             weekly_target_hours: 30,
             utc_offset_minutes: 120,
+            maximum_daily_hours: 24,
             maximum_concurrent_worklog_requests: 40,
         });
 

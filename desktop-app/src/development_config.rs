@@ -78,6 +78,10 @@ fn configuration_directory() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+pub(crate) fn is_enabled() -> bool {
+    configuration_directory().is_some()
+}
+
 fn ensure_private(path: &Path) -> Result<(), String> {
     let permissions = fs::metadata(path)
         .map_err(|_| copy("developmentConfig.credentialsUnreadable"))?

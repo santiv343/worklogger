@@ -161,11 +161,11 @@ compilado
 4. `SecretStore`: tokens por proveedor; el JSON sólo conserva referencias.
 5. `SessionState`: identidad, permisos y caché; nunca es autoridad persistente.
 
-`OrganizationProfile` se serializa como un único `organization.json` con una
-sección opcional por módulo. Desktop, TUI y MCP comparten el tipo y el archivo.
-`mcp.json` y `config.json` son estados locales de cada superficie y no se
-distribuyen. Un JSON no instala addons: sólo configura o reduce los que el
-binario ya contiene.
+`OrganizationProfile` is serialized as one `organization.json` with an
+optional section per module. Desktop, TUI, and MCP share the type and file.
+User preferences are stored only in the shared `settings.json`; isolated
+headless overrides remain separate and do not modify it. A JSON file cannot
+install addons: it only configures or narrows what the binary already includes.
 
 Un JSON editable localmente no puede conceder acceso sensible. Una política
 empresarial fuerte requerirá firma o un servicio de autorización; mientras

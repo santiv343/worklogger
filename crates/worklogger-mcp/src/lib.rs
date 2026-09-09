@@ -13,6 +13,7 @@ mod jira_issues;
 mod jira_worklogs;
 mod runtime_installation;
 mod server;
+mod shared_configuration;
 mod tool_failure;
 
 #[cfg(feature = "bitbucket")]

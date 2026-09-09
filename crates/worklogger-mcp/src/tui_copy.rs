@@ -2,7 +2,8 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-const EMBEDDED_COPY: &str = include_str!("../resources/es-AR.json");
+const ENGLISH_COPY: &str = include_str!("../resources/en.json");
+const SPANISH_COPY: &str = include_str!("../resources/es.json");
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -206,8 +207,15 @@ pub(crate) struct TuiCopy {
 pub(crate) fn tui_copy() -> &'static TuiCopy {
     static COPY: OnceLock<TuiCopy> = OnceLock::new();
     COPY.get_or_init(|| {
-        serde_json::from_str(EMBEDDED_COPY).expect("the embedded TUI resource must be valid JSON")
+        serde_json::from_str(selected_copy()).expect("the embedded TUI resource must be valid JSON")
     })
+}
+
+fn selected_copy() -> &'static str {
+    match super::preferred_language() {
+        worklogger_settings::Language::English => ENGLISH_COPY,
+        worklogger_settings::Language::Spanish => SPANISH_COPY,
+    }
 }
 
 #[cfg(test)]
@@ -219,5 +227,11 @@ mod tests {
         let copy = tui_copy();
         assert!(!copy.menu_title.trim().is_empty());
         assert!(!copy.help_usage.trim().is_empty());
+    }
+
+    #[test]
+    fn both_language_resources_match_the_tui_schema() {
+        let _: TuiCopy = serde_json::from_str(ENGLISH_COPY).expect("English TUI copy is valid");
+        let _: TuiCopy = serde_json::from_str(SPANISH_COPY).expect("Spanish TUI copy is valid");
     }
 }

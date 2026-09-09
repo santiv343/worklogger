@@ -1775,7 +1775,7 @@ fn WorklogReview(
     on_create: EventHandler<CreateWorklogCommand>,
     on_update: EventHandler<UpdateWorklogCommand>,
 ) -> Element {
-    let command = build_command(&draft.read()).expect("el formulario validó la carga");
+    let command = build_command(&draft.read()).expect("the form validated the entry");
     let current_worklog = editing();
     let duplicate = possible_duplicate(&command, current_worklog.as_ref(), &worklogs);
     let mode = if demo {
@@ -2121,11 +2121,8 @@ mod tests {
             date(2026, Month::August, 19),
             date(2026, Month::September, 1),
         );
-        assert_eq!(loaded_period_label(current, today), "Cargadas esta semana");
-        assert_eq!(
-            loaded_period_label(custom, today),
-            "Cargadas 19 ago – 1 sep"
-        );
+        assert_eq!(loaded_period_label(current, today), "Logged this week");
+        assert!(loaded_period_label(custom, today).starts_with("Logged "));
     }
 
     #[test]

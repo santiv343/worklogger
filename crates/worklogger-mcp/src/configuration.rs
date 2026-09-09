@@ -13,18 +13,12 @@ pub use worklogger_profile::{Capability, IntegrationModuleId as ModuleId};
 use worklogger_profile::{OrganizationProfile, ProviderScopeMode};
 
 const CONFIGURATION_SCHEMA_VERSION: u16 = 2;
-const LEGACY_CONFIGURATION_SCHEMA_VERSION: u16 = 1;
 const MAXIMUM_EMAIL_LENGTH: usize = 254;
 const MAXIMUM_WEEKLY_HOURS: u16 = 168;
 const MAXIMUM_UTC_OFFSET_MINUTES: i16 = 14 * 60;
 const MAXIMUM_CONFIGURATION_BYTES: usize = 1_048_576;
 pub const DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS: usize = 1_000;
 const CONFIGURATION_ENVIRONMENT_VARIABLE: &str = "WORKLOGGER_MCP_CONFIG";
-#[cfg(windows)]
-const CONFIGURATION_DIRECTORY: &str = "Worklogger";
-#[cfg(not(windows))]
-const UNIX_CONFIGURATION_DIRECTORY: &str = "worklogger";
-const CONFIGURATION_FILE_NAME: &str = "mcp.json";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -53,6 +47,8 @@ pub struct JiraConfiguration {
 pub struct JiraHoursConfiguration {
     pub weekly_target_hours: u16,
     pub utc_offset_minutes: i16,
+    #[serde(default = "default_maximum_daily_hours")]
+    pub maximum_daily_hours: u8,
     pub maximum_concurrent_worklog_requests: usize,
 }
 
@@ -84,28 +80,6 @@ pub struct McpConfiguration {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bitbucket: Option<BitbucketConfiguration>,
     pub modules: BTreeMap<ModuleId, ModuleConfiguration>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyMcpConfiguration {
-    schema_version: u16,
-    jira: LegacyJiraConfiguration,
-    modules: BTreeMap<ModuleId, ModuleConfiguration>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyJiraConfiguration {
-    base_url: String,
-    email: String,
-    board_id: u64,
-    weekly_target_hours: u16,
-    utc_offset_minutes: i16,
-    request_timeout_seconds: u64,
-    page_size: u16,
-    maximum_collection_items: usize,
-    maximum_concurrent_worklog_requests: usize,
 }
 
 #[derive(Debug, Error)]
@@ -147,11 +121,14 @@ pub enum ConfigurationError {
     TooLarge,
     #[error("could not determine the user configuration directory")]
     MissingUserConfigurationDirectory,
+    #[error(transparent)]
+    Shared(#[from] worklogger_settings::SettingsError),
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigurationStore {
     path: PathBuf,
+    shared: Option<worklogger_settings::SettingsStore>,
 }
 
 impl McpConfiguration {
@@ -192,7 +169,7 @@ impl McpConfiguration {
         Self::build(None, Some(bitbucket), modules)
     }
 
-    fn build(
+    pub(crate) fn build(
         jira: Option<JiraConfiguration>,
         bitbucket: Option<BitbucketConfiguration>,
         modules: BTreeMap<ModuleId, ModuleConfiguration>,
@@ -563,14 +540,27 @@ impl ConfigurationStore {
         if let Some(path) = environment_path(CONFIGURATION_ENVIRONMENT_VARIABLE) {
             return Ok(Self::at(path));
         }
-        platform_configuration_path()
-            .map(Self::at)
-            .ok_or(ConfigurationError::MissingUserConfigurationDirectory)
+        let store = worklogger_settings::SettingsStore::for_current_user()?;
+        Ok(Self::shared(store))
     }
 
     #[must_use]
     pub const fn at(path: PathBuf) -> Self {
-        Self { path }
+        Self { path, shared: None }
+    }
+
+    /// Uses the canonical shared settings store.
+    #[must_use]
+    pub fn shared(store: worklogger_settings::SettingsStore) -> Self {
+        Self {
+            path: store.path().to_path_buf(),
+            shared: Some(store),
+        }
+    }
+
+    #[must_use]
+    pub fn shared_store(&self) -> Option<&worklogger_settings::SettingsStore> {
+        self.shared.as_ref()
     }
 
     #[must_use]
@@ -584,6 +574,14 @@ impl ConfigurationStore {
     ///
     /// Returns an error when the file is inaccessible, malformed, or unsafe.
     pub fn load(&self) -> Result<Option<McpConfiguration>, ConfigurationError> {
+        if let Some(store) = &self.shared {
+            return store
+                .load()?
+                .as_ref()
+                .map(McpConfiguration::from_shared)
+                .transpose()
+                .map(Option::flatten);
+        }
         let bytes = match fs::read(&self.path) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -599,6 +597,12 @@ impl ConfigurationStore {
     /// Returns an error when validation, serialization, or persistence fails.
     pub fn save(&self, configuration: &McpConfiguration) -> Result<(), ConfigurationError> {
         configuration.validate_persisted()?;
+        if let Some(store) = &self.shared {
+            let mut document = store.load()?.unwrap_or_default();
+            configuration.update_shared(&mut document)?;
+            store.save(&document, document.revision)?;
+            return Ok(());
+        }
         create_parent(&self.path)?;
         let mut bytes =
             serde_json::to_vec_pretty(configuration).map_err(ConfigurationError::Encode)?;
@@ -612,6 +616,13 @@ impl ConfigurationStore {
     ///
     /// Returns an error when the existing file cannot be removed.
     pub fn clear(&self) -> Result<(), ConfigurationError> {
+        if let Some(store) = &self.shared {
+            if let Some(mut document) = store.load()? {
+                document.mcp = None;
+                store.save(&document, document.revision)?;
+            }
+            return Ok(());
+        }
         match fs::remove_file(&self.path) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -626,43 +637,11 @@ fn environment_path(name: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-#[cfg(windows)]
-fn platform_configuration_path() -> Option<PathBuf> {
-    environment_path("APPDATA").map(|directory| {
-        directory
-            .join(CONFIGURATION_DIRECTORY)
-            .join(CONFIGURATION_FILE_NAME)
-    })
-}
-
-#[cfg(not(windows))]
-fn platform_configuration_path() -> Option<PathBuf> {
-    if let Some(directory) = environment_path("XDG_CONFIG_HOME") {
-        return Some(
-            directory
-                .join(UNIX_CONFIGURATION_DIRECTORY)
-                .join(CONFIGURATION_FILE_NAME),
-        );
-    }
-    environment_path("HOME").map(|directory| {
-        directory
-            .join(".config")
-            .join(UNIX_CONFIGURATION_DIRECTORY)
-            .join(CONFIGURATION_FILE_NAME)
-    })
-}
-
 fn decode_configuration(bytes: &[u8], path: &Path) -> Result<McpConfiguration, ConfigurationError> {
     if bytes.len() > MAXIMUM_CONFIGURATION_BYTES {
         return Err(ConfigurationError::TooLarge);
     }
-    let value = decode_value(bytes, path)?;
-    let schema = value.get("schemaVersion").and_then(Value::as_u64);
-    let configuration = if schema == Some(u64::from(LEGACY_CONFIGURATION_SCHEMA_VERSION)) {
-        migrate_legacy(value, path)?
-    } else {
-        decode_current(value, path)?
-    };
+    let configuration = decode_current(decode_value(bytes, path)?, path)?;
     configuration.validate_persisted()?;
     Ok(configuration)
 }
@@ -675,50 +654,10 @@ fn decode_current(value: Value, path: &Path) -> Result<McpConfiguration, Configu
     serde_json::from_value(value).map_err(|source| decode_error(path, source))
 }
 
-fn migrate_legacy(value: Value, path: &Path) -> Result<McpConfiguration, ConfigurationError> {
-    let legacy: LegacyMcpConfiguration =
-        serde_json::from_value(value).map_err(|source| decode_error(path, source))?;
-    if legacy.schema_version != LEGACY_CONFIGURATION_SCHEMA_VERSION {
-        return Err(ConfigurationError::UnsupportedSchema);
-    }
-    Ok(legacy.into_current())
-}
-
 fn decode_error(path: &Path, source: serde_json::Error) -> ConfigurationError {
     ConfigurationError::Decode {
         path: path.to_path_buf(),
         source,
-    }
-}
-
-impl LegacyMcpConfiguration {
-    fn into_current(self) -> McpConfiguration {
-        let jira = self.jira.into_current();
-        McpConfiguration {
-            schema_version: CONFIGURATION_SCHEMA_VERSION,
-            jira: Some(jira),
-            bitbucket: None,
-            modules: self.modules,
-        }
-    }
-}
-
-impl LegacyJiraConfiguration {
-    fn into_current(self) -> JiraConfiguration {
-        JiraConfiguration {
-            base_url: self.base_url,
-            email: self.email,
-            board_id: self.board_id,
-            request_timeout_seconds: self.request_timeout_seconds,
-            page_size: self.page_size,
-            maximum_collection_items: self.maximum_collection_items,
-            maximum_issue_search_results: DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS,
-            hours: Some(JiraHoursConfiguration {
-                weekly_target_hours: self.weekly_target_hours,
-                utc_offset_minutes: self.utc_offset_minutes,
-                maximum_concurrent_worklog_requests: self.maximum_concurrent_worklog_requests,
-            }),
-        }
     }
 }
 
@@ -762,16 +701,26 @@ fn validate_jira(jira: &JiraConfiguration) -> Result<(), ConfigurationError> {
 }
 
 fn validate_jira_hours(hours: &JiraHoursConfiguration) -> Result<(), ConfigurationError> {
-    if hours.weekly_target_hours == 0 || hours.maximum_concurrent_worklog_requests == 0 {
+    if hours.weekly_target_hours == 0
+        || hours.maximum_daily_hours == 0
+        || hours.maximum_concurrent_worklog_requests == 0
+    {
         return Err(invalid_jira("hours limits"));
     }
     if hours.weekly_target_hours > MAXIMUM_WEEKLY_HOURS {
         return Err(invalid_jira("weeklyTargetHours"));
     }
+    if hours.maximum_daily_hours > 24 {
+        return Err(invalid_jira("maximumDailyHours"));
+    }
     if hours.utc_offset_minutes.abs() > MAXIMUM_UTC_OFFSET_MINUTES {
         return Err(invalid_jira("utcOffsetMinutes"));
     }
     Ok(())
+}
+
+const fn default_maximum_daily_hours() -> u8 {
+    24
 }
 
 fn validate_bitbucket(

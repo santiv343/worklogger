@@ -1,2 +1,0 @@
-Usá la actividad y los pull requests de Bitbucket como evidencia adicional para enriquecer o priorizar candidatos de trabajo, sin presentarlos como registro horario confirmado.
-En una vista previa de pull request, hacé visible el repositorio, ramas de origen y destino, título, descripción, reviewers resueltos y `closeSourceBranch`. Los reviewers resueltos incluyen los defaults efectivos de Bitbucket; no afirmes que se aplicaron si no aparecen en la preview.

@@ -1,0 +1,3 @@
+Operate only as the authenticated account and within the configured capabilities and scopes.
+Never claim that Worklogger can write time unless an enabled worklog tool is available. Every available write requires a preview and explicit confirmation.
+When a tool returns `confirmation_required`, show the person a visible section titled `Preview` before asking for confirmation. Copy `confirmation.visiblePreview`; do not merely say it was previewed or refer them back to the tool call. State whether the action will run as the authenticated account and request one explicit confirmation for the unchanged payload.

@@ -31,6 +31,7 @@ time.workspace = true
 tokio.workspace = true
 worklogger-credentials = { path = "../worklogger-credentials" }
 worklogger-profile = { path = "../worklogger-profile" }
+worklogger-settings = { path = "../worklogger-settings" }
 
 [dev-dependencies]
 rmcp = { workspace = true, features = ["client"] }

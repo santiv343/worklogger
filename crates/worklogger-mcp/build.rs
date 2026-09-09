@@ -27,15 +27,15 @@ fn embedded_profile() -> String {
     let path = selected_profile_path();
     println!("cargo:rerun-if-changed={}", path.display());
     let contents = fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("no se pudo leer {}: {error}", path.display()));
+        .unwrap_or_else(|error| panic!("could not read {}: {error}", path.display()));
     assert!(
         contents.len() <= MAXIMUM_PROFILE_BYTES,
-        "el perfil supera {MAXIMUM_PROFILE_BYTES} bytes"
+        "the profile exceeds {MAXIMUM_PROFILE_BYTES} bytes"
     );
     OrganizationProfile::from_json(&contents)
-        .unwrap_or_else(|error| panic!("{} no es válido: {error}", path.display()))
+        .unwrap_or_else(|error| panic!("{} is invalid: {error}", path.display()))
         .to_pretty_json()
-        .expect("el perfil validado debe serializarse")
+        .expect("the validated profile must serialize")
 }
 
 fn selected_profile_path() -> PathBuf {
@@ -51,11 +51,11 @@ fn managed_profile_path() -> Option<PathBuf> {
 }
 
 fn manifest_directory() -> PathBuf {
-    PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("Cargo define CARGO_MANIFEST_DIR"))
+    PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("Cargo defines CARGO_MANIFEST_DIR"))
 }
 
 fn write_generated_profile(profile: &str) {
-    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo define OUT_DIR"));
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo defines OUT_DIR"));
     fs::write(output.join(GENERATED_PROFILE), profile)
-        .expect("Cargo debe permitir escribir el perfil MCP generado");
+        .expect("Cargo must allow writing the generated MCP profile");
 }

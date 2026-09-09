@@ -13,8 +13,6 @@ use crate::tool_failure::RESPONSE_SCHEMA_VERSION;
 use crate::{JiraConfiguration, MutationConfirmation, ToolFailure};
 
 const MINUTES_PER_HOUR: u32 = 60;
-const HOURS_PER_DAY: u32 = 24;
-const MAXIMUM_WORKLOG_MINUTES: u32 = HOURS_PER_DAY * MINUTES_PER_HOUR;
 const SECONDS_PER_MINUTE: i32 = 60;
 
 pub type JiraWorklogFuture<'backend, Output> =
@@ -39,6 +37,7 @@ pub struct JiraWorklogService {
     page_size: u16,
     scope_maximum_items: usize,
     worklog_maximum_items: usize,
+    maximum_worklog_minutes: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
@@ -48,7 +47,7 @@ pub struct JiraCreateWorklogRequest {
     pub key: String,
     /// Exact RFC 3339 start instant including the configured local UTC offset.
     pub started_at: String,
-    /// Positive whole-minute duration, with a maximum of 24 hours.
+    /// Positive whole-minute duration, bounded by the configured daily limit.
     pub duration_minutes: u32,
     /// Optional plain-text description of the work performed.
     pub comment: Option<String>,
@@ -122,6 +121,7 @@ impl JiraWorklogService {
         let client = JiraClient::new(site.clone(), configuration.email.clone(), token, timeout)
             .map_err(|_| JiraIssueBackendError::InvalidConfiguration)?;
         let offset = configured_offset(configuration)?;
+        let maximum_worklog_minutes = configured_maximum_worklog_minutes(configuration)?;
         Ok(Self {
             client,
             site,
@@ -130,6 +130,7 @@ impl JiraWorklogService {
             page_size: configuration.page_size,
             scope_maximum_items: configuration.maximum_issue_search_results,
             worklog_maximum_items: configuration.maximum_collection_items,
+            maximum_worklog_minutes,
         })
     }
 
@@ -139,7 +140,12 @@ impl JiraWorklogService {
     ) -> Result<JiraWorklogPlan, JiraIssueBackendError> {
         let key = issue_key(&request.key)?;
         self.ensure_issue_scope(&key).await?;
-        let input = worklog_input(&request, self.offset, OffsetDateTime::now_utc())?;
+        let input = worklog_input(
+            &request,
+            self.offset,
+            self.maximum_worklog_minutes,
+            OffsetDateTime::now_utc(),
+        )?;
         let actor = self.load_actor().await?;
         let duplicates = self.possible_duplicates(&key, &actor, &input).await?;
         Ok(JiraWorklogPlan {
@@ -158,7 +164,12 @@ impl JiraWorklogService {
         require_confirmation(request.confirmed)?;
         let key = issue_key(&request.key)?;
         self.ensure_issue_scope(&key).await?;
-        let input = worklog_input(&request, self.offset, OffsetDateTime::now_utc())?;
+        let input = worklog_input(
+            &request,
+            self.offset,
+            self.maximum_worklog_minutes,
+            OffsetDateTime::now_utc(),
+        )?;
         let created = self
             .client
             .create_own_worklog(&key, &input)
@@ -312,16 +323,27 @@ fn configured_offset(
     UtcOffset::from_whole_seconds(seconds).map_err(|_| JiraIssueBackendError::InvalidConfiguration)
 }
 
+fn configured_maximum_worklog_minutes(
+    configuration: &JiraConfiguration,
+) -> Result<u32, JiraIssueBackendError> {
+    let hours = configuration
+        .hours
+        .as_ref()
+        .ok_or(JiraIssueBackendError::InvalidConfiguration)?;
+    Ok(u32::from(hours.maximum_daily_hours) * MINUTES_PER_HOUR)
+}
+
 fn worklog_input(
     request: &JiraCreateWorklogRequest,
     offset: UtcOffset,
+    maximum_worklog_minutes: u32,
     now: OffsetDateTime,
 ) -> Result<WorklogInput, JiraIssueBackendError> {
     let started = parse_worklog_start(&request.started_at, offset)?;
     validate_worklog_date(started, now)?;
     let duration = HoursDuration::from_minutes(request.duration_minutes)
         .map_err(|_| JiraIssueBackendError::InvalidConfiguration)?;
-    if request.duration_minutes > MAXIMUM_WORKLOG_MINUTES {
+    if request.duration_minutes > maximum_worklog_minutes {
         return Err(JiraIssueBackendError::InvalidConfiguration);
     }
     WorklogInput::new(
@@ -514,6 +536,7 @@ mod tests {
                 utc_offset_minutes: required_environment("WORKLOGGER_TEST_JIRA_UTC_OFFSET_MINUTES")
                     .parse()
                     .expect("test UTC offset is numeric"),
+                maximum_daily_hours: 24,
                 maximum_concurrent_worklog_requests: 1,
             }),
         }

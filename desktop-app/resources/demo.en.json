@@ -1,0 +1,14 @@
+{
+  "jiraBrowseUrl": "https://example.atlassian.net/browse",
+  "weeklyTargetHours": 30,
+  "worklogStartHour": 12,
+  "defaultComment": "Work completed during the day",
+  "personalAccount": "demo-current-user",
+  "personalWorklogs": [
+    { "issue": "DEMO-101", "summary": "Adjust billing flow", "dayOffset": 0, "minutes": 240 },
+    { "issue": "DEMO-101", "summary": "Adjust billing flow", "dayOffset": 1, "minutes": 180 },
+    { "issue": "DEMO-112", "summary": "Validate weekly closing rules", "dayOffset": 2, "minutes": 360 },
+    { "issue": "DEMO-121", "summary": "Fix order reconciliation", "dayOffset": 3, "minutes": 270 },
+    { "issue": "DEMO-126", "summary": "Technical review and testing", "dayOffset": 4, "minutes": 240 }
+  ]
+}

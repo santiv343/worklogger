@@ -138,7 +138,7 @@ fn defaults_lock() -> &'static RwLock<DefaultsState> {
 fn read_state() -> RwLockReadGuard<'static, DefaultsState> {
     defaults_lock()
         .read()
-        .expect("el estado de configuración no debe quedar bloqueado")
+        .expect("the configuration state must not remain locked")
 }
 
 fn load_defaults() -> DefaultsState {
@@ -230,7 +230,7 @@ fn parse_defaults(contents: &str) -> Result<ProductDefaults, String> {
 
 fn validate_desktop_modules(defaults: &ProductDefaults) -> Result<(), String> {
     if defaults.modules.jira.is_none() {
-        return Err("esta edición de Desktop requiere el módulo Jira".to_owned());
+        return Err("this Desktop edition requires the Jira module".to_owned());
     }
     Ok(())
 }
