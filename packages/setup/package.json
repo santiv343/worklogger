@@ -27,7 +27,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/santiv343/worklogger-community.git",
+    "url": "git+https://github.com/santiv343/worklogger.git",
     "directory": "packages/setup"
   },
   "license": "MIT"
