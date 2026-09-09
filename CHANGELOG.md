@@ -3,6 +3,17 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.8] - 2026-09-09
+
+### Cambiado
+
+- La TUI adopta una interfaz de paneles con navegación contextual, foco visible
+  y una jerarquía visual uniforme en todos los flujos interactivos.
+- Skills presenta una tarjeta por asistente con métricas de instalación,
+  actualización y conflictos, antes y después de ejecutar el flujo.
+- Los selectores, confirmaciones, campos, mensajes y estados de progreso usan
+  superficies compactas que se adaptan al contenido y al tamaño de terminal.
+
 ## [0.7.7] - 2026-09-09
 
 ### Cambiado

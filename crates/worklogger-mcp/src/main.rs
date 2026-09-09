@@ -280,6 +280,7 @@ fn menu_dashboard() -> Result<Dashboard, CliError> {
     Ok(Dashboard::new(
         tui_copy().menu_title.clone(),
         menu_overview(&document, &server),
+        menu_client_lines(&document.clients),
         menu_actions(),
         tui_copy().tui_navigation_hint.clone(),
         document.configured,
@@ -294,15 +295,11 @@ fn menu_overview(document: &StatusDocument, server: &Path) -> Vec<String> {
     } else {
         &copy.state_not_configured
     };
-    let mut lines = vec![
+    vec![
         format!("{}: {state}", copy.configuration_label),
         format!("{}: {}", copy.modules_label, menu_modules(document)),
-        format!("{}: {}", copy.server_label, server.display()),
         format!("{}: {}", copy.server_state_label, yes_no(server.exists())),
-        format!("{}:", copy.clients_label),
-    ];
-    lines.extend(menu_client_lines(&document.clients));
-    lines
+    ]
 }
 
 fn menu_modules(document: &StatusDocument) -> String {
@@ -324,10 +321,9 @@ fn menu_client_lines(clients: &[ClientStatusDocument]) -> Vec<String> {
         .iter()
         .map(|client| {
             format!(
-                "  • {} · {} · {}",
+                "{} · {}",
                 client.name,
                 registration_state_label(client.state),
-                client.target
             )
         })
         .collect()
@@ -387,11 +383,8 @@ fn install_skills() -> Result<(), CliError> {
     let initial_status = installer
         .inspect()
         .map_err(|error| message(error.to_string()))?;
-    let continue_installation = show_message(
-        &copy.skills_status_title,
-        &skill_status_lines(&initial_status),
-    )
-    .map_err(|error| message(error.to_string()))?;
+    let continue_installation = terminal_ui::show_skill_status(&initial_status)
+        .map_err(|error| message(error.to_string()))?;
     if !continue_installation {
         return Ok(());
     }
@@ -419,23 +412,8 @@ fn install_skills() -> Result<(), CliError> {
         .inspect()
         .map_err(|error| message(error.to_string()))?;
     terminal_notice(copy.skills_verified.clone());
-    terminal_notice(skill_status_lines(&final_status).join("\n"));
+    terminal_ui::show_skill_status(&final_status).map_err(|error| message(error.to_string()))?;
     Ok(())
-}
-
-fn skill_status_lines(statuses: &[SkillDestinationStatus]) -> Vec<String> {
-    statuses
-        .iter()
-        .map(|status| {
-            tui_copy()
-                .skills_status_format
-                .replace("{destination}", &status.name)
-                .replace("{current}", &status.current.to_string())
-                .replace("{updates}", &status.updates.to_string())
-                .replace("{missing}", &status.missing.to_string())
-                .replace("{conflicts}", &status.conflicts.to_string())
-        })
-        .collect()
 }
 
 async fn serve() -> Result<(), CliError> {
