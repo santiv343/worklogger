@@ -156,6 +156,13 @@ fn write_draft(path: &Path, bytes: &[u8]) -> Result<(), SettingsDraftError> {
     file.commit().map_err(|source| storage_error(path, source))
 }
 
+#[cfg_attr(
+    not(unix),
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "the Windows implementation matches the fallible Unix permission contract"
+    )
+)]
 fn restrict_permissions(file: &AtomicWriteFile) -> std::io::Result<()> {
     #[cfg(unix)]
     {
