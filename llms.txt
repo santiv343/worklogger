@@ -1,0 +1,13 @@
+# Worklogger
+
+Repository: https://github.com/santiv343/worklogger
+Assistant installation guide: https://github.com/santiv343/worklogger/blob/main/docs/assistant-guide.md
+User guide: https://github.com/santiv343/worklogger/blob/main/docs/user-guide/README.md
+
+Worklogger is a local MCP server for Jira and Bitbucket. Read the assistant
+guide before helping a person install it. Never request, print, log, commit, or
+place API tokens in shared files. Worklogger may persist them only in the
+operating system's private secure store. Use the interactive installer when
+configuration choices are not already known. Use the documented
+`install --config ... --clients ... --yes` command only after the person has
+reviewed the local configuration and selected the clients.

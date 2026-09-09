@@ -1,21 +1,22 @@
-# Documentación
+# Documentation
 
-## Guía de uso
+## User guides
 
-- [Guía para Desktop y MCP](user-guide/README.md)
+- [Desktop and MCP guide](user-guide/README.md)
+- [Assistant installation guide](assistant-guide.md)
 
-## Arquitectura
+## Architecture
 
-- [Arquitectura modular](architecture/modularity.md)
-- [Distribuciones personalizadas](architecture/custom-distributions.md)
-- [Versionado y releases](architecture/versioning-and-releases.md)
-- [ADR de distribuciones](adr/0001-single-codebase-distributions.md)
-- [ADR de neutralidad por cortes verticales](adr/0002-provider-neutral-vertical-slices.md)
-- [ADR de mutaciones MCP nativas por proveedor](adr/0003-provider-native-mcp-mutations.md)
+- [Modular architecture](architecture/modularity.md)
+- [Custom distributions](architecture/custom-distributions.md)
+- [Versioning and releases](architecture/versioning-and-releases.md)
+- [Distribution ADR](adr/0001-single-codebase-distributions.md)
+- [Vertical-slice neutrality ADR](adr/0002-provider-neutral-vertical-slices.md)
+- [Provider-native MCP mutations ADR](adr/0003-provider-native-mcp-mutations.md)
 
-## Seguridad
+## Security
 
-- [Permisos y límites de confianza](security/permission-model.md)
+- [Permissions and trust boundaries](security/permission-model.md)
 
-La documentación pública describe sólo el producto distribuido y sus contratos
-vigentes.
+Public documentation describes only the distributed product and its current
+contracts.

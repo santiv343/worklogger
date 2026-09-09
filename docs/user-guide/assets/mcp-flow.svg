@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title description">
-  <title id="title">Flujo seguro de Worklogger MCP</title>
-  <desc id="description">Pasos para configurar MCP y el ciclo de vista previa y confirmación antes de una acción.</desc>
+  <title id="title">Secure Worklogger MCP flow</title>
+  <desc id="description">Steps to configure MCP and the preview and confirmation cycle before an action.</desc>
   <defs>
     <linearGradient id="background" x1="0" x2="1" y1="0" y2="1">
       <stop stop-color="#f6f2ff"/>
@@ -11,8 +11,8 @@
     </filter>
   </defs>
   <rect width="1200" height="390" rx="28" fill="url(#background)"/>
-  <text x="60" y="66" fill="#2a2248" font-family="Arial, sans-serif" font-size="29" font-weight="700">MCP: configurá una vez, confirmá cada cambio</text>
-  <text x="60" y="98" fill="#5f5978" font-family="Arial, sans-serif" font-size="17">Las consultas son de lectura. Toda acción que cambia datos requiere tu confirmación.</text>
+  <text x="60" y="66" fill="#2a2248" font-family="Arial, sans-serif" font-size="29" font-weight="700">MCP: configure once, confirm every change</text>
+  <text x="60" y="98" fill="#5f5978" font-family="Arial, sans-serif" font-size="17">Queries are read-only. Every data-changing action requires your confirmation.</text>
   <g font-family="Arial, sans-serif">
     <g filter="url(#shadow)">
       <rect x="60" y="140" width="212" height="92" rx="18" fill="#fff"/>
@@ -32,16 +32,16 @@
       <circle cx="673" cy="299" r="16" fill="#7651c6"/><text x="673" y="304">6</text>
     </g>
     <g fill="#2a2248" font-size="17" font-weight="700">
-      <text x="109" y="181">Configurá</text><text x="109" y="204">tu cuenta</text>
-      <text x="351" y="181">Elegí</text><text x="351" y="204">capacidades</text>
-      <text x="593" y="181">Instalá en</text><text x="593" y="204">tu cliente</text>
-      <text x="835" y="181">Pedile una acción</text><text x="835" y="204">a tu asistente</text>
-      <text x="294" y="321">Revisá la vista previa</text>
-      <text x="694" y="321">Confirmá o cancelá</text>
+      <text x="109" y="181">Configure</text><text x="109" y="204">your account</text>
+      <text x="351" y="181">Choose</text><text x="351" y="204">capabilities</text>
+      <text x="593" y="181">Install in</text><text x="593" y="204">your client</text>
+      <text x="835" y="181">Ask your assistant</text><text x="835" y="204">to take an action</text>
+      <text x="294" y="321">Review the preview</text>
+      <text x="694" y="321">Confirm or cancel</text>
     </g>
     <g fill="#6b6384" font-size="13">
-      <text x="109" y="222">Desktop o asistente</text><text x="351" y="222">Sólo las necesarias</text><text x="593" y="222">Reiniciá el cliente</text><text x="835" y="222">Ej.: horas, issue o PR</text>
-      <text x="294" y="341">Identidad, destino y efecto</text><text x="694" y="341">Token de un solo uso</text>
+      <text x="109" y="222">Desktop or assistant</text><text x="351" y="222">Only what you need</text><text x="593" y="222">Restart the client</text><text x="835" y="222">E.g. time, issue, or PR</text>
+      <text x="294" y="341">Identity, target, and effect</text><text x="694" y="341">Single-use token</text>
     </g>
   </g>
 </svg>

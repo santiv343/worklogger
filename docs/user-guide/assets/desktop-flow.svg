@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
-  <title id="title">Flujo de uso de Worklogger Desktop</title>
-  <desc id="description">Cinco pasos: abrir Worklogger, conectar Jira, elegir tablero, cargar horas y consultar reportes.</desc>
+  <title id="title">Worklogger Desktop walkthrough</title>
+  <desc id="description">Five steps: open Worklogger, connect Jira, choose a board, log time, and read reports.</desc>
   <defs>
     <linearGradient id="background" x1="0" x2="1" y1="0" y2="1">
       <stop stop-color="#f4f7ff"/>
@@ -11,8 +11,8 @@
     </filter>
   </defs>
   <rect width="1200" height="360" rx="28" fill="url(#background)"/>
-  <text x="60" y="66" fill="#182b49" font-family="Arial, sans-serif" font-size="29" font-weight="700">Tu recorrido en Worklogger Desktop</text>
-  <text x="60" y="98" fill="#52647d" font-family="Arial, sans-serif" font-size="17">Conectá una vez y después registrá tu trabajo en pocos pasos.</text>
+  <text x="60" y="66" fill="#182b49" font-family="Arial, sans-serif" font-size="29" font-weight="700">Your Worklogger Desktop walkthrough</text>
+  <text x="60" y="98" fill="#52647d" font-family="Arial, sans-serif" font-size="17">Connect once, then log your work in a few steps.</text>
   <g font-family="Arial, sans-serif">
     <path d="M252 204H287M469 204H504M686 204H721M903 204H938" stroke="#70a3e9" stroke-width="4" stroke-linecap="round"/>
     <g filter="url(#shadow)">
@@ -30,14 +30,14 @@
       <circle cx="956" cy="166" r="17" fill="#2d6cdf"/><text x="956" y="171">5</text>
     </g>
     <g fill="#182b49" font-size="18" font-weight="700">
-      <text x="80" y="206">Abrí</text><text x="80" y="230">Worklogger</text>
-      <text x="297" y="206">Conectá</text><text x="297" y="230">Jira</text>
-      <text x="514" y="206">Elegí tu</text><text x="514" y="230">tablero</text>
-      <text x="731" y="206">Cargá tus</text><text x="731" y="230">horas</text>
-      <text x="948" y="206">Consultá</text><text x="948" y="230">reportes</text>
+      <text x="80" y="206">Open</text><text x="80" y="230">Worklogger</text>
+      <text x="297" y="206">Connect</text><text x="297" y="230">Jira</text>
+      <text x="514" y="206">Choose a</text><text x="514" y="230">board</text>
+      <text x="731" y="206">Log your</text><text x="731" y="230">time</text>
+      <text x="948" y="206">Read</text><text x="948" y="230">reports</text>
     </g>
     <g fill="#5d6e85" font-size="13">
-      <text x="80" y="253">Desktop</text><text x="297" y="253">Cuenta verificada</text><text x="514" y="253">Ámbito seguro</text><text x="731" y="253">Con revisión</text><text x="948" y="253">Exportables</text>
+      <text x="80" y="253">Desktop</text><text x="297" y="253">Verified account</text><text x="514" y="253">Safe scope</text><text x="731" y="253">Review before saving</text><text x="948" y="253">Exportable</text>
     </g>
   </g>
 </svg>

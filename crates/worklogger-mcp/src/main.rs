@@ -28,7 +28,7 @@ use worklogger_mcp::{
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 use worklogger_mcp::{Capability, ModuleConfiguration, ModuleId};
 use worklogger_mcp::{
-    ClientRegistrationService, ConfigurationStore, McpClientStatus, McpConfiguration,
+    ClientRegistrationService, ConfigurationStore, McpClientId, McpClientStatus, McpConfiguration,
     McpServerInstallation, RegistrationState, WorkloggerMcpServer,
 };
 #[cfg(feature = "jira")]
@@ -49,11 +49,14 @@ mod terminal_ui;
 mod tui_copy;
 
 use skill_installation::{AgentSkillInstaller, SkillDestinationStatus};
+#[cfg(any(feature = "jira", feature = "bitbucket"))]
+use terminal_ui::choose_many;
 use terminal_ui::{
-    Dashboard, DetailedChoice, TerminalUiSession, choose, choose_dashboard, choose_detailed,
-    choose_many, confirm as tui_confirm, notice as tui_notice, present_notices, read_text,
-    show_message, show_progress,
+    Dashboard, TerminalUiSession, choose, choose_dashboard, confirm as tui_confirm,
+    notice as tui_notice, present_notices, read_text, show_message, show_progress,
 };
+#[cfg(all(feature = "jira", feature = "bitbucket"))]
+use terminal_ui::{DetailedChoice, choose_detailed};
 use tui_copy::tui_copy;
 
 const EMBEDDED_ORGANIZATION_PROFILE: &str = include_str!(concat!(
@@ -84,11 +87,26 @@ enum Command {
     Menu,
     Serve,
     Setup { profile_path: Option<PathBuf> },
+    Install(HeadlessInstall),
     Clients,
     Status,
     Skills,
     Uninstall,
     Help,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct HeadlessInstall {
+    configuration_path: PathBuf,
+    profile_path: Option<PathBuf>,
+    clients: ClientSelection,
+    install_skills: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ClientSelection {
+    All,
+    Named(Vec<McpClientId>),
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -217,6 +235,7 @@ async fn run_command(command: Command) -> Result<(), CliError> {
         Command::Menu => menu().await,
         Command::Serve => serve().await,
         Command::Setup { profile_path } => setup(profile_path).await,
+        Command::Install(options) => install_headless(&options),
         Command::Clients => manage_clients(),
         Command::Status => status(),
         Command::Skills => install_skills(),
@@ -233,6 +252,7 @@ fn parse_command(mut arguments: impl Iterator<Item = String>) -> Result<Command,
     match command.as_str() {
         "menu" => command_without_arguments(Command::Menu, arguments),
         "setup" => parse_setup_command(arguments),
+        "install" => parse_install_command(arguments),
         "serve" => command_without_arguments(Command::Serve, arguments),
         "clients" => command_without_arguments(Command::Clients, arguments),
         "status" => command_without_arguments(Command::Status, arguments),
@@ -240,6 +260,89 @@ fn parse_command(mut arguments: impl Iterator<Item = String>) -> Result<Command,
         "uninstall" => command_without_arguments(Command::Uninstall, arguments),
         "help" | "--help" | "-h" => command_without_arguments(Command::Help, arguments),
         _ => Err(message("comando desconocido; usá --help")),
+    }
+}
+
+fn parse_install_command(mut arguments: impl Iterator<Item = String>) -> Result<Command, CliError> {
+    let mut configuration_path = None;
+    let mut profile_path = None;
+    let mut clients = None;
+    let mut install_skills = false;
+    let mut confirmed = false;
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--config" => set_install_path(&mut configuration_path, arguments.next())?,
+            "--profile" => set_install_path(&mut profile_path, arguments.next())?,
+            "--clients" => set_install_clients(&mut clients, arguments.next())?,
+            "--skills" if !install_skills => install_skills = true,
+            "--yes" if !confirmed => confirmed = true,
+            _ => return Err(message(&tui_copy().invalid_install_arguments)),
+        }
+    }
+    let configuration_path =
+        configuration_path.ok_or_else(|| message(&tui_copy().install_config_path_required))?;
+    let clients = clients.ok_or_else(|| message(&tui_copy().install_clients_required))?;
+    if !confirmed {
+        return Err(message(&tui_copy().install_confirmation_required));
+    }
+    Ok(Command::Install(HeadlessInstall {
+        configuration_path,
+        profile_path,
+        clients,
+        install_skills,
+    }))
+}
+
+fn set_install_path(
+    destination: &mut Option<PathBuf>,
+    value: Option<String>,
+) -> Result<(), CliError> {
+    if destination.is_some() {
+        return Err(message(&tui_copy().invalid_install_arguments));
+    }
+    let value = value.ok_or_else(|| message(&tui_copy().invalid_install_arguments))?;
+    *destination = Some(PathBuf::from(value));
+    Ok(())
+}
+
+fn set_install_clients(
+    destination: &mut Option<ClientSelection>,
+    value: Option<String>,
+) -> Result<(), CliError> {
+    if destination.is_some() {
+        return Err(message(&tui_copy().invalid_install_arguments));
+    }
+    let value = value.ok_or_else(|| message(&tui_copy().invalid_install_arguments))?;
+    *destination = Some(parse_client_selection(&value)?);
+    Ok(())
+}
+
+fn parse_client_selection(value: &str) -> Result<ClientSelection, CliError> {
+    if value == "all" {
+        return Ok(ClientSelection::All);
+    }
+    let mut clients = Vec::new();
+    for name in value.split(',') {
+        let client = parse_client_name(name.trim())?;
+        if clients.contains(&client) {
+            return Err(message(&tui_copy().invalid_install_clients));
+        }
+        clients.push(client);
+    }
+    if clients.is_empty() {
+        return Err(message(&tui_copy().invalid_install_clients));
+    }
+    Ok(ClientSelection::Named(clients))
+}
+
+fn parse_client_name(value: &str) -> Result<McpClientId, CliError> {
+    match value {
+        "codex" => Ok(McpClientId::Codex),
+        "claude-code" => Ok(McpClientId::ClaudeCode),
+        "claude-desktop" => Ok(McpClientId::ClaudeDesktop),
+        "cursor" => Ok(McpClientId::Cursor),
+        "windsurf" => Ok(McpClientId::Windsurf),
+        _ => Err(message(&tui_copy().invalid_install_clients)),
     }
 }
 
@@ -284,7 +387,7 @@ fn menu_dashboard() -> Result<Dashboard, CliError> {
         menu_actions(),
         tui_copy().tui_navigation_hint.clone(),
         document.configured,
-        server.exists(),
+        server_available(&server),
     ))
 }
 
@@ -298,7 +401,11 @@ fn menu_overview(document: &StatusDocument, server: &Path) -> Vec<String> {
     vec![
         format!("{}: {state}", copy.configuration_label),
         format!("{}: {}", copy.modules_label, menu_modules(document)),
-        format!("{}: {}", copy.server_state_label, yes_no(server.exists())),
+        format!(
+            "{}: {}",
+            copy.server_state_label,
+            yes_no(server_available(server))
+        ),
     ]
 }
 
@@ -314,6 +421,10 @@ fn yes_no(value: bool) -> &'static str {
         return &tui_copy().yes;
     }
     &tui_copy().no
+}
+
+fn server_available(server: &Path) -> bool {
+    server.is_file()
 }
 
 fn menu_client_lines(clients: &[ClientStatusDocument]) -> Vec<String> {
@@ -413,6 +524,169 @@ fn install_skills() -> Result<(), CliError> {
         .map_err(|error| message(error.to_string()))?;
     terminal_notice(copy.skills_verified.clone());
     terminal_ui::show_skill_status(&final_status).map_err(|error| message(error.to_string()))?;
+    Ok(())
+}
+
+fn install_headless(options: &HeadlessInstall) -> Result<(), CliError> {
+    let configuration = load_headless_configuration(options)?;
+    let registration = ClientRegistrationService::for_current_user()
+        .map_err(|error| message(error.to_string()))?;
+    let server = installed_server_path()?;
+    let clients = selected_headless_clients(registration.statuses(&server), &options.clients)?;
+    let skills = options
+        .install_skills
+        .then(AgentSkillInstaller::for_current_user)
+        .transpose()
+        .map_err(|error| message(error.to_string()))?;
+    validate_headless_skills(skills.as_ref())?;
+    save_headless_configuration(&configuration)?;
+    save_headless_profile(options.profile_path.as_deref())?;
+    let server = install_current_server()?;
+    register_headless_clients(&registration, &server, &clients)?;
+    install_headless_skills(skills.as_ref())?;
+    println!("{}", tui_copy().install_complete);
+    Ok(())
+}
+
+#[cfg(not(feature = "managed-distribution"))]
+fn save_headless_profile(profile_path: Option<&Path>) -> Result<(), CliError> {
+    let profile = load_setup_profile(profile_path)?;
+    install_selected_profile(profile_path, profile.as_ref())
+}
+
+#[cfg(feature = "managed-distribution")]
+fn save_headless_profile(profile_path: Option<&Path>) -> Result<(), CliError> {
+    let _profile = load_setup_profile(profile_path)?;
+    Ok(())
+}
+
+fn load_headless_configuration(options: &HeadlessInstall) -> Result<McpConfiguration, CliError> {
+    let store = ConfigurationStore::at(options.configuration_path.clone());
+    let configuration = store
+        .load()?
+        .ok_or_else(|| message(&tui_copy().install_config_not_found))?;
+    let profile = load_setup_profile(options.profile_path.as_deref())?;
+    apply_setup_profile(configuration, profile.as_ref())
+}
+
+fn validate_headless_skills(installer: Option<&AgentSkillInstaller>) -> Result<(), CliError> {
+    let Some(installer) = installer else {
+        return Ok(());
+    };
+    let statuses = installer
+        .inspect()
+        .map_err(|error| message(error.to_string()))?;
+    if statuses.iter().any(SkillDestinationStatus::has_conflicts) {
+        return Err(message(&tui_copy().skills_conflicts));
+    }
+    Ok(())
+}
+
+fn install_headless_skills(installer: Option<&AgentSkillInstaller>) -> Result<(), CliError> {
+    let Some(installer) = installer else {
+        return Ok(());
+    };
+    installer
+        .install()
+        .map_err(|error| message(error.to_string()))?;
+    Ok(())
+}
+
+fn selected_headless_clients(
+    statuses: Vec<McpClientStatus>,
+    selection: &ClientSelection,
+) -> Result<Vec<McpClientStatus>, CliError> {
+    let selected = match selection {
+        ClientSelection::All => statuses
+            .into_iter()
+            .filter(|status| status.state != RegistrationState::Unavailable)
+            .collect(),
+        ClientSelection::Named(clients) => clients
+            .iter()
+            .map(|client| headless_client_status(&statuses, *client))
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    if selected.is_empty() {
+        return Err(message(&tui_copy().no_compatible_clients));
+    }
+    for status in &selected {
+        headless_client_is_safe(status)?;
+    }
+    Ok(selected)
+}
+
+fn headless_client_status(
+    statuses: &[McpClientStatus],
+    client: McpClientId,
+) -> Result<McpClientStatus, CliError> {
+    statuses
+        .iter()
+        .find(|status| status.client == client)
+        .cloned()
+        .ok_or_else(|| message(&tui_copy().invalid_install_clients))
+}
+
+fn headless_client_is_safe(status: &McpClientStatus) -> Result<(), CliError> {
+    match status.state {
+        RegistrationState::Available
+        | RegistrationState::Registered
+        | RegistrationState::BrokenRegistration
+        | RegistrationState::OwnedOutdatedRegistration => Ok(()),
+        RegistrationState::Unavailable
+        | RegistrationState::ConflictingRegistration
+        | RegistrationState::InvalidConfiguration => Err(message(format!(
+            "{}: {}",
+            status.client.display_name(),
+            registration_state_label(status.state)
+        ))),
+    }
+}
+
+fn register_headless_clients(
+    registration: &ClientRegistrationService,
+    server: &Path,
+    clients: &[McpClientStatus],
+) -> Result<(), CliError> {
+    for status in clients {
+        if status.state == RegistrationState::Registered {
+            continue;
+        }
+        registration
+            .register(status.client, server)
+            .map_err(|error| message(error.to_string()))?;
+        println!(
+            "{} {}.",
+            tui_copy().client_registered,
+            status.client.display_name()
+        );
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "jira", feature = "bitbucket"))]
+fn save_headless_configuration(configuration: &McpConfiguration) -> Result<(), CliError> {
+    let mut saved = false;
+    #[cfg(feature = "jira")]
+    if configuration.module_enabled(ModuleId::Jira) {
+        let token = load_token(required_jira(configuration)?)?;
+        save_setup(configuration, &token)?;
+        saved = true;
+    }
+    #[cfg(feature = "bitbucket")]
+    if configuration.module_enabled(ModuleId::Bitbucket) {
+        let token = load_bitbucket_token(required_bitbucket(configuration)?)?;
+        save_bitbucket_setup(configuration, &token)?;
+        saved = true;
+    }
+    if !saved {
+        ConfigurationStore::for_current_user()?.save(configuration)?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(feature = "jira", feature = "bitbucket")))]
+fn save_headless_configuration(configuration: &McpConfiguration) -> Result<(), CliError> {
+    ConfigurationStore::for_current_user()?.save(configuration)?;
     Ok(())
 }
 
@@ -702,7 +976,6 @@ fn persist_bitbucket_setup(
     Ok(configuration)
 }
 
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn apply_setup_profile(
     configuration: McpConfiguration,
     profile: Option<&OrganizationProfile>,
@@ -2545,7 +2818,6 @@ fn change_client_registration(
     Ok(())
 }
 
-#[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn client_status_option(status: &McpClientStatus) -> String {
     format!(
         "{} · {} · {}",
@@ -2797,6 +3069,51 @@ mod command_tests {
         let command = parse_command(["setup", "--profile"].into_iter().map(str::to_owned));
 
         assert!(command.is_err());
+    }
+
+    #[test]
+    fn install_requires_explicit_configuration_clients_and_confirmation() {
+        let command = parse_command(
+            [
+                "install",
+                "--config",
+                "mcp.json",
+                "--clients",
+                "codex,claude-code",
+                "--skills",
+                "--yes",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .expect("install arguments are valid");
+
+        assert_eq!(
+            command,
+            Command::Install(HeadlessInstall {
+                configuration_path: PathBuf::from("mcp.json"),
+                profile_path: None,
+                clients: ClientSelection::Named(vec![McpClientId::Codex, McpClientId::ClaudeCode]),
+                install_skills: true,
+            })
+        );
+    }
+
+    #[test]
+    fn install_rejects_changes_without_explicit_confirmation() {
+        let command = parse_command(
+            ["install", "--config", "mcp.json", "--clients", "all"]
+                .into_iter()
+                .map(str::to_owned),
+        );
+
+        assert!(command.is_err());
+    }
+
+    #[test]
+    fn install_rejects_unknown_or_duplicated_clients() {
+        assert!(parse_client_selection("unknown").is_err());
+        assert!(parse_client_selection("codex,codex").is_err());
     }
 
     #[test]

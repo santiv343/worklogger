@@ -45,6 +45,13 @@ pub(crate) struct TuiCopy {
     pub tui_navigation_hint: String,
     pub profile_path_required: String,
     pub invalid_setup_arguments: String,
+    pub install_config_path_required: String,
+    pub install_clients_required: String,
+    pub install_confirmation_required: String,
+    pub invalid_install_arguments: String,
+    pub invalid_install_clients: String,
+    pub install_config_not_found: String,
+    pub install_complete: String,
     pub unexpected_arguments: String,
     #[cfg(feature = "managed-distribution")]
     pub managed_profile_immutable: String,
@@ -114,7 +121,6 @@ pub(crate) struct TuiCopy {
     pub client_updated: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub detected_clients_title: String,
-    #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub client_registered: String,
     pub state_unavailable: String,
     pub state_available: String,

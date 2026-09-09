@@ -226,6 +226,20 @@ fn documented_provider_configuration_is_valid_and_secret_free() {
 }
 
 #[test]
+#[cfg(feature = "jira")]
+fn documented_read_only_jira_configuration_is_valid_and_secret_free() {
+    let contents = include_str!("../../../config/example.jira-readonly.mcp.json");
+    let configuration: McpConfiguration =
+        serde_json::from_str(contents).expect("read-only example configuration decodes");
+
+    configuration
+        .validate()
+        .expect("read-only example configuration validates");
+    assert!(configuration.capability_enabled(Capability::ReadJiraIssues));
+    assert!(!contents.to_ascii_lowercase().contains("token"));
+}
+
+#[test]
 fn complete_configuration_is_portable_across_addon_builds() {
     let directory = TestDirectory::new();
     let store = ConfigurationStore::at(directory.path.join("mcp.json"));

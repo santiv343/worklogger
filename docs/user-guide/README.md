@@ -1,254 +1,126 @@
-# Guía de uso de Worklogger
+# Worklogger user guide
 
-Worklogger sirve para dos cosas complementarias:
+Worklogger has two complementary uses:
 
-- **Desktop:** ver tareas, registrar tus horas y consultar reportes desde una aplicación.
-- **MCP:** habilitar esas capacidades para un asistente compatible, como Codex o Claude.
+- **Desktop:** view tasks, log time, and read reports.
+- **MCP:** make those capabilities available to an assistant such as Codex or Claude.
 
-No hace falta usar MCP para aprovechar Desktop. Si usás MCP, seguís operando con
-tu propia cuenta y tus permisos de Jira o Bitbucket.
+MCP uses your own Jira or Bitbucket account and permissions. Never share API tokens: Worklogger keeps them in your operating system's secure store and never writes them to client configuration files.
 
-![Recorrido de Worklogger Desktop](assets/desktop-flow.svg)
+![Worklogger Desktop walkthrough](assets/desktop-flow.svg)
 
-## Elegí tu camino
+## Choose a path
 
-| Quiero… | Empezá por… |
+| Goal | Start here |
 | --- | --- |
-| Cargar horas y consultar reportes | [Usar Desktop](#usar-desktop) |
-| Pedirle tareas a Codex, Claude u otro asistente | [Usar MCP](#usar-mcp) |
-| Hacer ambas cosas | Configurá Desktop y después activá MCP desde **Configuración → MCP** |
+| Log time and read reports | [Use Desktop](#use-desktop) |
+| Ask an assistant about work | [Use MCP](#use-mcp) |
+| Use both | Configure Desktop, then enable **Configuration → MCP** |
 
-## Antes de empezar
+## Use Desktop
 
-Para Desktop necesitás una cuenta de Jira Cloud y un API token personal. Podés
-[crearlo desde la seguridad de tu cuenta Atlassian](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/).
-Para MCP standalone sólo necesitás Node para ejecutar el instalador público de
-npm; no necesitás una cuenta ni un token de Worklogger.
+### Connect Jira
 
-No compartas tu token. Worklogger lo guarda en el almacén seguro de tu equipo;
-no lo incorpora al perfil, a los archivos de configuración de clientes MCP ni a
-los reportes.
+1. Open Worklogger and choose **Connect Jira**.
+2. Choose **Import JSON** if your team gave you an `organization.json`; otherwise configure the connection manually.
+3. Enter your Jira site, Atlassian email address, and API token.
+4. Choose **Verify and find boards**, then select a board, weekly target, and time zone.
+5. Choose **Save and continue**.
 
-Si tu equipo te dio un `organization.json`, podés importarlo. Ese archivo define
-módulos, ámbitos y límites compartidos, pero **no** incluye cuentas ni secretos.
+The selected board defines the scope used to read tasks and create worklogs. Worklogger verifies the account before it lets you select one.
 
----
+### Log time and read reports
 
-## Usar Desktop
+Open **Jira** and choose **+ Log time**. Select an issue, enter a date and duration, optionally add a comment, then review and confirm. Worklogger creates the worklog only for your authenticated account. You can browse weeks and edit or delete your own worklogs.
 
-### 1. Conectá tu cuenta de Jira
+If your edition includes **Reports**, choose a period from the sidebar. Personal reports contain only your worklogs. Team reports appear only when enabled and authorized, and are always read-only. Both can be exported to XLSX or PDF.
 
-1. Abrí Worklogger. En el primer inicio aparece **Conectá Jira**.
-2. Si recibiste un archivo de configuración, elegí **Importar JSON**. Si no,
-   completá la conexión manualmente.
-3. Ingresá el sitio de Jira, tu correo de Atlassian y tu API token.
-4. Elegí **Verificar y buscar tableros**.
-5. Seleccioná un tablero, tu objetivo semanal y la zona horaria.
-6. Elegí **Guardar y entrar**.
+### Enable MCP from Desktop
 
-Worklogger primero verifica la cuenta y recién después permite elegir el
-tablero. Ese tablero define el ámbito desde el que vas a consultar tareas y
-cargar horas.
+1. Open **Configuration → MCP**.
+2. Enable only the capabilities you need.
+3. Under **MCP clients**, choose a client that has been opened at least once on that computer.
+4. Choose **Install**, review the target, and confirm.
+5. Restart the client.
 
-> Consejo: la zona horaria hace que cada carga quede en el día correcto. Revisala
-> especialmente si trabajás para un equipo en otro huso horario.
+Installation changes only the selected client's `worklogger` entry. It does not add tokens or alter other integrations.
 
-### 2. Cargá horas
+## Use MCP
 
-1. Entrá al módulo **Jira** y elegí **+ Cargar horas**.
-2. Seleccioná una tarea. Primero aparecen tus tareas recientes del sprint que
-   todavía no tienen horas esa semana; también podés buscar otra tarea accesible.
-3. Indicá fecha, horas, minutos y —si querés— un comentario breve.
-4. Elegí **Revisar carga**.
-5. Confirmá los datos. La carga se crea sólo para tu cuenta autenticada.
+MCP connects Worklogger to Codex, Claude Code, Claude Desktop, Cursor, and Windsurf. The server runs locally and exposes only the capabilities you enable.
 
-En la misma vista podés navegar entre semanas, ver el progreso hacia tu objetivo
-y revisar las cargas individuales. Para modificar o borrar una carga,
-seleccioná **Editar** o **Eliminar**. Antes de borrar, Worklogger vuelve a
-comprobar que la carga sea tuya.
+![MCP setup and confirmation walkthrough](assets/mcp-flow.svg)
 
-### 3. Consultá reportes
+### Guided installation
 
-Si tu edición tiene el módulo **Reportes**, entrá desde la barra lateral y elegí
-el período a analizar. La vista individual contiene solamente tus horas. La
-vista de equipo aparece sólo cuando está habilitada y tu cuenta tiene permiso;
-es siempre de sólo lectura.
-
-Podés exportar la vista a XLSX o PDF. Las exportaciones conservan el vínculo con
-las tareas de Jira para que los datos se puedan rastrear.
-
-### 4. Configurá MCP desde Desktop
-
-Desktop también puede dejar Worklogger disponible para tus asistentes:
-
-1. Abrí **Configuración** y elegí la sección **MCP**.
-2. Activá únicamente las capacidades que necesitás, por ejemplo **Consultar mis
-   horas** o **Consultar issues**.
-3. Verificá que el servidor figure como **Servidor disponible**.
-4. En **Clientes MCP**, buscá el cliente que usás. El cliente debe haberse
-   abierto al menos una vez en esa computadora.
-5. Elegí **Instalar**, revisá el destino y confirmá.
-6. Cerrá y volvé a abrir el cliente MCP.
-
-La instalación modifica sólo la entrada `worklogger` del cliente elegido. No
-agrega tokens al archivo del cliente ni modifica sus otras integraciones.
-
----
-
-## Usar MCP
-
-MCP conecta Worklogger con asistentes como Codex, Claude Code, Claude Desktop,
-Cursor y Windsurf. El servidor corre localmente y usa las capacidades que vos
-habilitaste.
-
-![Recorrido de configuración y confirmación MCP](assets/mcp-flow.svg)
-
-### Opción A: ya usás Desktop
-
-Seguí los pasos de [Configurar MCP desde Desktop](#4-configurá-mcp-desde-desktop).
-Es la opción más simple porque reutiliza la configuración de tu cuenta y te
-permite instalar en los clientes detectados desde una pantalla gráfica.
-
-### Opción B: instalación standalone
-
-Usá esta opción si no usás Desktop o si preferís configurar MCP desde una
-terminal.
-
-1. Abrí una terminal en el mismo entorno donde se ejecuta tu cliente.
-   - Para una aplicación Windows, usá PowerShell.
-   - Para Codex o Claude Code dentro de WSL, usá la terminal de esa distribución
-     WSL.
-2. Abrí el instalador público. No necesitás una cuenta ni un token de
-   Worklogger:
-
-   ```shell
-   npx @santiv343/worklogger
-   ```
-
-   Si usaste una versión anterior desde GitHub Packages, ejecutá antes una vez
-   `npm config delete @santiv343:registry`.
-
-3. Elegí los módulos y capacidades que necesitás. El asistente verifica tu
-   cuenta y descubre los recursos permitidos antes de ofrecerlos.
-   En Bitbucket podés guardar reviewers adicionales y la preferencia de borrar
-   la rama fuente al mergear para futuros PRs.
-4. Elegí el cliente detectado, revisá el archivo que se modificará y confirmá.
-5. Reiniciá el cliente MCP para que tome la nueva configuración.
-
-Si tu equipo usa un perfil compartido, podés iniciar el asistente con él:
+Run the installer in the same environment as the client: PowerShell for Windows applications, or the relevant WSL terminal for Codex or Claude Code inside WSL.
 
 ```shell
-# Windows
-npx @santiv343/worklogger setup --profile C:\ruta\organization.json
-
-# Linux o WSL
-npx @santiv343/worklogger setup --profile /ruta/organization.json
+npx @santiv343/worklogger
 ```
 
-El perfil se copia como configuración local validada. Cada persona ingresa su
-propio correo y token durante el asistente.
+Choose the modules and capabilities you need, let the wizard verify your account, select a detected client, review the changed file, and confirm. Restart the client when it finishes.
 
-### Comandos útiles
+For a shared profile:
 
-| Comando | Para qué sirve |
+```shell
+npx @santiv343/worklogger setup --profile /path/organization.json
+```
+
+### Manual or headless installation
+
+Use this only after a person has reviewed a configuration. Copy [`config/example.mcp.json`](../../config/example.mcp.json) to a private location, fill in real values, and keep tokens out of the file.
+
+```shell
+export WORKLOGGER_JIRA_API_TOKEN="<jira-token>"
+export WORKLOGGER_BITBUCKET_API_TOKEN="<bitbucket-token>"
+npx --yes @santiv343/worklogger install \
+  --config /private/path/mcp.json \
+  --clients codex,claude-code \
+  --skills \
+  --yes
+```
+
+In PowerShell, define `$env:WORKLOGGER_JIRA_API_TOKEN = "<jira-token>"` before the command. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`, `cursor`, and `windsurf`; `--skills` is optional.
+
+The first `--yes` accepts npm's first-install prompt; the final `--yes` confirms Worklogger. The command saves local configuration, installs the local server, and registers the selected clients. It stops rather than replacing an unrelated or invalid MCP registration. `--skills` installs skills for every compatible assistant destination detected on that account, independently of `--clients`. Restart registered clients, then verify:
+
+```shell
+npx @santiv343/worklogger status
+```
+
+## Commands and skills
+
+| Command | Purpose |
 | --- | --- |
-| `npx @santiv343/worklogger` | Abrir el asistente interactivo. |
-| `npx @santiv343/worklogger status` | Ver estado, módulos, ruta instalada y clientes detectados. |
-| `npx @santiv343/worklogger clients` | Instalar o quitar Worklogger de un cliente sin repetir el onboarding. |
-| `npx @santiv343/worklogger skills` | Instalar o actualizar las skills de flujo de Worklogger. |
-| `npx @santiv343/worklogger uninstall` | Quitar sólo el registro y la configuración MCP de Worklogger. |
+| `npx @santiv343/worklogger` | Open the interactive wizard. |
+| `npx @santiv343/worklogger status` | View modules, server, and detected clients. |
+| `npx @santiv343/worklogger clients` | Install or remove Worklogger from a client. |
+| `npx @santiv343/worklogger skills` | Install or update workflow skills. |
+| `npx @santiv343/worklogger uninstall` | Remove only Worklogger's MCP registration and configuration. |
 
-`uninstall` no borra tus horas en Jira, tus pull requests ni las credenciales de
-Desktop. Tampoco elimina integraciones ajenas que usen el mismo cliente.
+The `skills` command installs `worklogger-jira`, `worklogger-daily`, and `worklogger-delivery` for shared Agent Skills, Codex, Claude Code, and Windsurf without modifying unrelated skills. Cursor uses Rules and Commands instead.
 
-### Skills de flujo
+To let an assistant guide installation, share the repository link and ask it to follow the [assistant guide](../assistant-guide.md).
 
-En la TUI elegí **Instalar skills de flujo para asistentes** o ejecutá
-`npx @santiv343/worklogger skills`. Instala las mismas tres skills portables
-(`worklogger-jira`, `worklogger-daily` y `worklogger-delivery`) para Agent
-Skills compartidas, Codex, Claude Code y Windsurf. Cada instalación queda en el
-directorio global propio del asistente y no modifica ninguna skill ajena.
+## Ask an assistant to act
 
-Cursor usa Rules y Commands en lugar de este formato de Skill, por lo que no se
-instala un archivo incompatible allí.
+After registration and restart, use plain language: “Show my worklogs for this week”, “Find issue PROJ-123 and summarize it”, or “List open pull requests in the allowed repository”.
 
----
+Every action that changes data must show a visible **Preview** with identity, target, and effect, then ask for explicit confirmation. A preview is single-use: if the issue or pull request changes, Worklogger rejects stale confirmation.
 
-## Pedir acciones desde un asistente
+For pull requests, Worklogger merges effective Bitbucket default reviewers with explicit reviewers without duplicates. The preview says whether the source branch will close; if unspecified, it remains open.
 
-Una vez registrado el servidor y reiniciado el cliente, hablale al asistente en
-lenguaje natural. Ejemplos:
+## Security and troubleshooting
 
-- “Mostrame mis horas de esta semana.”
-- “¿Qué tareas del sprint tengo sin horas cargadas?”
-- “Buscá el issue PROJ-123 y resumilo.”
-- “Listá los pull requests abiertos del repositorio permitido.”
+- Never paste tokens into chat, tickets, `organization.json`, or MCP client configuration files.
+- `organization.json` is shareable; `mcp.json` and `config.json` are private and must not be shared.
+- A profile can restrict scopes but cannot grant provider permissions.
+- Restart the MCP client after updating Worklogger.
 
-Para acciones que cambian datos, el asistente siempre tiene que pegar una
-sección visible `Vista previa` y pedir tu confirmación. No alcanza con decir
-que fue previsualizada ni con dejar el detalle dentro de una llamada técnica
-plegada. Ejemplos: cargar horas, comentar o editar un issue, crear o aprobar un
-pull request, mergear o declinar un pull request.
-
-Al crear un pull request, Worklogger agrega los reviewers predeterminados
-efectivos de Bitbucket —los del repositorio y los heredados del proyecto— a los
-reviewers que indiques, sin duplicarlos. La preview también muestra si la rama
-fuente se cerrará; si no se especifica, queda conservada.
-
-| Momento | Qué vas a ver | Qué hacer |
-| --- | --- | --- |
-| Consulta | Resultado de Jira o Bitbucket | Revisalo; no cambia nada. |
-| Vista previa | El bloque visible con tu identidad, destino y efecto exacto | Revisá los datos y posibles duplicados. |
-| Confirmación | Pedido explícito de confirmar | Confirmá sólo si sigue siendo correcto. |
-| Ejecución | Resultado o error del proveedor | Si hubo cambios remotos, el asistente te lo informa. |
-
-La confirmación es de un solo uso y está ligada al estado mostrado. Si el issue
-o el pull request cambió entre la vista previa y la confirmación, Worklogger no
-ejecuta la acción con información vieja.
-
----
-
-## Qué puede hacer MCP
-
-Lo que aparece en tu cliente depende de la edición instalada, del perfil, de
-las capacidades activadas y de tus permisos reales.
-
-| Integración | Consultas | Acciones confirmadas |
-| --- | --- | --- |
-| Jira | Issues, búsquedas, campos editables, transiciones, horas propias y tareas sin horas | Cargar horas propias; editar, comentar o cambiar un issue si habilitaste esas capacidades. |
-| Bitbucket | Repositorios permitidos, pull requests y actividad | Crear o editar PRs, comentar, revisar, mergear o declinar sólo si habilitaste cada capacidad. |
-
-Worklogger nunca acepta otra persona como autor de una carga de horas: opera
-siempre como la cuenta autenticada. Las horas de terceros, si Jira permite
-verlas, son de sólo lectura.
-
----
-
-## Seguridad y privacidad
-
-- Nunca pegues tokens en un chat, un ticket, un perfil `organization.json` ni
-  un archivo de configuración de un cliente MCP.
-- `organization.json` se puede compartir; `mcp.json` y `config.json` son
-  locales de cada persona y no se comparten.
-- El perfil puede restringir módulos y ámbitos, pero no puede otorgar permisos
-  que Jira o Bitbucket no te dieron.
-- Cancelar una confirmación no hace cambios.
-- Después de una actualización de Worklogger, reiniciá tu cliente MCP para que
-  use la versión nueva del servidor.
-
-## Problemas frecuentes
-
-| Situación | Qué hacer |
+| Situation | What to do |
 | --- | --- |
-| No aparece mi cliente MCP | Abrilo al menos una vez y repetí la detección. Ejecutá el asistente en el mismo entorno: PowerShell para apps Windows o WSL para clientes dentro de WSL. |
-| El botón de instalar está deshabilitado | Activá al menos una capacidad y completá las credenciales de todos los proveedores activos. |
-| No aparece una herramienta en el asistente | Revisá que el módulo esté incluido, permitido por el perfil y habilitado en MCP; después reiniciá el cliente. |
-| El asistente pide confirmación | Es el comportamiento esperado para una acción que modifica datos. Revisá identidad, destino y efecto antes de responder. |
-| Una acción se rechaza después de confirmar | El recurso pudo haber cambiado o tu permiso puede no alcanzar. Volvé a consultar y generá una vista previa nueva. |
-| Quiero quitar MCP | Usá **Quitar** en Desktop o `npx @santiv343/worklogger uninstall`. Sólo se elimina el registro de Worklogger. |
-
-## Siguiente paso
-
-Empezá por conectar Jira en Desktop o por ejecutar el asistente MCP. Para saber
-qué configuración tenés activa, usá la pantalla **Configuración → MCP** o el
-comando `npx @santiv343/worklogger status`.
+| My client does not appear | Open it once and rerun detection in the same environment. |
+| A tool does not appear | Check that its module is bundled, profile-allowed, and enabled; then restart the client. |
+| An action is rejected after confirmation | Query again and create a new preview; the resource or permissions may have changed. |
+| I want to remove MCP | Use Desktop **Remove** or `npx @santiv343/worklogger uninstall`. |

@@ -1,76 +1,87 @@
 # Worklogger MCP setup
 
-CLI pública para configurar y administrar el servidor MCP standalone en Windows
-x64 o Linux x64 con glibc 2.35 o posterior, incluido Ubuntu 22.04+ y WSL2.
-Incluye ambos binarios Rust y ejecuta el nativo del sistema. El servidor queda
-instalado en una ruta versionada del usuario:
+Public CLI for configuring and managing the standalone MCP server on Windows x64
+or Linux x64 with glibc 2.35 or newer, including Ubuntu 22.04+ and WSL2. It
+contains both Rust binaries and runs the native binary for the current system.
+The server is installed in a versioned user location:
 
-- Windows: `%LOCALAPPDATA%\Worklogger\MCP\<versión>`;
-- Linux/WSL: `$XDG_DATA_HOME/worklogger/MCP/<versión>` o
-  `~/.local/share/worklogger/MCP/<versión>`.
+- Windows: `%LOCALAPPDATA%\Worklogger\MCP\<version>`;
+- Linux/WSL: `$XDG_DATA_HOME/worklogger/MCP/<version>` or
+  `~/.local/share/worklogger/MCP/<version>`.
 
-Node se usa sólo para abrir el instalador; no es necesario cuando el servidor
-está funcionando.
+Node is used only to launch the installer; it is not required while the server
+is running. Node.js 18 or newer is required to run `npx`.
 
-La instalación no requiere cuenta ni token de Worklogger:
+## Guided setup
+
+Run the installer in the same environment as the client: PowerShell for Windows
+applications, or the relevant WSL terminal for Codex or Claude Code in WSL.
 
 ```shell
 npx @santiv343/worklogger
 ```
 
-Si antes configuraste este scope para GitHub Packages, volvé al registry público
-de npm una sola vez:
+If this scope was previously configured for GitHub Packages, return to the
+public npm registry once:
 
 ```shell
 npm config delete @santiv343:registry
 ```
 
-Sin argumentos abre la TUI principal. Desde ahí se consultan el estado, la ruta
-instalada, los módulos activos y los clientes detectados; también se accede a la
-configuración y a la instalación o retiro en cada cliente.
+Without arguments, Worklogger opens its TUI. It shows configuration, local
+server availability, active modules, and detected clients, and provides guided
+setup, registration, removal, and skill installation.
 
-Para reutilizar la configuración modular de un equipo:
+To use a shared team profile:
 
 ```shell
-# Windows
-npx @santiv343/worklogger setup --profile C:\ruta\organization.json
-
-# Linux o WSL
-npx @santiv343/worklogger setup --profile /ruta/organization.json
+npx @santiv343/worklogger setup --profile /path/organization.json
 ```
 
-El perfil se valida y se instala bajo el directorio de configuración del
-usuario. Puede definir branding, módulos, ámbitos, límites y capacidades
-permitidas, pero no debe contener cuentas ni secretos. Cada usuario ingresa su
-propio correo y token durante el asistente. El token queda en Windows Credential
-Manager o, en Linux, en un almacén local atómico con permisos `0700/0600`; nunca
-se copia al JSON ni a los clientes MCP.
+The profile is validated and installed in the user's configuration directory. It
+may define branding, modules, scopes, limits, and allowed capabilities, but never
+accounts or secrets. The wizard stores every person's token in Windows Credential
+Manager or a Linux atomic store protected by `0700/0600`; no token is copied to
+JSON or MCP clients.
 
-También acepta:
+## Manual or headless setup
+
+Copy a reviewed `mcp.json` to a private location. Start from the read-only Jira
+example in the repository, enter any required token in the same shell without
+putting it in shell history, then run:
+
+```shell
+read -rsp "Jira API token: " WORKLOGGER_JIRA_API_TOKEN; echo
+export WORKLOGGER_JIRA_API_TOKEN
+npx --yes @santiv343/worklogger install \
+  --config /private/path/mcp.json \
+  --clients codex \
+  --yes
+unset WORKLOGGER_JIRA_API_TOKEN
+```
+
+The first `--yes` accepts npm's install prompt. The final `--yes` confirms
+Worklogger changes. `--clients` accepts `all`, `codex`, `claude-code`,
+`claude-desktop`, `cursor`, and `windsurf`. Add `--skills` only when workflow
+skills should be installed for every compatible assistant destination detected
+on that account.
+
+The command never replaces unrelated or invalid client registrations. Restart
+registered clients, run `npx @santiv343/worklogger status`, and make one
+read-only request through the client to verify the connection.
+
+## Other commands
 
 ```shell
 npx @santiv343/worklogger clients
+npx @santiv343/worklogger skills
 npx @santiv343/worklogger status
 npx @santiv343/worklogger uninstall
 ```
 
-`setup` ofrece únicamente los módulos incluidos en el binario y permitidos por
-el perfil, verifica la cuenta, descubre recursos dentro del ámbito y ofrece
-instalar Worklogger en los clientes detectados. `clients` permite instalarlo o
-quitarlo después sin repetir el onboarding. Cada cambio muestra el archivo
-afectado y pide confirmación.
+`uninstall` removes only registrations owned by Worklogger, its MCP
+configuration, and its MCP credential. It does not touch Desktop credentials,
+unrelated integrations, Jira worklogs, pull requests, or versioned binaries that
+may still be running.
 
-`uninstall` retira únicamente los registros pertenecientes a esa instalación,
-su configuración y su credencial MCP. No toca la credencial de Desktop ni borra
-binarios versionados que podrían seguir abiertos.
-
-Una versión nueva reconoce registros versionados anteriores, incluso cuando el
-binario viejo ya no existe, y permite actualizarlos o quitarlos. Las entradas
-homónimas ajenas se muestran como conflicto y se preservan al desinstalar.
-
-Se soportan Codex, Claude Code, Claude Desktop, Cursor y Windsurf cuando están
-disponibles en el mismo sistema donde se ejecuta el instalador. Para un cliente
-que corre dentro de WSL, ejecutá `npx` dentro de esa distribución; para una app
-Windows, ejecutalo desde PowerShell. El paquete se distribuye públicamente
-desde npm. Cada persona configura sus propias credenciales de Jira o Bitbucket
-durante el onboarding.
+For the complete product guide, see the [repository user guide](https://github.com/santiv343/worklogger/blob/main/docs/user-guide/README.md). Assistants should follow the [assistant guide](https://github.com/santiv343/worklogger/blob/main/docs/assistant-guide.md).

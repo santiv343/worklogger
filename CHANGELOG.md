@@ -1,7 +1,24 @@
 # Changelog
 
-Todos los cambios relevantes de Worklogger se documentan en este archivo. El
-proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
+Notable Worklogger changes are documented in this file. The project uses
+Semantic Versioning and dates use the `YYYY-MM-DD` format.
+
+## [0.7.9] - 2026-09-09
+
+### Added
+
+- `install --config ... --clients ... --yes` installs a reviewed local MCP
+  configuration without opening the TUI, optionally installs workflow skills,
+  and refuses unrelated or invalid client registrations.
+- A minimal Jira read-only configuration example and an assistant-specific
+  installation guide for human-guided setup.
+
+### Changed
+
+- Public README files, user guide, npm package guide, and walkthrough diagrams
+  are available in English and place MCP installation before architecture notes.
+- The local-server dashboard label now describes server availability instead of
+  implying that a full client installation has occurred.
 
 ## [0.7.8] - 2026-09-09
 
