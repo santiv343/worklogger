@@ -22,7 +22,7 @@ use worklogger_mcp::{
 
 #[cfg(feature = "mcp-management")]
 use crate::connection_model::ConnectionConfiguration;
-#[cfg(all(feature = "mcp-management", any(windows, test)))]
+#[cfg(all(test, feature = "mcp-management"))]
 use crate::connection_model::ConnectionRequest;
 #[cfg(feature = "mcp-management")]
 use crate::copy::text;
@@ -330,6 +330,40 @@ fn restore_configured_mcp_token(
         return Ok(());
     };
     restore_mcp_token(coordinates.site, coordinates.email, token)
+}
+
+#[cfg(all(feature = "mcp-management", windows))]
+fn combine_recovery_results(
+    first: Result<(), String>,
+    second: Result<(), String>,
+) -> Result<(), String> {
+    match (first, second) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+        (Err(first_error), Err(second_error)) => Err(format!("{first_error}; {second_error}")),
+    }
+}
+
+#[cfg(all(feature = "mcp-management", windows))]
+fn error_with_rollback(error: String, rollback: Result<(), String>) -> String {
+    match rollback {
+        Ok(()) => error,
+        Err(rollback_error) => format!(
+            "{error}; {}: {rollback_error}",
+            text("connection.rollbackFailed")
+        ),
+    }
+}
+
+#[cfg(all(feature = "mcp-management", windows))]
+fn restore_mcp_token(site: &str, email: &str, token: Option<String>) -> Result<(), String> {
+    let store =
+        CredentialStore::for_purpose(CredentialPurpose::Mcp).map_err(|error| error.to_string())?;
+    match token {
+        Some(value) => store.save_api_token(site, email, &value),
+        None => store.delete_api_token(site, email),
+    }
+    .map_err(|error| error.to_string())
 }
 
 #[cfg(all(feature = "mcp-management", windows))]
