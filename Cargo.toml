@@ -6,12 +6,13 @@ members = [
     "crates/jira-adapter",
     "crates/worklogger-credentials",
     "crates/worklogger-profile",
+    "crates/worklogger-settings",
     "crates/worklogger-mcp",
     "desktop-app",
 ]
 
 [workspace.package]
-version = "0.7.10"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"

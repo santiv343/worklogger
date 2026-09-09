@@ -6,7 +6,7 @@ mod board_selector;
 mod connection_model;
 #[cfg(any(all(feature = "hours", any(windows, test)), feature = "dev-desktop"))]
 mod copy;
-#[cfg(all(windows, feature = "hours"))]
+#[cfg(any(all(windows, feature = "hours"), feature = "dev-desktop"))]
 mod credentials;
 #[cfg(any(all(feature = "hours", any(windows, test)), feature = "dev-desktop"))]
 mod defaults;
@@ -14,7 +14,7 @@ mod defaults;
 mod development_config;
 #[cfg(any(all(windows, feature = "hours"), feature = "dev-desktop"))]
 mod mcp_management;
-#[cfg(all(feature = "hours", any(windows, test)))]
+#[cfg(any(all(feature = "hours", any(windows, test)), feature = "dev-desktop"))]
 mod settings;
 
 #[cfg(any(all(windows, feature = "hours"), feature = "dev-desktop"))]

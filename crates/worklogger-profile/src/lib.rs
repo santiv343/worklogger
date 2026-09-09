@@ -271,21 +271,21 @@ const fn default_team_report_access_policy() -> TeamReportAccessPolicy {
 
 #[derive(Debug, Error)]
 pub enum ProfileError {
-    #[error("el JSON del perfil no es válido: {0}")]
+    #[error("the profile JSON is invalid: {0}")]
     Decode(#[source] serde_json::Error),
     #[error("no se pudo serializar el perfil: {0}")]
     Encode(#[source] serde_json::Error),
     #[error("schemaVersion no es compatible")]
     UnsupportedSchema,
-    #[error("branding no es válido")]
+    #[error("branding is invalid")]
     InvalidBranding,
-    #[error("el módulo Jira no es válido: {0}")]
+    #[error("the Jira module is invalid: {0}")]
     InvalidJira(&'static str),
-    #[error("el módulo Bitbucket no es válido: {0}")]
+    #[error("the Bitbucket module is invalid: {0}")]
     InvalidBitbucket(&'static str),
-    #[error("el módulo Reportes no es válido")]
+    #[error("the Reports module is invalid")]
     InvalidReports,
-    #[error("el perfil debe configurar al menos un módulo")]
+    #[error("the profile must configure at least one module")]
     EmptyModules,
     #[error("una capacidad corresponde a {actual:?}, no a {expected:?}")]
     CapabilityModuleMismatch {

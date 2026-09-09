@@ -1775,7 +1775,7 @@ fn WorklogReview(
     on_create: EventHandler<CreateWorklogCommand>,
     on_update: EventHandler<UpdateWorklogCommand>,
 ) -> Element {
-    let command = build_command(&draft.read()).expect("el formulario validó la carga");
+    let command = build_command(&draft.read()).expect("the form validated the entry");
     let current_worklog = editing();
     let duplicate = possible_duplicate(&command, current_worklog.as_ref(), &worklogs);
     let mode = if demo {

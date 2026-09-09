@@ -1,0 +1,4 @@
+When asked which work is missing, first list issues in the authenticated account's current sprint that have no personal worklogs in the period. Query personal time entries to quantify the gap against the target.
+Always distinguish confirmed Jira time, candidate work with evidence, and unobservable work such as meetings. A gap against the weekly target alone does not prove which task it belongs to.
+To log time, use `jira_create_worklog` only when it is available. Do not invent or request an author: the operation uses the authenticated account. Show the preview's identity, board, issue, date, duration, comment, and possible duplicates; execute only after the person explicitly confirms with the returned token.
+For every Jira mutation, include the visible `Preview` before requesting confirmation; do not replace it with a summary that omits effect fields.

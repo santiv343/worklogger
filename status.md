@@ -2,11 +2,11 @@
 
 - UTC date: 2026-09-09
 - Branch: `main`
-- Objective: provide documented manual and non-interactive MCP installation for people and assistants, with an English-only interface.
+- Objective: make Desktop and MCP two frontends over one documented, secret-free settings domain, with direct English and Spanish settings experiences.
 
 ## In progress
 
-- [x] Translated the complete terminal interface and visible CLI help to English; validated release `0.7.10`.
+- [-] Complete the shared settings domain, direct hierarchical settings UI, and Desktop/MCP adapters without weakening credential or MCP-consent boundaries.
 
 ## Recent decisions
 
@@ -14,6 +14,10 @@
 - The TUI remains the guided flow; headless mode requires explicit `--yes` before changing client configuration.
 - Public documentation, terminal UI, visible CLI help, confirmations, and user-facing errors use English. Internal resource identifiers remain stable.
 - `--skills` is documented separately from `--clients` because it installs into every compatible skill destination detected.
+- MCP setup must be an explicit settings checklist, not a one-shot onboarding wizard. A change to one section must not recreate clients or overwrite unrelated provider settings.
+- `settings.json` is the canonical secret-free document. Desktop credentials, MCP credentials, MCP grants, clients, and skills remain independently scoped.
+- Worklogger uses only its canonical `settings.json`; it does not import or modify previous per-frontend configuration files.
+- English and Spanish are a secret-free shared preference. Restarting applies a language change to Desktop and MCP clients.
 
 ## Risks
 
@@ -29,4 +33,4 @@
 
 ## Next action
 
-- Publish the `v0.7.10` tag and verify the npm package.
+- Finish the remaining direct setup paths, run the full validation matrix, complete the repository-wide English cleanup, and publish.

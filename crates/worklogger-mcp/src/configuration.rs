@@ -20,11 +20,6 @@ const MAXIMUM_UTC_OFFSET_MINUTES: i16 = 14 * 60;
 const MAXIMUM_CONFIGURATION_BYTES: usize = 1_048_576;
 pub const DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS: usize = 1_000;
 const CONFIGURATION_ENVIRONMENT_VARIABLE: &str = "WORKLOGGER_MCP_CONFIG";
-#[cfg(windows)]
-const CONFIGURATION_DIRECTORY: &str = "Worklogger";
-#[cfg(not(windows))]
-const UNIX_CONFIGURATION_DIRECTORY: &str = "worklogger";
-const CONFIGURATION_FILE_NAME: &str = "mcp.json";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -147,11 +142,14 @@ pub enum ConfigurationError {
     TooLarge,
     #[error("could not determine the user configuration directory")]
     MissingUserConfigurationDirectory,
+    #[error(transparent)]
+    Shared(#[from] worklogger_settings::SettingsError),
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigurationStore {
     path: PathBuf,
+    shared: Option<worklogger_settings::SettingsStore>,
 }
 
 impl McpConfiguration {
@@ -192,7 +190,7 @@ impl McpConfiguration {
         Self::build(None, Some(bitbucket), modules)
     }
 
-    fn build(
+    pub(crate) fn build(
         jira: Option<JiraConfiguration>,
         bitbucket: Option<BitbucketConfiguration>,
         modules: BTreeMap<ModuleId, ModuleConfiguration>,
@@ -563,14 +561,27 @@ impl ConfigurationStore {
         if let Some(path) = environment_path(CONFIGURATION_ENVIRONMENT_VARIABLE) {
             return Ok(Self::at(path));
         }
-        platform_configuration_path()
-            .map(Self::at)
-            .ok_or(ConfigurationError::MissingUserConfigurationDirectory)
+        let store = worklogger_settings::SettingsStore::for_current_user()?;
+        Ok(Self::shared(store))
     }
 
     #[must_use]
     pub const fn at(path: PathBuf) -> Self {
-        Self { path }
+        Self { path, shared: None }
+    }
+
+    /// Uses the canonical shared settings store.
+    #[must_use]
+    pub fn shared(store: worklogger_settings::SettingsStore) -> Self {
+        Self {
+            path: store.path().to_path_buf(),
+            shared: Some(store),
+        }
+    }
+
+    #[must_use]
+    pub fn shared_store(&self) -> Option<&worklogger_settings::SettingsStore> {
+        self.shared.as_ref()
     }
 
     #[must_use]
@@ -584,6 +595,14 @@ impl ConfigurationStore {
     ///
     /// Returns an error when the file is inaccessible, malformed, or unsafe.
     pub fn load(&self) -> Result<Option<McpConfiguration>, ConfigurationError> {
+        if let Some(store) = &self.shared {
+            return store
+                .load()?
+                .as_ref()
+                .map(McpConfiguration::from_shared)
+                .transpose()
+                .map(Option::flatten);
+        }
         let bytes = match fs::read(&self.path) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -599,6 +618,12 @@ impl ConfigurationStore {
     /// Returns an error when validation, serialization, or persistence fails.
     pub fn save(&self, configuration: &McpConfiguration) -> Result<(), ConfigurationError> {
         configuration.validate_persisted()?;
+        if let Some(store) = &self.shared {
+            let mut document = store.load()?.unwrap_or_default();
+            configuration.update_shared(&mut document)?;
+            store.save(&document, document.revision)?;
+            return Ok(());
+        }
         create_parent(&self.path)?;
         let mut bytes =
             serde_json::to_vec_pretty(configuration).map_err(ConfigurationError::Encode)?;
@@ -612,6 +637,13 @@ impl ConfigurationStore {
     ///
     /// Returns an error when the existing file cannot be removed.
     pub fn clear(&self) -> Result<(), ConfigurationError> {
+        if let Some(store) = &self.shared {
+            if let Some(mut document) = store.load()? {
+                document.mcp = None;
+                store.save(&document, document.revision)?;
+            }
+            return Ok(());
+        }
         match fs::remove_file(&self.path) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -624,32 +656,6 @@ fn environment_path(name: &str) -> Option<PathBuf> {
     std::env::var_os(name)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
-}
-
-#[cfg(windows)]
-fn platform_configuration_path() -> Option<PathBuf> {
-    environment_path("APPDATA").map(|directory| {
-        directory
-            .join(CONFIGURATION_DIRECTORY)
-            .join(CONFIGURATION_FILE_NAME)
-    })
-}
-
-#[cfg(not(windows))]
-fn platform_configuration_path() -> Option<PathBuf> {
-    if let Some(directory) = environment_path("XDG_CONFIG_HOME") {
-        return Some(
-            directory
-                .join(UNIX_CONFIGURATION_DIRECTORY)
-                .join(CONFIGURATION_FILE_NAME),
-        );
-    }
-    environment_path("HOME").map(|directory| {
-        directory
-            .join(".config")
-            .join(UNIX_CONFIGURATION_DIRECTORY)
-            .join(CONFIGURATION_FILE_NAME)
-    })
 }
 
 fn decode_configuration(bytes: &[u8], path: &Path) -> Result<McpConfiguration, ConfigurationError> {

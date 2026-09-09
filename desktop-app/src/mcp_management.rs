@@ -21,7 +21,9 @@ use worklogger_mcp::{
 };
 
 #[cfg(feature = "mcp-management")]
-use crate::connection_model::{ConnectionConfiguration, ConnectionRequest};
+use crate::connection_model::ConnectionConfiguration;
+#[cfg(all(feature = "mcp-management", any(windows, test)))]
+use crate::connection_model::ConnectionRequest;
 #[cfg(feature = "mcp-management")]
 use crate::copy::text;
 
@@ -343,226 +345,6 @@ fn restore_configuration(
 }
 
 #[cfg(feature = "mcp-management")]
-pub(crate) fn synchronize(request: &ConnectionRequest) -> Result<(), String> {
-    let store = ConfigurationStore::for_current_user().map_err(|error| error.to_string())?;
-    let Some(current) = store.load().map_err(|error| error.to_string())? else {
-        return Ok(());
-    };
-    let configuration = synchronized_configuration(current.clone(), request)?;
-    #[cfg(windows)]
-    return synchronize_windows(request, &store, &current, &configuration);
-    #[cfg(not(windows))]
-    store
-        .save(&configuration)
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn synchronize_windows(
-    request: &ConnectionRequest,
-    store: &ConfigurationStore,
-    current: &McpConfiguration,
-    configuration: &McpConfiguration,
-) -> Result<(), String> {
-    let enabled = current.module_enabled(ModuleId::Jira);
-    let credential_snapshot = request_credential_snapshot(request, current, enabled)?;
-    store
-        .save(configuration)
-        .map_err(|error| error.to_string())?;
-    synchronize_request_credential_or_rollback(
-        request,
-        current,
-        store,
-        enabled,
-        credential_snapshot,
-    )?;
-    Ok(())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn synchronize_request_credential_or_rollback(
-    request: &ConnectionRequest,
-    previous: &McpConfiguration,
-    store: &ConfigurationStore,
-    enabled: bool,
-    snapshot: RequestCredentialSnapshot,
-) -> Result<(), String> {
-    if let Err(error) = apply_request_credential(request, previous, enabled) {
-        let credential_result = restore_request_credential(request, previous, snapshot, enabled);
-        let configuration_result = restore_configuration(store, Some(previous.clone()));
-        let rollback_result = combine_recovery_results(credential_result, configuration_result);
-        return Err(error_with_rollback(error, rollback_result));
-    }
-    Ok(())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-struct RequestCredentialSnapshot {
-    requested: Option<String>,
-    previous: Option<String>,
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn request_credential_snapshot(
-    request: &ConnectionRequest,
-    previous: &McpConfiguration,
-    enabled: bool,
-) -> Result<RequestCredentialSnapshot, String> {
-    let store =
-        CredentialStore::for_purpose(CredentialPurpose::Mcp).map_err(|error| error.to_string())?;
-    let requested = load_optional_token(store, &request.site, &request.email, enabled)?;
-    let previous_token = load_previous_token(store, request, previous.jira.as_ref(), enabled)?;
-    Ok(RequestCredentialSnapshot {
-        requested,
-        previous: previous_token,
-    })
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn load_optional_token(
-    store: CredentialStore,
-    site: &str,
-    email: &str,
-    enabled: bool,
-) -> Result<Option<String>, String> {
-    if !enabled {
-        return Ok(None);
-    }
-    store
-        .load_api_token(site, email)
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn load_previous_token(
-    store: CredentialStore,
-    request: &ConnectionRequest,
-    previous: Option<&JiraConfiguration>,
-    enabled: bool,
-) -> Result<Option<String>, String> {
-    let Some(previous) = previous else {
-        return Ok(None);
-    };
-    if !enabled || same_request_coordinates(request, previous)? {
-        return Ok(None);
-    }
-    store
-        .load_api_token(&previous.base_url, &previous.email)
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn apply_request_credential(
-    request: &ConnectionRequest,
-    previous: &McpConfiguration,
-    enabled: bool,
-) -> Result<(), String> {
-    save_request_credential(request, enabled)?;
-    remove_previous_request_credential(request, previous.jira.as_ref(), enabled)
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn restore_request_credential(
-    request: &ConnectionRequest,
-    previous: &McpConfiguration,
-    snapshot: RequestCredentialSnapshot,
-    enabled: bool,
-) -> Result<(), String> {
-    if !enabled {
-        return Ok(());
-    }
-    let requested_result = restore_mcp_token(&request.site, &request.email, snapshot.requested);
-    let previous_result =
-        restore_previous_mcp_token(request, previous.jira.as_ref(), snapshot.previous);
-    combine_recovery_results(requested_result, previous_result)
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn restore_previous_mcp_token(
-    request: &ConnectionRequest,
-    previous: Option<&JiraConfiguration>,
-    token: Option<String>,
-) -> Result<(), String> {
-    let Some(previous) = previous else {
-        return Ok(());
-    };
-    if same_request_coordinates(request, previous)? {
-        return Ok(());
-    }
-    restore_mcp_token(&previous.base_url, &previous.email, token)
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn combine_recovery_results(
-    first: Result<(), String>,
-    second: Result<(), String>,
-) -> Result<(), String> {
-    match (first, second) {
-        (Ok(()), Ok(())) => Ok(()),
-        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
-        (Err(first_error), Err(second_error)) => Err(format!("{first_error}; {second_error}")),
-    }
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn error_with_rollback(error: String, rollback: Result<(), String>) -> String {
-    match rollback {
-        Ok(()) => error,
-        Err(rollback_error) => format!(
-            "{error}; {}: {rollback_error}",
-            text("connection.rollbackFailed")
-        ),
-    }
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn restore_mcp_token(site: &str, email: &str, token: Option<String>) -> Result<(), String> {
-    let store =
-        CredentialStore::for_purpose(CredentialPurpose::Mcp).map_err(|error| error.to_string())?;
-    match token {
-        Some(value) => store.save_api_token(site, email, &value),
-        None => store.delete_api_token(site, email),
-    }
-    .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn same_request_coordinates(
-    request: &ConnectionRequest,
-    previous: &JiraConfiguration,
-) -> Result<bool, String> {
-    api_token_coordinates_match(
-        &previous.base_url,
-        &previous.email,
-        &request.site,
-        &request.email,
-    )
-    .map_err(|error| error.to_string())
-}
-
-#[cfg(feature = "mcp-management")]
-fn synchronized_configuration(
-    current: McpConfiguration,
-    request: &ConnectionRequest,
-) -> Result<McpConfiguration, String> {
-    synchronized_configuration_for_profile(current, request, &crate::defaults::product_defaults())
-}
-
-#[cfg(feature = "mcp-management")]
-fn synchronized_configuration_for_profile(
-    current: McpConfiguration,
-    request: &ConnectionRequest,
-    profile: &worklogger_profile::OrganizationProfile,
-) -> Result<McpConfiguration, String> {
-    rebuild_configuration(
-        jira_configuration_from_request(request)?,
-        current.bitbucket,
-        current.modules,
-    )
-    .and_then(|configuration| effective_configuration_for_profile(configuration, profile))
-}
-
-#[cfg(feature = "mcp-management")]
 fn enabled_tools(configuration: Option<&McpConfiguration>) -> Vec<String> {
     configuration.map_or_else(Vec::new, WorkloggerMcpServer::configured_tool_names)
 }
@@ -663,7 +445,7 @@ fn jira_hours_configuration(application: &ConnectionConfiguration) -> JiraHoursC
     }
 }
 
-#[cfg(feature = "mcp-management")]
+#[cfg(all(test, feature = "mcp-management"))]
 fn jira_configuration_from_request(
     request: &ConnectionRequest,
 ) -> Result<JiraConfiguration, String> {
@@ -841,41 +623,6 @@ fn configured_jira_coordinates(
 }
 
 #[cfg(all(feature = "mcp-management", windows))]
-fn save_request_credential(request: &ConnectionRequest, enabled: bool) -> Result<(), String> {
-    if !enabled {
-        return Ok(());
-    }
-    CredentialStore::for_purpose(CredentialPurpose::Mcp)
-        .and_then(|store| store.save_api_token(&request.site, &request.email, &request.token))
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
-fn remove_previous_request_credential(
-    request: &ConnectionRequest,
-    previous: Option<&JiraConfiguration>,
-    enabled: bool,
-) -> Result<(), String> {
-    let Some(previous) = previous else {
-        return Ok(());
-    };
-    let same_coordinates = api_token_coordinates_match(
-        &previous.base_url,
-        &previous.email,
-        &request.site,
-        &request.email,
-    )
-    .map_err(|error| error.to_string())?;
-    if enabled && same_coordinates {
-        return Ok(());
-    }
-    CredentialStore::for_purpose(CredentialPurpose::Mcp)
-        .map_err(|error| error.to_string())?
-        .delete_api_token(&previous.base_url, &previous.email)
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(all(feature = "mcp-management", windows))]
 fn transfer_credential(site: &str, email: &str, enabled: bool) -> Result<(), String> {
     let desktop = CredentialStore::for_purpose(CredentialPurpose::Desktop)
         .map_err(|error| error.to_string())?;
@@ -920,27 +667,6 @@ const fn server_file_name() -> &'static str {
 #[cfg(all(test, feature = "mcp-jira"))]
 mod tests {
     use super::*;
-
-    #[test]
-    fn synchronization_updates_jira_scope_and_preserves_capabilities() {
-        let original_request = request("https://old.atlassian.net", "old@example.com", 10);
-        let current = McpConfiguration::new(
-            jira_configuration_from_request(&original_request).expect("fixture is valid"),
-            module_configuration(None, Capability::ReadOwnTimeEntries, true),
-        )
-        .expect("fixture is valid");
-        let updated_request = request("https://new.atlassian.net", "new@example.com", 20);
-
-        let synchronized =
-            synchronized_configuration_for_profile(current, &updated_request, &test_profile())
-                .expect("synchronization succeeds");
-
-        let jira = synchronized.jira.as_ref().expect("Jira remains configured");
-        assert_eq!(jira.base_url, updated_request.site);
-        assert_eq!(jira.email, updated_request.email);
-        assert_eq!(jira.board_id, updated_request.board_id);
-        assert!(synchronized.capability_enabled(Capability::ReadOwnTimeEntries));
-    }
 
     #[test]
     fn capability_toggles_preserve_sibling_jira_capabilities() {

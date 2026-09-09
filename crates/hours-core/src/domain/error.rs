@@ -2,22 +2,22 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum HoursError {
-    #[error("la conexión no puede estar vacía")]
+    #[error("the connection cannot be empty")]
     EmptyConnectionId,
-    #[error("la referencia externa no es válida")]
+    #[error("the external reference is invalid")]
     InvalidExternalResource,
-    #[error("la identidad del proveedor no es válida")]
+    #[error("the provider identity is invalid")]
     InvalidProviderSubject,
-    #[error("la cuenta autenticada no puede estar vacía")]
+    #[error("the authenticated account cannot be empty")]
     EmptyAccountId,
     #[error("la fecha inicial no puede ser posterior a la final")]
     InvalidDateRange,
-    #[error("la duración debe ser mayor que cero")]
+    #[error("the duration must be greater than zero")]
     InvalidDuration,
-    #[error("la clave de Jira no es válida")]
+    #[error("the Jira key is invalid")]
     InvalidIssueKey,
     #[error("el objetivo semanal debe ser mayor que cero")]
     InvalidWeeklyTarget,
-    #[error("sólo podés modificar horas de tu cuenta Jira autenticada")]
+    #[error("you can modify time only for your authenticated Jira account")]
     WorklogOwnershipViolation,
 }

@@ -21,13 +21,13 @@ const ACCOUNT_SEPARATOR: char = '|';
 
 #[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
 pub enum CredentialError {
-    #[error("el origen de la conexión no tiene un formato válido")]
+    #[error("the connection origin has an invalid format")]
     InvalidSite,
-    #[error("el correo de la cuenta no tiene un formato válido")]
+    #[error("the account email has an invalid format")]
     InvalidEmail,
-    #[error("el API token está vacío o supera el tamaño permitido")]
+    #[error("the API token is empty or exceeds the allowed size")]
     InvalidToken,
-    #[error("el almacén seguro del sistema operativo no está disponible")]
+    #[error("the operating system secure store is unavailable")]
     Unavailable,
     #[error("no se pudo guardar el API token")]
     SaveFailed,
@@ -35,7 +35,7 @@ pub enum CredentialError {
     ReadFailed,
     #[error("no se pudo eliminar el API token")]
     DeleteFailed,
-    #[error("otra instancia está actualizando la configuración segura")]
+    #[error("another process is updating the secure configuration")]
     TransactionBusy,
 }
 

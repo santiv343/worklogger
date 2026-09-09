@@ -11,7 +11,7 @@ Use this guide when helping a person install or use Worklogger MCP from this pub
 
 ## Pick the right path
 
-Use the guided path when the person still needs to choose a provider, Jira board, Bitbucket repositories, or capabilities. Ask them to run:
+Use interactive settings when the person still needs to choose a provider, Jira board, Bitbucket repositories, or capabilities. Ask them to run:
 
 ```shell
 npx @santiv343/worklogger
@@ -21,13 +21,13 @@ Use the manual path only when a reviewed `mcp.json` already exists and the perso
 
 Before any setup, confirm that Node is available with `node --version`. If `npx` still points the `@santiv343` scope at GitHub Packages, ask the person to run `npm config delete @santiv343:registry` once.
 
-## Guide the interactive path
+## Guide interactive settings
 
-1. Explain the available provider and capability choices using least privilege: enable only what the person needs.
+1. Open **Settings** and explain the provider and capability choices using least privilege.
 2. Let the person type credentials locally. Do not request them through the conversation.
-3. Have them choose a detected MCP client, review the changed file, and confirm.
-4. Tell them to restart that client and run `npx @santiv343/worklogger status`.
-5. Ask for one read-only check after restart, such as “Show my worklogs for this week” or “List open pull requests in the allowed repository.”
+3. Configure only the required sections: connection, board or repositories, permissions, and limits.
+4. Open **MCP clients**, review the exact changed file, and confirm. Install assistant skills only if wanted.
+5. Tell them to restart that client, run `npx @santiv343/worklogger status`, and make one read-only check.
 
 ## Guide the manual path
 
@@ -52,7 +52,7 @@ unset WORKLOGGER_JIRA_API_TOKEN
 
 `--skills` is independent from `--clients`: it installs Worklogger's three workflow skills in every compatible assistant destination detected on that user account. Omit it when that wider change is not wanted.
 
-For PowerShell or when handling temporary environment variables is not appropriate, prefer the guided installer so the person enters the credential locally and Worklogger stores it securely.
+For PowerShell or when handling temporary environment variables is not appropriate, prefer interactive settings so the person enters the credential locally and Worklogger stores it securely.
 
 ## Verify and hand off
 

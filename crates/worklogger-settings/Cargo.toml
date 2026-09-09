@@ -1,0 +1,16 @@
+[package]
+name = "worklogger-settings"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+atomic-write-file = "0.3"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+worklogger-profile = { path = "../worklogger-profile" }
+
+[lints]
+workspace = true

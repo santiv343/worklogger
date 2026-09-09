@@ -45,7 +45,7 @@
   "profilePathRequired": "--profile requires the path to a JSON file",
   "invalidSetupArguments": "setup only accepts --profile <file>",
   "installConfigPathRequired": "install requires --config <file>",
-  "installClientsRequired": "install requiere --clients <all|codex,claude-code,claude-desktop,cursor,windsurf>",
+  "installClientsRequired": "install requires --clients <all|codex,claude-code,claude-desktop,cursor,windsurf>",
   "installConfirmationRequired": "install changes local configuration; add --yes to confirm",
   "invalidInstallArguments": "install accepts --config <file>, --profile <file>, --clients <list>, --skills, and --yes",
   "invalidInstallClients": "the client list is invalid",

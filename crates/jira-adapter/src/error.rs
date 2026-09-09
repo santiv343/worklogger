@@ -8,44 +8,44 @@ pub enum JiraError {
     MissingCredentials,
     #[error("la identidad devuelta por Jira no es confiable")]
     InvalidIdentity,
-    #[error("el identificador de worklog no es válido")]
+    #[error("the worklog identifier is invalid")]
     InvalidWorklogId,
-    #[error("la duración del worklog debe ser mayor que cero")]
+    #[error("the worklog duration must be greater than zero")]
     InvalidWorklogInput,
-    #[error("los datos de la operación sobre el issue no son válidos")]
+    #[error("the issue operation data is invalid")]
     InvalidIssueInput,
-    #[error("los límites de paginación deben ser mayores que cero")]
+    #[error("pagination limits must be greater than zero")]
     InvalidPageLimits,
-    #[error("Jira devolvió una paginación inconsistente")]
+    #[error("Jira returned inconsistent pagination")]
     InvalidPagination,
-    #[error("el resultado supera el límite configurado y no puede presentarse como completo")]
+    #[error("the result exceeds the configured limit and cannot be presented as complete")]
     CollectionLimitReached,
-    #[error("Jira devolvió un worklog inválido")]
+    #[error("Jira returned an invalid worklog")]
     InvalidWorklog,
     #[error("el worklog pertenece a otra cuenta y no puede modificarse")]
     WorklogOwnershipMismatch,
-    #[error("la sesión de Jira no es válida")]
+    #[error("the Jira session is invalid")]
     AuthenticationRequired,
-    #[error("la cuenta no tiene permiso para esta operación")]
+    #[error("the account is not permitted to perform this operation")]
     Forbidden,
-    #[error("el tablero no está asociado a un proyecto de Jira")]
+    #[error("the board is not associated with a Jira project")]
     BoardProjectUnavailable,
-    #[error("el recurso solicitado no existe o dejó de estar disponible")]
+    #[error("the requested resource does not exist or is no longer available")]
     NotFound,
-    #[error("Jira limitó temporalmente las solicitudes")]
+    #[error("Jira temporarily rate limited requests")]
     RateLimited { retry_after_seconds: Option<u64> },
-    #[error("Jira no está disponible temporalmente")]
+    #[error("Jira is temporarily unavailable")]
     ServerUnavailable,
-    #[error("Jira respondió con HTTP {0}")]
+    #[error("Jira responded with HTTP {0}")]
     HttpStatus(u16),
-    #[error("Jira rechazó la solicitud (HTTP {status}): {detail}")]
+    #[error("Jira rejected the request (HTTP {status}): {detail}")]
     ProviderRejected { status: u16, detail: String },
     #[error("no fue posible comunicarse con Jira")]
     Transport(#[source] reqwest::Error),
-    #[error("Jira devolvió una respuesta inválida")]
+    #[error("Jira returned an invalid response")]
     InvalidResponse(#[source] reqwest::Error),
     #[error("no fue posible construir la solicitud a Jira")]
     InvalidRequestUrl,
-    #[error("Jira devolvió una fecha inválida")]
+    #[error("Jira returned an invalid date")]
     InvalidDate,
 }

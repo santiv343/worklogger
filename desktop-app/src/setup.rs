@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use crate::board_selector::BoardSelector;
 use crate::connection::discover_boards;
 use crate::connection_model::{AccessibleBoard, BoardDiscoveryRequest, ConnectionRequest};
-use crate::copy::text;
+use crate::copy::{preferred_language, save_language, text};
 use crate::defaults::product_defaults;
 #[cfg(organization_configuration_mutable)]
 use crate::organization_config::OrganizationConfigurationPicker;
@@ -89,6 +89,7 @@ fn SetupForm(
     let controls_disabled = busy || configuration_blocked;
     rsx! {
         form { class: "setup-form", aria_busy: busy, onsubmit: move |event| submit(&event, controls_disabled, draft, validation_error, on_connect),
+            LanguageSelector {}
             {configuration_picker(configuration_warning, on_configuration_loaded)}
             fieldset { disabled: controls_disabled,
                 JiraFields { draft, boards, discovered_identity }
@@ -101,6 +102,40 @@ fn SetupForm(
             SubmitArea { loading: busy, ready: !configuration_blocked && !draft().board_id.is_empty(), on_demo }
         }
     }
+}
+
+#[component]
+fn LanguageSelector() -> Element {
+    let mut language = use_signal(preferred_language);
+    rsx! {
+        label { class: "field", r#for: "setup-language",
+            span { {text("preferences.languageLabel")} }
+            select { id: "setup-language", value: language_value(language()), oninput: move |event| {
+                let selected = parse_language(&event.value());
+                if save_language(selected).is_ok() {
+                    language.set(selected);
+                }
+            },
+                option { value: "english", {text("preferences.languageEnglish")} }
+                option { value: "spanish", {text("preferences.languageSpanish")} }
+            }
+            small { {text("preferences.languageRestart")} }
+        }
+    }
+}
+
+fn language_value(language: worklogger_settings::Language) -> &'static str {
+    match language {
+        worklogger_settings::Language::English => "english",
+        worklogger_settings::Language::Spanish => "spanish",
+    }
+}
+
+fn parse_language(value: &str) -> worklogger_settings::Language {
+    if value == "spanish" {
+        return worklogger_settings::Language::Spanish;
+    }
+    worklogger_settings::Language::English
 }
 
 #[cfg(organization_configuration_mutable)]

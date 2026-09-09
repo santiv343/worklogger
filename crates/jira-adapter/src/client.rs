@@ -53,7 +53,7 @@ const PROJECT_PERMISSION_KEYS: &str =
 const ISSUE_FIELDS: &str = "summary,assignee,issuetype,status";
 const LEAVE_ESTIMATE: &str = "leave";
 const UNKNOWN_ACCOUNT_ID: &str = "unknown";
-const WORKLOG_MAP_WARNING: &str = "Jira devolvió una carga inválida para el issue";
+const WORKLOG_MAP_WARNING: &str = "Jira returned an invalid worklog for the issue";
 const WORKLOG_LOAD_WARNING: &str = "No se pudieron leer las cargas del issue";
 const HTTP_CLIENT_ERROR_START: u16 = 400;
 const HTTP_CLIENT_ERROR_END: u16 = 500;
@@ -2013,7 +2013,7 @@ mod tests {
     const BOARD_LIST_PATH: &str = "/rest/agile/1.0/board?startAt=0&maxResults=50";
     const BOARD_LIST_BODY: &str = r#"{"startAt":0,"total":1,"values":[{"id":42,"name":"Tablero de prueba","type":"scrum","self":"http://local/board/42"}]}"#;
     const BOARD_SEARCH_PATH: &str = "/rest/software/1.0/board/42/issue?jql=ORDER+BY+updated+DESC&fields=summary%2Cassignee%2Cissuetype%2Cstatus&maxResults=50";
-    const BOARD_SEARCH_BODY: &str = r#"{"isLast":true,"issues":[{"id":"10001","key":"DEMO-1","self":"http://local/issue/10001","fields":{"summary":"Conciliación semanal"}}]}"#;
+    const BOARD_SEARCH_BODY: &str = r#"{"isLast":true,"issues":[{"id":"10001","key":"DEMO-1","self":"http://local/issue/10001","fields":{"summary":"Weekly reconciliation"}}]}"#;
     const WORKLOG_RESPONSE: &str = r#"{"id":"123","author":{"accountId":"mine","displayName":"Persona Demo","active":true},"started":"2026-09-01T12:00:00.000+0000","timeSpentSeconds":3600}"#;
     const ISSUE_PATH: &str = "/rest/api/3/issue/DEMO-1";
 
@@ -2147,7 +2147,7 @@ mod tests {
         client
             .search_board_issues(
                 42,
-                "conciliación",
+                "reconciliation",
                 PageLimits::new(50, 100).expect("limits"),
                 10,
             )
@@ -2226,7 +2226,7 @@ mod tests {
         server.join().expect("server completed");
         assert_eq!(
             error.to_string(),
-            "Jira rechazó la solicitud (HTTP 400): 400 Bad Request"
+            "Jira rejected the request (HTTP 400): 400 Bad Request"
         );
     }
 
@@ -2571,9 +2571,9 @@ mod tests {
     fn issue_search_matches_key_or_summary_and_obeys_the_limit() {
         let mut second = issue();
         second.key = "DEMO-2".to_owned();
-        second.fields.summary = "Conciliación semanal".to_owned();
+        second.fields.summary = "Weekly reconciliation".to_owned();
         let by_key = filter_issues(vec![issue(), second.clone()], "demo-2", 10);
-        let by_summary = filter_issues(vec![issue(), second], "conciliación", 1);
+        let by_summary = filter_issues(vec![issue(), second], "reconciliation", 1);
         assert_eq!(by_key[0].key, "DEMO-2");
         assert_eq!(by_summary.len(), 1);
         assert_eq!(by_summary[0].key, "DEMO-2");
@@ -2637,7 +2637,7 @@ mod tests {
             response(
                 "GET",
                 "/rest/software/1.0/board/42/issue?jql=assignee+%3D+currentUser%28%29+AND+sprint+in+openSprints%28%29+ORDER+BY+updated+DESC&fields=summary%2Cassignee%2Cissuetype%2Cstatus&maxResults=50",
-                r#"{"isLast":true,"issues":[{"id":"10002","key":"DEMO-2","self":"http://local/issue/10002","fields":{"summary":"Más reciente"}},{"id":"10001","key":"DEMO-1","self":"http://local/issue/10001","fields":{"summary":"Más antigua"}}]}"#,
+                r#"{"isLast":true,"issues":[{"id":"10002","key":"DEMO-2","self":"http://local/issue/10002","fields":{"summary":"Most recent"}},{"id":"10001","key":"DEMO-1","self":"http://local/issue/10001","fields":{"summary":"Older"}}]}"#,
                 None,
             ),
             response(

@@ -1,0 +1,2 @@
+Use Bitbucket activity and pull requests as additional evidence to enrich or prioritize work candidates, never as confirmed time records.
+In a pull-request preview, show the repository, source and destination branches, title, description, resolved reviewers, and `closeSourceBranch`. Resolved reviewers include effective Bitbucket defaults; never claim they were applied unless they appear in the preview.

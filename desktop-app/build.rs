@@ -39,7 +39,7 @@ fn selected_profile(managed: bool) -> PathBuf {
     let configured = env::var_os(PROFILE_ENVIRONMENT_VARIABLE).filter(|value| !value.is_empty());
     match (managed, configured) {
         (true, Some(path)) => resolve_path(PathBuf::from(path)),
-        (false, Some(_)) => panic!("un perfil embebido requiere managed-distribution"),
+        (false, Some(_)) => panic!("an embedded profile requires managed-distribution"),
         (_, None) => manifest_directory().join(DEFAULT_PROFILE),
     }
 }
@@ -52,23 +52,23 @@ fn resolve_path(path: PathBuf) -> PathBuf {
 }
 
 fn manifest_directory() -> PathBuf {
-    PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("Cargo define CARGO_MANIFEST_DIR"))
+    PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("Cargo defines CARGO_MANIFEST_DIR"))
 }
 
 fn read_valid_json(path: &PathBuf) -> Vec<u8> {
-    let bytes = fs::read(path)
-        .unwrap_or_else(|error| panic!("no se pudo leer {}: {error}", path.display()));
+    let bytes =
+        fs::read(path).unwrap_or_else(|error| panic!("could not read {}: {error}", path.display()));
     assert!(
         bytes.len() <= MAXIMUM_PROFILE_BYTES,
-        "el perfil de distribución supera {MAXIMUM_PROFILE_BYTES} bytes"
+        "the distribution profile exceeds {MAXIMUM_PROFILE_BYTES} bytes"
     );
     serde_json::from_slice::<serde_json::Value>(&bytes)
-        .unwrap_or_else(|error| panic!("{} no contiene JSON válido: {error}", path.display()));
+        .unwrap_or_else(|error| panic!("{} does not contain valid JSON: {error}", path.display()));
     bytes
 }
 
 fn write_generated_profile(profile: &[u8]) {
-    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo define OUT_DIR"));
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo defines OUT_DIR"));
     fs::write(output.join(GENERATED_PROFILE), profile)
-        .expect("Cargo debe permitir escribir el perfil generado");
+        .expect("Cargo must allow writing the generated profile");
 }

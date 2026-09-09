@@ -15,14 +15,12 @@ use crate::connection_model::{
     WorklogMutationOutcome,
 };
 use crate::copy::text;
-#[cfg(windows)]
 use crate::credentials::{
     CredentialError, CredentialPurpose, CredentialStore, CredentialTransactionGuard,
 };
 use crate::defaults::{ensure_defaults_valid, product_defaults};
 #[cfg(not(windows))]
 use crate::development_config;
-#[cfg(windows)]
 use crate::settings::{AppSettings, HoursSettings, JiraSettings, SettingsError, SettingsStore};
 
 const SECONDS_PER_MINUTE: u32 = 60;
@@ -245,8 +243,12 @@ fn map_issue(issue: jira_adapter::IssueDto) -> AccessibleIssue {
     }
 }
 
-#[cfg(windows)]
 pub(crate) fn disconnect() -> Result<(), String> {
+    #[cfg(not(windows))]
+    if development_config::is_enabled() {
+        *development_request()? = None;
+        return Ok(());
+    }
     let _transaction_guard =
         CredentialTransactionGuard::acquire().map_err(display_credential_error)?;
     let store = SettingsStore::for_current_user().map_err(display_settings_error)?;
@@ -256,7 +258,6 @@ pub(crate) fn disconnect() -> Result<(), String> {
     disconnect_configured(&store, &settings)
 }
 
-#[cfg(windows)]
 fn disconnect_configured(store: &SettingsStore, settings: &AppSettings) -> Result<(), String> {
     let credentials = CredentialStore::for_purpose(CredentialPurpose::Desktop)
         .map_err(display_credential_error)?;
@@ -276,7 +277,6 @@ fn disconnect_configured(store: &SettingsStore, settings: &AppSettings) -> Resul
     Ok(())
 }
 
-#[cfg(windows)]
 fn rollback_disconnect(
     store: &SettingsStore,
     credentials: CredentialStore,
@@ -293,7 +293,6 @@ fn rollback_disconnect(
     combine_disconnect_results(token_result, settings_result)
 }
 
-#[cfg(windows)]
 fn combine_disconnect_results(
     token: Result<(), String>,
     settings: Result<(), String>,
@@ -305,18 +304,11 @@ fn combine_disconnect_results(
     }
 }
 
-#[cfg(windows)]
 fn disconnect_error(error: String, rollback: Result<(), String>) -> String {
     match rollback {
         Ok(()) => error,
         Err(rollback_error) => format!("{error}; {rollback_error}"),
     }
-}
-
-#[cfg(not(windows))]
-pub(crate) fn disconnect() -> Result<(), String> {
-    *development_request()? = None;
-    Ok(())
 }
 
 pub(crate) async fn create_worklog(
@@ -398,8 +390,11 @@ fn required_saved_request() -> Result<ConnectionRequest, String> {
     saved_request()?.ok_or_else(|| text("connection.requiredForChange").to_owned())
 }
 
-#[cfg(windows)]
 fn saved_request() -> Result<Option<ConnectionRequest>, String> {
+    #[cfg(not(windows))]
+    if development_config::is_enabled() {
+        return saved_development_request();
+    }
     let store = SettingsStore::for_current_user().map_err(display_settings_error)?;
     let Some(settings) = store.load().map_err(display_settings_error)? else {
         return Ok(None);
@@ -416,7 +411,7 @@ fn saved_request() -> Result<Option<ConnectionRequest>, String> {
 }
 
 #[cfg(not(windows))]
-fn saved_request() -> Result<Option<ConnectionRequest>, String> {
+fn saved_development_request() -> Result<Option<ConnectionRequest>, String> {
     let request = development_request()?.clone();
     match request {
         Some(request) => Ok(Some(request)),
@@ -580,36 +575,33 @@ fn parse_date(value: &str) -> Result<Date, String> {
     Date::parse(value, &format).map_err(|_| text("connection.invalidDate").to_owned())
 }
 
-#[cfg(windows)]
 struct DesktopPersistSnapshot {
     store: SettingsStore,
     credentials: CredentialStore,
-    #[cfg(feature = "mcp-management")]
-    settings: Option<AppSettings>,
     token: Option<String>,
 }
 
-#[cfg(windows)]
 fn desktop_persist_snapshot(request: &ConnectionRequest) -> Result<DesktopPersistSnapshot, String> {
     let store = SettingsStore::for_current_user().map_err(display_settings_error)?;
     let credentials = CredentialStore::for_purpose(CredentialPurpose::Desktop)
         .map_err(display_credential_error)?;
-    #[cfg(feature = "mcp-management")]
-    let settings = store.load().map_err(display_settings_error)?;
+    store.load().map_err(display_settings_error)?;
     let token = credentials
         .load_api_token(&request.site, &request.email)
         .map_err(display_credential_error)?;
     Ok(DesktopPersistSnapshot {
         store,
         credentials,
-        #[cfg(feature = "mcp-management")]
-        settings,
         token,
     })
 }
 
-#[cfg(windows)]
 fn persist(request: &ConnectionRequest) -> Result<(), String> {
+    #[cfg(not(windows))]
+    if development_config::is_enabled() {
+        *development_request()? = Some(request.clone());
+        return Ok(());
+    }
     let _transaction_guard =
         CredentialTransactionGuard::acquire().map_err(display_credential_error)?;
     let settings = settings_from(request)?;
@@ -622,38 +614,9 @@ fn persist(request: &ConnectionRequest) -> Result<(), String> {
         restore_api_token(&snapshot.credentials, request, snapshot.token)?;
         return Err(display_settings_error(error));
     }
-    #[cfg(feature = "mcp-management")]
-    if let Err(error) = synchronize_mcp(request) {
-        rollback_desktop_persist(snapshot, request)?;
-        return Err(error);
-    }
     Ok(())
 }
 
-#[cfg(all(windows, feature = "mcp-management"))]
-fn rollback_desktop_persist(
-    snapshot: DesktopPersistSnapshot,
-    request: &ConnectionRequest,
-) -> Result<(), String> {
-    let settings_result = restore_settings(&snapshot.store, snapshot.settings);
-    let token_result = restore_api_token(&snapshot.credentials, request, snapshot.token);
-    match (settings_result, token_result) {
-        (Ok(()), Ok(())) => Ok(()),
-        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
-        (Err(settings_error), Err(token_error)) => Err(format!("{settings_error}; {token_error}")),
-    }
-}
-
-#[cfg(all(windows, feature = "mcp-management"))]
-fn restore_settings(store: &SettingsStore, previous: Option<AppSettings>) -> Result<(), String> {
-    match previous {
-        Some(settings) => store.save(&settings),
-        None => store.clear(),
-    }
-    .map_err(display_settings_error)
-}
-
-#[cfg(windows)]
 fn restore_api_token(
     credentials: &CredentialStore,
     request: &ConnectionRequest,
@@ -662,7 +625,6 @@ fn restore_api_token(
     restore_stored_token(credentials, &request.site, &request.email, previous_token)
 }
 
-#[cfg(windows)]
 fn restore_stored_token(
     credentials: &CredentialStore,
     site: &str,
@@ -676,26 +638,6 @@ fn restore_stored_token(
     result.map_err(display_credential_error)
 }
 
-#[cfg(not(windows))]
-fn persist(request: &ConnectionRequest) -> Result<(), String> {
-    let previous = {
-        let mut state = development_request()?;
-        state.replace(request.clone())
-    };
-    #[cfg(feature = "mcp-management")]
-    if let Err(error) = synchronize_mcp(request) {
-        *development_request()? = previous;
-        return Err(error);
-    }
-    Ok(())
-}
-
-#[cfg(feature = "mcp-management")]
-fn synchronize_mcp(request: &ConnectionRequest) -> Result<(), String> {
-    crate::mcp_management::synchronize(request)
-}
-
-#[cfg(windows)]
 fn settings_from(request: &ConnectionRequest) -> Result<AppSettings, String> {
     let weekly_target = u16::try_from(request.weekly_target_hours)
         .map_err(|_| text("connection.targetDoesNotFit").to_owned())?;
@@ -725,7 +667,6 @@ fn settings_from(request: &ConnectionRequest) -> Result<AppSettings, String> {
     })
 }
 
-#[cfg(windows)]
 fn request_from(settings: AppSettings, token: String) -> ConnectionRequest {
     ConnectionRequest {
         site: settings.jira.base_url,
@@ -788,8 +729,10 @@ fn display_error(_error: impl std::fmt::Display) -> String {
     text("connection.invalidInput").to_owned()
 }
 
-#[cfg(windows)]
 fn display_settings_error(error: SettingsError) -> String {
+    if let SettingsError::Shared(error) = error {
+        return error.to_string();
+    }
     let key = match &error {
         SettingsError::Invalid(_) => "settings.error.invalid",
         SettingsError::Decode { .. } => "settings.error.corrupt",
@@ -799,14 +742,12 @@ fn display_settings_error(error: SettingsError) -> String {
     copy(key)
 }
 
-#[cfg(windows)]
 fn display_credential_error(error: CredentialError) -> String {
     match error {
         CredentialError::InvalidSite
         | CredentialError::InvalidEmail
         | CredentialError::InvalidToken => copy("credentials.error.invalid"),
         CredentialError::Unavailable => copy("credentials.error.unavailable"),
-        #[cfg(windows)]
         _ => copy("credentials.error.storage"),
     }
 }

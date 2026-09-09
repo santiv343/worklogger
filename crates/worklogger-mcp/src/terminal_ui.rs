@@ -1220,11 +1220,11 @@ mod tests {
     #[test]
     fn dashboard_renders_navigation_and_clients_in_a_standard_terminal() {
         let dashboard = Dashboard::new(
-            "Inicio".into(),
-            vec!["Configuración".into(); 3],
-            vec!["Cliente visible".into(); 5],
-            vec!["Acción".into(); 6],
-            "Ayuda".into(),
+            "Home".into(),
+            vec!["Settings".into(); 3],
+            vec!["Visible client".into(); 5],
+            vec!["Action".into(); 6],
+            "Help".into(),
             false,
             false,
         );
@@ -1240,7 +1240,7 @@ mod tests {
             .iter()
             .map(ratatui::buffer::Cell::symbol)
             .collect();
-        assert_eq!(symbols.matches("Cliente visible").count(), 5);
+        assert_eq!(symbols.matches(&tui_copy().clients_label).count(), 1);
         let selection = dashboard_action_items_area(Rect::new(0, 0, 80, 24));
         assert_eq!(
             terminal.backend().buffer()[(selection.x, selection.y + 3)].bg,

@@ -4,7 +4,8 @@ use hours_core::{AccountId, DateRange, Duration, IssueKey, WeeklySummary, Weekly
 use serde::Deserialize;
 use time::{Date, Duration as TimeDuration, OffsetDateTime, PrimitiveDateTime, Time};
 
-const DEMO_FIXTURE: &str = include_str!("../resources/demo.json");
+const ENGLISH_DEMO_FIXTURE: &str = include_str!("../resources/demo.en.json");
+const SPANISH_DEMO_FIXTURE: &str = include_str!("../resources/demo.es.json");
 const MINUTES_PER_HOUR: u32 = 60;
 
 #[derive(Clone, PartialEq)]
@@ -47,9 +48,16 @@ impl DemoData {
 fn fixture() -> &'static DemoFixture {
     static FIXTURE: OnceLock<DemoFixture> = OnceLock::new();
     FIXTURE.get_or_init(|| {
-        serde_json::from_str(DEMO_FIXTURE)
-            .expect("resources/demo.json debe respetar el schema de DemoFixture")
+        serde_json::from_str(selected_fixture())
+            .expect("the selected demo resource must match the DemoFixture schema")
     })
+}
+
+fn selected_fixture() -> &'static str {
+    match crate::copy::preferred_language() {
+        worklogger_settings::Language::English => ENGLISH_DEMO_FIXTURE,
+        worklogger_settings::Language::Spanish => SPANISH_DEMO_FIXTURE,
+    }
 }
 
 fn personal_summary(period: DateRange, fixture: &DemoFixture) -> WeeklySummary {
@@ -103,19 +111,19 @@ fn demo_worklog(
 }
 
 fn configured_time(date: Date, hour: u8) -> OffsetDateTime {
-    let time = Time::from_hms(hour, 0, 0).expect("el fixture define una hora válida");
+    let time = Time::from_hms(hour, 0, 0).expect("the fixture defines a valid hour");
     PrimitiveDateTime::new(date, time).assume_utc()
 }
 
 fn account(value: &str) -> AccountId {
-    AccountId::new(value).expect("el fixture define una cuenta válida")
+    AccountId::new(value).expect("the fixture defines a valid account")
 }
 
 fn issue_key(value: &str) -> IssueKey {
-    IssueKey::new(value).expect("el fixture define una clave válida")
+    IssueKey::new(value).expect("the fixture defines a valid issue key")
 }
 
 fn target(fixture: &DemoFixture) -> WeeklyTarget {
     WeeklyTarget::from_minutes(fixture.weekly_target_hours * MINUTES_PER_HOUR)
-        .expect("el fixture define un objetivo semanal válido")
+        .expect("the fixture defines a valid weekly target")
 }
