@@ -8,6 +8,16 @@ const EMBEDDED_COPY: &str = include_str!("../resources/es-AR.json");
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TuiCopy {
     pub error_prefix: String,
+    pub result_title: String,
+    pub error_title: String,
+    pub working_title: String,
+    pub validating_account: String,
+    pub installing_skills: String,
+    pub skills_status_title: String,
+    pub skills_status_format: String,
+    pub skills_ready: String,
+    pub skills_verified: String,
+    pub skills_conflicts: String,
     pub menu_title: String,
     pub configuration_label: String,
     pub modules_label: String,
@@ -70,7 +80,6 @@ pub(crate) struct TuiCopy {
     pub setup_saved: String,
     pub uninstall_confirmation: String,
     pub install_skills_confirmation: String,
-    pub skills_installed: String,
     pub no_changes: String,
     pub uninstall_complete: String,
     #[cfg(feature = "jira")]

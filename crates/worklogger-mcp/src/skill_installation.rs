@@ -43,6 +43,27 @@ pub(crate) struct AgentSkillInstaller {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SkillDestinationStatus {
+    pub(crate) name: String,
+    pub(crate) current: usize,
+    pub(crate) updates: usize,
+    pub(crate) missing: usize,
+    pub(crate) conflicts: usize,
+}
+
+impl SkillDestinationStatus {
+    #[must_use]
+    pub(crate) fn is_ready(&self) -> bool {
+        self.updates == 0 && self.missing == 0 && self.conflicts == 0
+    }
+
+    #[must_use]
+    pub(crate) fn has_conflicts(&self) -> bool {
+        self.conflicts > 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct SkillDestination {
     name: &'static str,
     skills_directory: PathBuf,
@@ -105,6 +126,12 @@ impl AgentSkillInstaller {
         }
     }
 
+    pub(crate) fn inspect(
+        &self,
+    ) -> Result<Vec<SkillDestinationStatus>, CodexSkillInstallationError> {
+        self.destinations.iter().map(inspect_destination).collect()
+    }
+
     fn validate_destinations(&self) -> Result<(), CodexSkillInstallationError> {
         self.destinations
             .iter()
@@ -142,6 +169,62 @@ impl AgentSkillInstaller {
             .iter()
             .try_for_each(|skill| validate_skill_target(&destination.skills_directory, skill))?;
         Ok(destination.skills_directory.clone())
+    }
+}
+
+fn inspect_destination(
+    destination: &SkillDestination,
+) -> Result<SkillDestinationStatus, CodexSkillInstallationError> {
+    let states = BUNDLED_SKILLS
+        .iter()
+        .map(|skill| skill_state(&destination.skills_directory, skill))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(SkillDestinationStatus {
+        name: destination.name.to_owned(),
+        current: states
+            .iter()
+            .filter(|state| **state == SkillState::Current)
+            .count(),
+        updates: states
+            .iter()
+            .filter(|state| **state == SkillState::Update)
+            .count(),
+        missing: states
+            .iter()
+            .filter(|state| **state == SkillState::Missing)
+            .count(),
+        conflicts: states
+            .iter()
+            .filter(|state| **state == SkillState::Conflict)
+            .count(),
+    })
+}
+
+#[derive(Eq, PartialEq)]
+enum SkillState {
+    Current,
+    Update,
+    Missing,
+    Conflict,
+}
+
+fn skill_state(
+    skills_directory: &Path,
+    skill: &BundledSkill,
+) -> Result<SkillState, CodexSkillInstallationError> {
+    let directory = skills_directory.join(skill.name);
+    if !directory.exists() {
+        return Ok(SkillState::Missing);
+    }
+    if !directory.is_dir() || !marker_matches(&directory)? {
+        return Ok(SkillState::Conflict);
+    }
+    let skill_path = directory.join("SKILL.md");
+    match fs::read(&skill_path) {
+        Ok(contents) if contents == skill.contents.as_bytes() => Ok(SkillState::Current),
+        Ok(_) => Ok(SkillState::Update),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(SkillState::Update),
+        Err(source) => Err(storage(&skill_path, source)),
     }
 }
 
@@ -317,7 +400,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use super::AgentSkillInstaller;
+    use super::{AgentSkillInstaller, SKILL_MARKER_FILE};
 
     #[test]
     fn installs_only_worklogger_owned_skills() {
@@ -354,6 +437,29 @@ mod tests {
                 .to_string()
                 .contains("no pertenece a Worklogger")
         );
+    }
+
+    #[test]
+    fn reports_missing_current_updates_and_conflicts() {
+        let directory = TestDirectory::new();
+        let skills = directory.path.join("skills");
+        let installer = AgentSkillInstaller::at(skills.clone());
+        let missing = installer.inspect().expect("missing skills status");
+        assert_eq!(missing[0].missing, 3);
+
+        installer.install().expect("skills install");
+        let current = installer.inspect().expect("current skills status");
+        assert!(current[0].is_ready());
+        assert_eq!(current[0].current, 3);
+
+        fs::write(skills.join("worklogger-jira/SKILL.md"), "outdated").expect("outdated skill");
+        let update = installer.inspect().expect("update skills status");
+        assert_eq!(update[0].updates, 1);
+
+        fs::remove_file(skills.join("worklogger-daily").join(SKILL_MARKER_FILE))
+            .expect("skill marker");
+        let conflict = installer.inspect().expect("conflict skills status");
+        assert!(conflict[0].has_conflicts());
     }
 
     struct TestDirectory {

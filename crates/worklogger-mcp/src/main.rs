@@ -48,10 +48,11 @@ mod skill_installation;
 mod terminal_ui;
 mod tui_copy;
 
-use skill_installation::AgentSkillInstaller;
+use skill_installation::{AgentSkillInstaller, SkillDestinationStatus};
 use terminal_ui::{
     Dashboard, DetailedChoice, TerminalUiSession, choose, choose_dashboard, choose_detailed,
-    choose_many, confirm as tui_confirm, notice as tui_notice, read_text,
+    choose_many, confirm as tui_confirm, notice as tui_notice, present_notices, read_text,
+    show_message, show_progress,
 };
 use tui_copy::tui_copy;
 
@@ -184,6 +185,14 @@ async fn run() -> Result<(), CliError> {
         .map_err(|error| message(error.to_string()))?;
     let result = run_command(command).await;
     if let Some(session) = session {
+        if let Err(error) = &result {
+            show_message(&tui_copy().error_title, &[error.to_string()])
+                .map(|_| ())
+                .map_err(|io_error| message(io_error.to_string()))?;
+        } else {
+            present_notices(&tui_copy().result_title)
+                .map_err(|io_error| message(io_error.to_string()))?;
+        }
         let notices = session
             .finish()
             .map_err(|error| message(error.to_string()))?;
@@ -245,10 +254,15 @@ async fn menu() -> Result<(), CliError> {
             MenuAction::Exit => return Ok(()),
         };
         if let Err(error) = result {
-            if !matches!(error, CliError::Cancelled) {
-                return Err(error);
+            if matches!(error, CliError::Cancelled) {
+                continue;
             }
+            show_message(&tui_copy().error_title, &[error.to_string()])
+                .map(|_| ())
+                .map_err(|io_error| message(io_error.to_string()))?;
         }
+        present_notices(&tui_copy().result_title)
+            .map_err(|io_error| message(io_error.to_string()))?;
     }
 }
 
@@ -367,19 +381,61 @@ fn command_without_arguments(
 }
 
 fn install_skills() -> Result<(), CliError> {
+    let copy = tui_copy();
+    let installer =
+        AgentSkillInstaller::for_current_user().map_err(|error| message(error.to_string()))?;
+    let initial_status = installer
+        .inspect()
+        .map_err(|error| message(error.to_string()))?;
+    let continue_installation = show_message(
+        &copy.skills_status_title,
+        &skill_status_lines(&initial_status),
+    )
+    .map_err(|error| message(error.to_string()))?;
+    if !continue_installation {
+        return Ok(());
+    }
+    if initial_status
+        .iter()
+        .any(SkillDestinationStatus::has_conflicts)
+    {
+        terminal_notice(copy.skills_conflicts.clone());
+        return Ok(());
+    }
+    if initial_status.iter().all(SkillDestinationStatus::is_ready) {
+        terminal_notice(copy.skills_ready.clone());
+        return Ok(());
+    }
     if !confirm(&tui_copy().install_skills_confirmation)? {
         terminal_notice(tui_copy().no_changes.clone());
         return Ok(());
     }
-    let destinations = AgentSkillInstaller::for_current_user()
-        .and_then(|installer| installer.install())
+    show_progress(&copy.working_title, &copy.installing_skills)
         .map_err(|error| message(error.to_string()))?;
-    terminal_notice(format!(
-        "{}: {}.",
-        tui_copy().skills_installed,
-        destinations.join(", ")
-    ));
+    installer
+        .install()
+        .map_err(|error| message(error.to_string()))?;
+    let final_status = installer
+        .inspect()
+        .map_err(|error| message(error.to_string()))?;
+    terminal_notice(copy.skills_verified.clone());
+    terminal_notice(skill_status_lines(&final_status).join("\n"));
     Ok(())
+}
+
+fn skill_status_lines(statuses: &[SkillDestinationStatus]) -> Vec<String> {
+    statuses
+        .iter()
+        .map(|status| {
+            tui_copy()
+                .skills_status_format
+                .replace("{destination}", &status.name)
+                .replace("{current}", &status.current.to_string())
+                .replace("{updates}", &status.updates.to_string())
+                .replace("{missing}", &status.missing.to_string())
+                .replace("{conflicts}", &status.conflicts.to_string())
+        })
+        .collect()
 }
 
 async fn serve() -> Result<(), CliError> {
@@ -565,6 +621,8 @@ async fn setup_jira(profile: Option<&OrganizationProfile>) -> Result<(), CliErro
     let email = prompt(&copy.jira_email_label, None)?;
     let token = read_token()?;
     let limits = jira_setup_limits(jira_profile)?;
+    show_progress(&copy.working_title, &copy.validating_account)
+        .map_err(|error| message(error.to_string()))?;
     let (identity, boards) = discover(&site, &email, &token, limits).await?;
     terminal_notice(format!("{}: {identity}", copy.account_verified));
     let boards = scoped_jira_boards(jira_profile, &site, boards);
@@ -612,6 +670,8 @@ async fn setup_bitbucket(profile: Option<&OrganizationProfile>) -> Result<(), Cl
     let workspace = choose_bitbucket_workspace(bitbucket_profile)?;
     let token = read_bitbucket_setup_token()?;
     let limits = bitbucket_setup_limits(bitbucket_profile)?;
+    show_progress(&copy.working_title, &copy.validating_account)
+        .map_err(|error| message(error.to_string()))?;
     let (identity, repositories) = discover_bitbucket(&email, &token, &workspace, limits).await?;
     terminal_notice(format!("{}: {identity}", copy.account_verified));
     let repositories = scoped_bitbucket_repositories(bitbucket_profile, &workspace, repositories);

@@ -23,6 +23,7 @@ const APP_CONTEXT: &str = "MCP";
 const MAX_PANEL_WIDTH: u16 = 88;
 const PANEL_MARGIN: u16 = 2;
 const SELECTED_MARKER: &str = "› ";
+const SELECTION_BACKGROUND: Color = Color::Rgb(33, 45, 60);
 const CHECKED_MARKER: &str = "[x] ";
 const UNCHECKED_MARKER: &str = "[ ] ";
 const SINGLE_SELECT_HELP: &str = "↑↓ navegar · Enter elegir · Esc cancelar · Click seleccionar";
@@ -135,6 +136,26 @@ pub(crate) fn notice(message: String) {
     active.notices.push(message);
 }
 
+pub(crate) fn present_notices(title: &str) -> io::Result<()> {
+    let notices = take_notices()?;
+    if notices.is_empty() {
+        return Ok(());
+    }
+    show_message(title, &notices).map(|_| ())
+}
+
+pub(crate) fn show_message(title: &str, messages: &[String]) -> io::Result<bool> {
+    with_terminal(|terminal| acknowledge_message(terminal, title, messages))
+}
+
+pub(crate) fn show_progress(title: &str, message: &str) -> io::Result<()> {
+    with_terminal(|terminal| {
+        terminal
+            .draw(|frame| draw_progress(frame.area(), frame, title, message))
+            .map(|_| ())
+    })
+}
+
 pub(crate) fn choose_dashboard(dashboard: &Dashboard) -> io::Result<usize> {
     with_terminal(|terminal| select_dashboard(terminal, dashboard))
 }
@@ -192,6 +213,14 @@ fn with_terminal<T>(task: impl FnOnce(&mut AppTerminal) -> io::Result<T>) -> io:
     result
 }
 
+fn take_notices() -> io::Result<Vec<String>> {
+    let mut active = active_terminal()?;
+    let Some(active) = active.as_mut() else {
+        return Ok(Vec::new());
+    };
+    Ok(std::mem::take(&mut active.notices))
+}
+
 fn active_terminal() -> io::Result<MutexGuard<'static, Option<ActiveTerminal>>> {
     terminal_session()
         .lock()
@@ -240,6 +269,31 @@ fn select_dashboard(terminal: &mut AppTerminal, dashboard: &Dashboard) -> io::Re
                 scroll = visible_scroll(area, selected, scroll);
             }
             SelectionInput::Ignore => {}
+        }
+    }
+}
+
+fn acknowledge_message(
+    terminal: &mut AppTerminal,
+    title: &str,
+    messages: &[String],
+) -> io::Result<bool> {
+    loop {
+        terminal.draw(|frame| draw_message(frame.area(), frame, title, messages))?;
+        match event::read()? {
+            Event::Key(key)
+                if key.kind == KeyEventKind::Press
+                    && matches!(key.code, KeyCode::Enter | KeyCode::Char('q')) =>
+            {
+                return Ok(true);
+            }
+            Event::Key(key) if key.kind == KeyEventKind::Press && key.code == KeyCode::Esc => {
+                return Ok(false);
+            }
+            Event::Mouse(mouse) if mouse.kind == MouseEventKind::Down(MouseButton::Left) => {
+                return Ok(true);
+            }
+            _ => {}
         }
     }
 }
@@ -523,19 +577,11 @@ fn draw_dashboard(
     selected: usize,
     scroll: usize,
 ) {
-    frame.render_widget(Clear, area);
-    let panel = panel_area(area);
-    let block = framed_block(&dashboard.title, Color::Cyan);
-    let content = block.inner(panel);
-    frame.render_widget(block, panel);
-    draw_overview(frame, dashboard_overview_area(content), dashboard);
-    draw_actions(
-        frame,
-        dashboard_actions_area(panel),
-        dashboard,
-        selected,
-        scroll,
-    );
+    let layout = selection_layout(area);
+    draw_screen_shell(frame, layout, &dashboard.title, &dashboard.navigation_hint);
+    let sections = dashboard_sections(layout.content);
+    draw_overview(frame, sections[0], dashboard);
+    draw_actions(frame, sections[1], dashboard, selected, scroll);
 }
 
 fn draw_selection(
@@ -573,7 +619,6 @@ fn draw_detailed_selection(
         ])
     });
     let list = List::new(items)
-        .block(framed_block("", Color::DarkGray))
         .highlight_style(highlight_style())
         .highlight_symbol(SELECTED_MARKER);
     let mut state = ListState::default().with_selected(Some(selected));
@@ -630,9 +675,29 @@ fn draw_text_input(
     );
 }
 
+fn draw_message(area: Rect, frame: &mut ratatui::Frame, title: &str, messages: &[String]) {
+    let layout = selection_layout(area);
+    draw_screen_shell(frame, layout, title, "Enter continuar · Esc volver");
+    let content = messages.join("\n\n");
+    frame.render_widget(
+        Paragraph::new(content)
+            .style(Style::default().fg(Color::White))
+            .wrap(ratatui::widgets::Wrap { trim: false }),
+        layout.content,
+    );
+}
+
+fn draw_progress(area: Rect, frame: &mut ratatui::Frame, title: &str, message: &str) {
+    let layout = selection_layout(area);
+    draw_screen_shell(frame, layout, title, "");
+    frame.render_widget(
+        Paragraph::new(message).style(Style::default().fg(Color::Cyan)),
+        layout.content,
+    );
+}
+
 fn draw_screen_shell(frame: &mut ratatui::Frame, layout: ScreenLayout, title: &str, help: &str) {
     frame.render_widget(Clear, layout.panel);
-    frame.render_widget(framed_block("", Color::Cyan), layout.panel);
     frame.render_widget(
         Paragraph::new(Line::from(format!("{APP_NAME}  ·  {APP_CONTEXT}"))).style(
             Style::default()
@@ -664,7 +729,6 @@ fn draw_list(
 ) {
     let items = items.iter().map(|label| ListItem::new(label.as_str()));
     let list = List::new(items)
-        .block(framed_block("", Color::DarkGray))
         .highlight_style(highlight_style())
         .highlight_symbol(SELECTED_MARKER);
     let mut state = ListState::default()
@@ -703,7 +767,6 @@ struct ScreenLayout {
 
 fn selection_layout(area: Rect) -> ScreenLayout {
     let panel = panel_area(area);
-    let content = Block::default().borders(Borders::ALL).inner(panel);
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -712,7 +775,7 @@ fn selection_layout(area: Rect) -> ScreenLayout {
             Constraint::Min(3),
             Constraint::Length(1),
         ])
-        .split(content);
+        .split(panel);
     ScreenLayout {
         panel,
         header: rows[0],
@@ -723,26 +786,19 @@ fn selection_layout(area: Rect) -> ScreenLayout {
 }
 
 fn selection_items_area(area: Rect) -> Rect {
-    framed_block("", Color::DarkGray).inner(selection_layout(area).content)
+    selection_layout(area).content
 }
 
-fn dashboard_overview_area(area: Rect) -> Rect {
-    Layout::default()
+fn dashboard_sections(content: Rect) -> [Rect; 2] {
+    let sections = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(7), Constraint::Length(7)])
-        .split(area)[0]
-}
-
-fn dashboard_actions_area(area: Rect) -> Rect {
-    let content = Block::default().borders(Borders::ALL).inner(area);
-    Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(7), Constraint::Length(7)])
-        .split(content)[1]
+        .constraints([Constraint::Length(7), Constraint::Min(3)])
+        .split(content);
+    [sections[0], sections[1]]
 }
 
 fn dashboard_action_items_area(area: Rect) -> Rect {
-    framed_block("", Color::DarkGray).inner(dashboard_actions_area(panel_area(area)))
+    dashboard_sections(selection_layout(area).content)[1]
 }
 
 fn input_area(content: Rect) -> Rect {
@@ -815,16 +871,18 @@ fn remove_at_cursor(value: &mut String, cursor: usize) {
 }
 
 fn draw_overview(frame: &mut ratatui::Frame, area: Rect, dashboard: &Dashboard) {
-    let lines = dashboard
-        .overview
-        .iter()
-        .enumerate()
-        .map(|(index, text)| Line::styled(text, overview_style(index, dashboard)))
-        .collect::<Vec<_>>();
-    frame.render_widget(
-        Paragraph::new(lines).block(framed_block(" Estado actual ", Color::DarkGray)),
-        area,
+    let mut lines = vec![Line::styled(
+        "ESTADO",
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD),
+    )];
+    lines.extend(
+        dashboard.overview.iter().enumerate().map(|(index, text)| {
+            Line::styled(format!("• {text}"), overview_style(index, dashboard))
+        }),
     );
+    frame.render_widget(Paragraph::new(lines), area);
 }
 
 fn overview_style(index: usize, dashboard: &Dashboard) -> Style {
@@ -858,9 +916,7 @@ fn draw_actions(
         .actions
         .iter()
         .map(|label| ListItem::new(label.as_str()));
-    let title = format!(" Acciones · {} ", dashboard.navigation_hint);
     let list = List::new(items)
-        .block(framed_block(&title, Color::DarkGray))
         .highlight_style(highlight_style())
         .highlight_symbol(SELECTED_MARKER);
     let mut state = ListState::default()
@@ -878,8 +934,8 @@ fn framed_block(title: &str, color: Color) -> Block<'_> {
 
 fn highlight_style() -> Style {
     Style::default()
-        .fg(Color::Black)
-        .bg(Color::Cyan)
+        .fg(Color::White)
+        .bg(SELECTION_BACKGROUND)
         .add_modifier(Modifier::BOLD)
 }
 

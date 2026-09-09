@@ -3,6 +3,17 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.7] - 2026-09-09
+
+### Cambiado
+
+- La TUI presenta progreso, resultados y errores dentro de la misma sesión,
+  sin devolver mensajes a la consola al terminar el flujo.
+- El dashboard elimina paneles anidados y usa una jerarquía visual más limpia
+  para estado, acciones y foco.
+- La instalación de skills muestra primero el estado por asistente, detecta
+  conflictos sin sobrescribir archivos ajenos y verifica el resultado final.
+
 ## [0.7.6] - 2026-09-09
 
 ### Cambiado
