@@ -279,7 +279,7 @@ checksum = "1e4b40c7323adcfc0a41c4b88143ed58346ff65a288fc144329c5c45e05d70c6"
 
 [[package]]
 name = "bitbucket-adapter"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "reqwest",
  "schemars",
@@ -2314,7 +2314,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hours-core"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -2742,7 +2742,7 @@ dependencies = [
 
 [[package]]
 name = "jira-adapter"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "futures-util",
  "hours-core",
@@ -6927,7 +6927,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "worklogger-credentials"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "atomic-write-file",
  "keyring-core",
@@ -6939,7 +6939,7 @@ dependencies = [
 
 [[package]]
 name = "worklogger-desktop"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "aes",
  "atomic-write-file",
@@ -6962,7 +6962,7 @@ dependencies = [
 
 [[package]]
 name = "worklogger-mcp"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "atomic-write-file",
  "bitbucket-adapter",
@@ -6983,7 +6983,7 @@ dependencies = [
 
 [[package]]
 name = "worklogger-profile"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "atomic-write-file",
  "serde",

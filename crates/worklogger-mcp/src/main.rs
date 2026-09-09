@@ -22,7 +22,8 @@ use worklogger_credentials::api_token_coordinates_match;
 use worklogger_credentials::{CredentialPurpose, CredentialStore, CredentialTransactionGuard};
 #[cfg(feature = "bitbucket")]
 use worklogger_mcp::{
-    BITBUCKET_API_TOKEN_ENVIRONMENT_VARIABLE, BitbucketConfiguration, BitbucketPullRequestService,
+    BITBUCKET_API_TOKEN_ENVIRONMENT_VARIABLE, BitbucketConfiguration, BitbucketPullRequestDefaults,
+    BitbucketPullRequestService,
 };
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 use worklogger_mcp::{Capability, ModuleConfiguration, ModuleId};
@@ -49,8 +50,8 @@ mod tui_copy;
 
 use skill_installation::AgentSkillInstaller;
 use terminal_ui::{
-    Dashboard, DetailedChoice, choose, choose_dashboard, choose_detailed, choose_many,
-    confirm as tui_confirm, read_text,
+    Dashboard, DetailedChoice, TerminalUiSession, choose, choose_dashboard, choose_detailed,
+    choose_many, confirm as tui_confirm, notice as tui_notice, read_text,
 };
 use tui_copy::tui_copy;
 
@@ -95,6 +96,16 @@ struct ProviderRequestLimits {
     timeout_seconds: u64,
     page_size: u16,
     maximum_collection_items: usize,
+}
+
+#[cfg(feature = "bitbucket")]
+struct BitbucketSetupValues {
+    email: String,
+    workspace: String,
+    repositories: BTreeSet<String>,
+    capabilities: BTreeSet<Capability>,
+    pull_request_defaults: BitbucketPullRequestDefaults,
+    limits: ProviderRequestLimits,
 }
 
 #[cfg(all(feature = "jira", feature = "bitbucket"))]
@@ -166,6 +177,33 @@ async fn main() {
 
 async fn run() -> Result<(), CliError> {
     let command = parse_command(std::env::args().skip(1))?;
+    let session = command
+        .uses_terminal_ui()
+        .then(TerminalUiSession::start)
+        .transpose()
+        .map_err(|error| message(error.to_string()))?;
+    let result = run_command(command).await;
+    if let Some(session) = session {
+        let notices = session
+            .finish()
+            .map_err(|error| message(error.to_string()))?;
+        for notice in notices {
+            println!("{notice}");
+        }
+    }
+    result
+}
+
+impl Command {
+    const fn uses_terminal_ui(&self) -> bool {
+        matches!(
+            self,
+            Self::Menu | Self::Setup { .. } | Self::Clients | Self::Skills | Self::Uninstall
+        )
+    }
+}
+
+async fn run_command(command: Command) -> Result<(), CliError> {
     match command {
         Command::Menu => menu().await,
         Command::Serve => serve().await,
@@ -330,17 +368,17 @@ fn command_without_arguments(
 
 fn install_skills() -> Result<(), CliError> {
     if !confirm(&tui_copy().install_skills_confirmation)? {
-        println!("{}", tui_copy().no_changes);
+        terminal_notice(tui_copy().no_changes.clone());
         return Ok(());
     }
     let destinations = AgentSkillInstaller::for_current_user()
         .and_then(|installer| installer.install())
         .map_err(|error| message(error.to_string()))?;
-    println!(
+    terminal_notice(format!(
         "{}: {}.",
         tui_copy().skills_installed,
         destinations.join(", ")
-    );
+    ));
     Ok(())
 }
 
@@ -427,7 +465,6 @@ fn with_bitbucket_backend(
 }
 
 async fn setup(profile_path: Option<PathBuf>) -> Result<(), CliError> {
-    print_setup_header();
     let profile_path = profile_path.as_deref();
     let profile = load_setup_profile(profile_path)?;
     run_setup_provider(profile.as_ref()).await?;
@@ -529,7 +566,7 @@ async fn setup_jira(profile: Option<&OrganizationProfile>) -> Result<(), CliErro
     let token = read_token()?;
     let limits = jira_setup_limits(jira_profile)?;
     let (identity, boards) = discover(&site, &email, &token, limits).await?;
-    println!("\n{}: {identity}", copy.account_verified);
+    terminal_notice(format!("{}: {identity}", copy.account_verified));
     let boards = scoped_jira_boards(jira_profile, &site, boards);
     let board_id = choose_board(&boards)?;
     let capabilities = jira_setup_capabilities(jira_profile)?;
@@ -547,7 +584,7 @@ async fn setup_jira(profile: Option<&OrganizationProfile>) -> Result<(), CliErro
         profile,
     )?;
     let tools = WorkloggerMcpServer::configured_tool_names(&configuration).join(", ");
-    println!("\n{}: {tools}", copy.setup_saved);
+    terminal_notice(format!("{}: {tools}", copy.setup_saved));
     print_platform_secret_notice(JIRA_API_TOKEN_ENVIRONMENT_VARIABLE);
     Ok(())
 }
@@ -576,65 +613,49 @@ async fn setup_bitbucket(profile: Option<&OrganizationProfile>) -> Result<(), Cl
     let token = read_bitbucket_setup_token()?;
     let limits = bitbucket_setup_limits(bitbucket_profile)?;
     let (identity, repositories) = discover_bitbucket(&email, &token, &workspace, limits).await?;
-    println!("\n{}: {identity}", copy.account_verified);
+    terminal_notice(format!("{}: {identity}", copy.account_verified));
     let repositories = scoped_bitbucket_repositories(bitbucket_profile, &workspace, repositories);
     let repositories = select_bitbucket_repositories(bitbucket_profile, &repositories)?;
     let capabilities = bitbucket_setup_capabilities(bitbucket_profile)?;
+    let pull_request_defaults = bitbucket_pull_request_defaults()?;
     complete_bitbucket_setup(
-        email,
-        workspace,
+        BitbucketSetupValues {
+            email,
+            workspace,
+            repositories,
+            capabilities,
+            pull_request_defaults,
+            limits,
+        },
         &token,
-        repositories,
-        capabilities,
-        limits,
         profile,
     )
 }
 
 #[cfg(feature = "bitbucket")]
 fn complete_bitbucket_setup(
-    email: String,
-    workspace: String,
+    values: BitbucketSetupValues,
     token: &str,
-    repositories: BTreeSet<String>,
-    capabilities: BTreeSet<Capability>,
-    limits: ProviderRequestLimits,
     profile: Option<&OrganizationProfile>,
 ) -> Result<(), CliError> {
     let copy = tui_copy();
-    let configuration = persist_bitbucket_setup(
-        email,
-        workspace,
-        repositories,
-        capabilities,
-        limits,
-        token,
-        profile,
-    )?;
+    let configuration = persist_bitbucket_setup(values, token, profile)?;
     let tools = WorkloggerMcpServer::configured_tool_names(&configuration).join(", ");
-    println!("\n{}: {tools}", copy.setup_saved);
+    terminal_notice(format!("{}: {tools}", copy.setup_saved));
     print_platform_secret_notice(BITBUCKET_API_TOKEN_ENVIRONMENT_VARIABLE);
     Ok(())
 }
 
 #[cfg(feature = "bitbucket")]
 fn persist_bitbucket_setup(
-    email: String,
-    workspace: String,
-    repositories: BTreeSet<String>,
-    capabilities: BTreeSet<Capability>,
-    limits: ProviderRequestLimits,
+    values: BitbucketSetupValues,
     token: &str,
     profile: Option<&OrganizationProfile>,
 ) -> Result<McpConfiguration, CliError> {
     let _transaction_guard = credential_transaction()?;
     let current = ConfigurationStore::for_current_user()?.load()?;
     let configuration = configured_bitbucket(
-        email,
-        workspace,
-        repositories,
-        capabilities,
-        limits,
+        values,
         current.as_ref(),
         profile.and_then(|value| value.modules.bitbucket.as_ref()),
     )?;
@@ -751,7 +772,7 @@ fn uninstall() -> Result<(), CliError> {
     let server = installed_server_path()?;
     let clients = registration.statuses(&server);
     if !uninstall_confirmed(&clients)? {
-        println!("{}", tui_copy().no_changes);
+        terminal_notice(tui_copy().no_changes.clone());
         return Ok(());
     }
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -772,7 +793,7 @@ fn uninstall() -> Result<(), CliError> {
         any(feature = "jira", feature = "bitbucket")
     )))]
     store.clear()?;
-    println!("{}", tui_copy().uninstall_complete);
+    terminal_notice(tui_copy().uninstall_complete.clone());
     Ok(())
 }
 
@@ -1163,14 +1184,18 @@ fn selected_jira_issue_search_limit(
 
 #[cfg(feature = "bitbucket")]
 fn configured_bitbucket(
-    email: String,
-    workspace: String,
-    repositories: BTreeSet<String>,
-    capabilities: BTreeSet<Capability>,
-    limits: ProviderRequestLimits,
+    values: BitbucketSetupValues,
     current: Option<&McpConfiguration>,
     profile: Option<&BitbucketModuleProfile>,
 ) -> Result<McpConfiguration, CliError> {
+    let BitbucketSetupValues {
+        email,
+        workspace,
+        repositories,
+        capabilities,
+        pull_request_defaults,
+        limits,
+    } = values;
     let workspaces =
         configured_bitbucket_workspaces(current, &email, workspace, repositories, profile);
     let bitbucket = BitbucketConfiguration {
@@ -1179,6 +1204,7 @@ fn configured_bitbucket(
         request_timeout_seconds: limits.timeout_seconds,
         page_size: limits.page_size,
         maximum_collection_items: limits.maximum_collection_items,
+        pull_request_defaults,
     };
     let modules = enabled_bitbucket_module(capabilities, current);
     match current.and_then(|value| value.jira.clone()) {
@@ -1517,6 +1543,51 @@ fn bitbucket_setup_capabilities(
     profile: Option<&BitbucketModuleProfile>,
 ) -> Result<BTreeSet<Capability>, CliError> {
     choose_bitbucket_capabilities(profile.map(|value| &value.mcp_capabilities))
+}
+
+#[cfg(feature = "bitbucket")]
+fn bitbucket_pull_request_defaults() -> Result<BitbucketPullRequestDefaults, CliError> {
+    let current = ConfigurationStore::for_current_user()?
+        .load()?
+        .and_then(|configuration| configuration.bitbucket)
+        .map_or_else(BitbucketPullRequestDefaults::default, |value| {
+            value.pull_request_defaults
+        });
+    if !confirm(&tui_copy().configure_pull_request_defaults)? {
+        return Ok(current);
+    }
+    let reviewer_account_ids = if confirm(&tui_copy().configure_default_reviewers)? {
+        prompt_reviewer_account_ids(&current)?
+    } else {
+        current.reviewer_account_ids.clone()
+    };
+    let close_source_branch = confirm_with_default(
+        &tui_copy().default_close_source_branch,
+        current.close_source_branch,
+    )?;
+    Ok(BitbucketPullRequestDefaults {
+        reviewer_account_ids,
+        close_source_branch,
+    })
+}
+
+#[cfg(feature = "bitbucket")]
+fn prompt_reviewer_account_ids(
+    current: &BitbucketPullRequestDefaults,
+) -> Result<BTreeSet<String>, CliError> {
+    let default = current
+        .reviewer_account_ids
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(",");
+    let value = prompt(&tui_copy().default_reviewer_account_ids, Some(&default))?;
+    Ok(value
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect())
 }
 
 #[cfg(feature = "jira")]
@@ -2335,7 +2406,7 @@ fn configure_clients() -> Result<(), CliError> {
         .filter(|status| setup_candidate(status.state))
         .collect::<Vec<_>>();
     if candidates.is_empty() {
-        println!("\n{}", tui_copy().no_pending_clients);
+        terminal_notice(tui_copy().no_pending_clients.clone());
         return Ok(());
     }
     let options = candidates
@@ -2357,7 +2428,7 @@ fn manage_clients() -> Result<(), CliError> {
     let server = install_current_server()?;
     let clients = actionable_clients(registration.statuses(&server));
     if clients.is_empty() {
-        println!("{}", tui_copy().no_compatible_clients);
+        terminal_notice(tui_copy().no_compatible_clients.clone());
         return Ok(());
     }
     apply_selected_client(&registration, &server, &clients)
@@ -2406,7 +2477,7 @@ fn apply_client_action(
         _ => &tui_copy().install_action,
     };
     if !confirm(&format!("¿{action} {}?", status.client.display_name()))? {
-        println!("{}", tui_copy().no_changes);
+        terminal_notice(tui_copy().no_changes.clone());
         return Ok(());
     }
     change_client_registration(registration, server, status)
@@ -2428,11 +2499,11 @@ fn change_client_registration(
         _ => return Err(message(tui_copy().invalid_client_state.clone())),
     };
     result.map_err(|error| message(error.to_string()))?;
-    println!(
+    terminal_notice(format!(
         "{} {}.",
         tui_copy().client_updated,
         status.client.display_name()
-    );
+    ));
     Ok(())
 }
 
@@ -2470,11 +2541,11 @@ fn register_client(
     registration
         .register(status.client, server)
         .map_err(|error| message(error.to_string()))?;
-    println!(
+    terminal_notice(format!(
         "{} {}.",
         tui_copy().client_registered,
         status.client.display_name()
-    );
+    ));
     Ok(())
 }
 
@@ -2505,13 +2576,13 @@ fn print_registered_clients(clients: &[McpClientStatus]) {
     let registered = clients
         .iter()
         .filter(|status| owned_registration(status.state));
-    println!("\n{}", tui_copy().removals_title);
+    terminal_notice(tui_copy().removals_title.clone());
     for status in registered {
-        println!(
+        terminal_notice(format!(
             "  {} · {}",
             status.client.display_name(),
             status.target.display()
-        );
+        ));
     }
 }
 
@@ -2586,10 +2657,10 @@ fn read_provider_token(
     token: Option<String>,
 ) -> Result<String, CliError> {
     if let Some(token) = token {
-        println!(
+        terminal_notice(format!(
             "{} {environment_variable}",
             tui_copy().token_environment_notice
-        );
+        ));
         return Ok(token);
     }
     read_text(&tui_copy().token_prompt, None, true).map_err(|error| terminal_error(&error))
@@ -2599,21 +2670,24 @@ fn confirm(label: &str) -> Result<bool, CliError> {
     tui_confirm(label, false).map_err(|error| terminal_error(&error))
 }
 
-fn print_setup_header() {
-    println!("{}", tui_copy().setup_title);
-    println!("{}", tui_copy().setup_secret_notice);
+fn confirm_with_default(label: &str, default_yes: bool) -> Result<bool, CliError> {
+    tui_confirm(label, default_yes).map_err(|error| terminal_error(&error))
+}
+
+fn terminal_notice(message: String) {
+    tui_notice(message);
 }
 
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 fn print_platform_secret_notice(environment_variable: &str) {
     if cfg!(any(windows, target_os = "linux")) {
-        println!("{}", tui_copy().protected_secret_notice);
+        terminal_notice(tui_copy().protected_secret_notice.clone());
         return;
     }
-    println!(
+    terminal_notice(format!(
         "{}: {environment_variable}.",
         tui_copy().environment_secret_notice
-    );
+    ));
 }
 
 fn print_help() {
@@ -2961,6 +3035,7 @@ mod tests {
             request_timeout_seconds: DEFAULT_REQUEST_TIMEOUT_SECONDS,
             page_size: DEFAULT_PAGE_SIZE,
             maximum_collection_items: DEFAULT_MAXIMUM_COLLECTION_ITEMS,
+            pull_request_defaults: BitbucketPullRequestDefaults::default(),
         };
         McpConfiguration::new_bitbucket(bitbucket, BTreeMap::new()).expect("fixture is valid")
     }

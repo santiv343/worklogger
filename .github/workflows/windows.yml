@@ -60,13 +60,17 @@ jobs:
       - name: Verify Community
         run: |
           cargo clippy --workspace --all-targets --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --workspace --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify managed profile
         env:
           WORKLOGGER_DISTRIBUTION_PROFILE: ${{ github.workspace }}\config\example.organization.json
         run: |
           cargo clippy --workspace --all-targets --no-default-features --features 'hours reports mcp-jira mcp-bitbucket managed-distribution' --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --workspace --no-default-features --features 'hours reports mcp-jira mcp-bitbucket managed-distribution' --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify MCP bootstrap
         working-directory: packages/setup
         run: npm test
@@ -114,7 +118,9 @@ jobs:
       - name: Verify Windows MCP
         run: |
           cargo clippy --package worklogger-mcp --all-targets --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --package worklogger-mcp --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify MCP bootstrap
         working-directory: packages/setup
         run: npm test

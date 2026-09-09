@@ -1,4 +1,5 @@
 use std::io::{self, Stdout};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crossterm::{
     event::{
@@ -70,6 +71,70 @@ impl Dashboard {
 
 type AppTerminal = Terminal<CrosstermBackend<Stdout>>;
 
+struct ActiveTerminal {
+    terminal: AppTerminal,
+    notices: Vec<String>,
+}
+
+pub(crate) struct TerminalUiSession {
+    finished: bool,
+}
+
+impl TerminalUiSession {
+    pub(crate) fn start() -> io::Result<Self> {
+        let mut active = active_terminal()?;
+        if active.is_some() {
+            return Err(io::Error::other("la sesión TUI ya está activa"));
+        }
+        *active = Some(ActiveTerminal {
+            terminal: enter_terminal()?,
+            notices: Vec::new(),
+        });
+        Ok(Self { finished: false })
+    }
+
+    pub(crate) fn finish(mut self) -> io::Result<Vec<String>> {
+        let mut active_session = active_terminal()?;
+        let Some(mut terminal) = active_session.take() else {
+            self.finished = true;
+            return Ok(Vec::new());
+        };
+        if let Err(error) = leave_terminal(&mut terminal.terminal) {
+            *active_session = Some(terminal);
+            return Err(error);
+        }
+        self.finished = true;
+        Ok(terminal.notices)
+    }
+}
+
+impl Drop for TerminalUiSession {
+    fn drop(&mut self) {
+        if self.finished {
+            return;
+        }
+        let Ok(mut active) = active_terminal() else {
+            return;
+        };
+        let Some(mut terminal) = active.take() else {
+            return;
+        };
+        let _result = leave_terminal(&mut terminal.terminal);
+    }
+}
+
+pub(crate) fn notice(message: String) {
+    let Ok(mut active) = active_terminal() else {
+        println!("{message}");
+        return;
+    };
+    let Some(active) = active.as_mut() else {
+        println!("{message}");
+        return;
+    };
+    active.notices.push(message);
+}
+
 pub(crate) fn choose_dashboard(dashboard: &Dashboard) -> io::Result<usize> {
     with_terminal(|terminal| select_dashboard(terminal, dashboard))
 }
@@ -116,10 +181,26 @@ pub(crate) fn move_selection(selected: usize, offset: isize, item_count: usize) 
 }
 
 fn with_terminal<T>(task: impl FnOnce(&mut AppTerminal) -> io::Result<T>) -> io::Result<T> {
+    let mut active = active_terminal()?;
+    if let Some(active) = active.as_mut() {
+        return task(&mut active.terminal);
+    }
+    drop(active);
     let mut terminal = enter_terminal()?;
     let result = task(&mut terminal);
     leave_terminal(&mut terminal)?;
     result
+}
+
+fn active_terminal() -> io::Result<MutexGuard<'static, Option<ActiveTerminal>>> {
+    terminal_session()
+        .lock()
+        .map_err(|_| io::Error::other("la sesión TUI no está disponible"))
+}
+
+fn terminal_session() -> &'static Mutex<Option<ActiveTerminal>> {
+    static TERMINAL_SESSION: OnceLock<Mutex<Option<ActiveTerminal>>> = OnceLock::new();
+    TERMINAL_SESSION.get_or_init(|| Mutex::new(None))
 }
 
 fn enter_terminal() -> io::Result<AppTerminal> {

@@ -37,6 +37,7 @@ fn configuration() -> McpConfiguration {
         request_timeout_seconds: 30,
         page_size: 50,
         maximum_collection_items: 100,
+        pull_request_defaults: worklogger_mcp::BitbucketPullRequestDefaults::default(),
     };
     let module = ModuleConfiguration {
         enabled: true,

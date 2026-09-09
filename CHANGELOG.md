@@ -3,6 +3,24 @@
 Todos los cambios relevantes de Worklogger se documentan en este archivo. El
 proyecto usa Semantic Versioning y las fechas se expresan como `AAAA-MM-DD`.
 
+## [0.7.6] - 2026-09-09
+
+### Cambiado
+
+- La TUI mantiene una única sesión visual al navegar entre sus pantallas; volver
+  con `Esc` ya no expone la consola entre pasos.
+- La configuración de Bitbucket puede conservar reviewers adicionales y la
+  preferencia de cerrar la rama fuente para los PRs futuros.
+
+### Corregido
+
+- Un merge asíncrono informa que sigue pendiente e incluye el identificador de
+  tarea en lugar de reportarse como terminado.
+- Desktop conserva la hora, zona horaria y segundos al editar una carga sin
+  cambiar esos campos.
+- Se corrigieron la espera de procesos de clientes, la instalación parcial de
+  skills, el roster de reportes y la propagación de errores de Clippy en Windows.
+
 ## [0.7.5] - 2026-09-09
 
 ### Cambiado

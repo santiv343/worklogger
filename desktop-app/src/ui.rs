@@ -1867,6 +1867,10 @@ fn finish_worklog(
         date: command.date,
         minutes: command.minutes,
         comment: command.comment,
+        original_started: worklog.started,
+        original_duration_seconds: worklog.duration.seconds(),
+        preserve_original_duration: command.minutes
+            == worklog.duration.seconds() / MINUTES_PER_HOUR,
     });
 }
 

@@ -278,7 +278,7 @@ guía completa está en
 - Bitbucket Cloud REST API
 - Windows Credential Manager o almacén Linux privado para secretos
 
-El repositorio y el paquete de bootstrap son privados. Los tags publican juntos
-los servidores MCP Windows/Linux en GitHub Packages; los instaladores Desktop
+El paquete de bootstrap se distribuye públicamente por npm. Los tags publican
+los servidores MCP Windows/Linux junto con ese paquete; los instaladores Desktop
 Windows quedan como artifacts del workflow hasta que se cree una release
 explícita.

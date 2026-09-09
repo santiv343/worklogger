@@ -153,8 +153,14 @@ pub(crate) struct TuiCopy {
     pub enable_bitbucket_merge: String,
     #[cfg(feature = "bitbucket")]
     pub enable_bitbucket_decline: String,
-    pub setup_title: String,
-    pub setup_secret_notice: String,
+    #[cfg(feature = "bitbucket")]
+    pub configure_pull_request_defaults: String,
+    #[cfg(feature = "bitbucket")]
+    pub configure_default_reviewers: String,
+    #[cfg(feature = "bitbucket")]
+    pub default_reviewer_account_ids: String,
+    #[cfg(feature = "bitbucket")]
+    pub default_close_source_branch: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
     pub protected_secret_notice: String,
     #[cfg(any(feature = "jira", feature = "bitbucket"))]
@@ -189,8 +195,7 @@ mod tests {
     #[test]
     fn embedded_copy_is_complete() {
         let copy = tui_copy();
-        #[cfg(feature = "jira")]
-        assert!(!copy.setup_title.trim().is_empty());
+        assert!(!copy.menu_title.trim().is_empty());
         assert!(!copy.help_usage.trim().is_empty());
     }
 }

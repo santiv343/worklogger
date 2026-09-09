@@ -64,6 +64,15 @@ pub struct BitbucketConfiguration {
     pub request_timeout_seconds: u64,
     pub page_size: u16,
     pub maximum_collection_items: usize,
+    #[serde(default)]
+    pub pull_request_defaults: BitbucketPullRequestDefaults,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BitbucketPullRequestDefaults {
+    pub reviewer_account_ids: BTreeSet<String>,
+    pub close_source_branch: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

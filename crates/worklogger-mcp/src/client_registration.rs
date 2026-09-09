@@ -1,7 +1,7 @@
 use std::env;
 use std::ffi::OsString;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::thread;
@@ -516,31 +516,47 @@ fn command_output(
     command: &ClientCommand,
     arguments: &[OsString],
 ) -> Result<Output, ClientRegistrationError> {
-    let child = Command::new(&command.executable)
+    let mut child = Command::new(&command.executable)
         .args(&command.leading_arguments)
         .args(arguments)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|source| storage_error(&command.executable, source))?;
-    wait_for_output(client, &command.executable, child)
+    let stdout = child.stdout.take().ok_or_else(|| {
+        storage_error(
+            &command.executable,
+            std::io::Error::other("stdout no disponible"),
+        )
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        storage_error(
+            &command.executable,
+            std::io::Error::other("stderr no disponible"),
+        )
+    })?;
+    let stdout_reader = thread::spawn(move || read_pipe(stdout));
+    let stderr_reader = thread::spawn(move || read_pipe(stderr));
+    let status = wait_for_exit(client, &command.executable, &mut child)?;
+    Ok(Output {
+        status,
+        stdout: join_pipe(stdout_reader, &command.executable)?,
+        stderr: join_pipe(stderr_reader, &command.executable)?,
+    })
 }
 
-fn wait_for_output(
+fn wait_for_exit(
     client: McpClientId,
     command: &Path,
-    mut child: Child,
-) -> Result<Output, ClientRegistrationError> {
+    child: &mut Child,
+) -> Result<std::process::ExitStatus, ClientRegistrationError> {
     let deadline = Instant::now() + client_command_timeout();
     loop {
-        if child
+        if let Some(status) = child
             .try_wait()
             .map_err(|source| storage_error(command, source))?
-            .is_some()
         {
-            return child
-                .wait_with_output()
-                .map_err(|source| storage_error(command, source));
+            return Ok(status);
         }
         if Instant::now() >= deadline {
             let _result = child.kill();
@@ -551,6 +567,27 @@ fn wait_for_output(
             CLIENT_COMMAND_POLL_INTERVAL_MILLISECONDS,
         ));
     }
+}
+
+fn read_pipe(mut pipe: impl Read) -> Result<Vec<u8>, std::io::Error> {
+    let mut contents = Vec::new();
+    pipe.read_to_end(&mut contents)?;
+    Ok(contents)
+}
+
+fn join_pipe(
+    reader: thread::JoinHandle<Result<Vec<u8>, std::io::Error>>,
+    command: &Path,
+) -> Result<Vec<u8>, ClientRegistrationError> {
+    reader
+        .join()
+        .map_err(|_| {
+            storage_error(
+                command,
+                std::io::Error::other("lector de salida interrumpido"),
+            )
+        })?
+        .map_err(|source| storage_error(command, source))
 }
 
 fn command_result(client: McpClientId, output: &Output) -> Result<(), ClientRegistrationError> {

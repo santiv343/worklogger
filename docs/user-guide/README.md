@@ -22,8 +22,8 @@ tu propia cuenta y tus permisos de Jira o Bitbucket.
 
 Para Desktop necesitás una cuenta de Jira Cloud y un API token personal. Podés
 [crearlo desde la seguridad de tu cuenta Atlassian](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/).
-Para MCP standalone, además, necesitás acceso al paquete privado de Worklogger
-en GitHub Packages.
+Para MCP standalone sólo necesitás Node para ejecutar el instalador público de
+npm; no necesitás una cuenta ni un token de Worklogger.
 
 No compartas tu token. Worklogger lo guarda en el almacén seguro de tu equipo;
 no lo incorpora al perfil, a los archivos de configuración de clientes MCP ni a
@@ -130,6 +130,8 @@ terminal.
 
 3. Elegí los módulos y capacidades que necesitás. El asistente verifica tu
    cuenta y descubre los recursos permitidos antes de ofrecerlos.
+   En Bitbucket podés guardar reviewers adicionales y la preferencia de borrar
+   la rama fuente al mergear para futuros PRs.
 4. Elegí el cliente detectado, revisá el archivo que se modificará y confirmá.
 5. Reiniciá el cliente MCP para que tome la nueva configuración.
 

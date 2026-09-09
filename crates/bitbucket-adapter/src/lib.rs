@@ -243,6 +243,12 @@ pub struct MergePullRequest {
     pub merge_strategy: MergeStrategy,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MergePullRequestResult {
+    Merged,
+    Pending { task_id: String },
+}
+
 #[derive(Debug, Deserialize)]
 struct Page<Item> {
     values: Vec<Item>,
@@ -302,6 +308,11 @@ struct MergeBody<'request> {
     message: Option<&'request str>,
     close_source_branch: bool,
     merge_strategy: &'request str,
+}
+
+#[derive(Debug, Deserialize)]
+struct MergeTaskSubmission {
+    task_id: String,
 }
 
 pub struct BitbucketClient {
@@ -626,7 +637,7 @@ impl BitbucketClient {
         repository: &str,
         pull_request_id: u64,
         input: &MergePullRequest,
-    ) -> Result<Value, BitbucketError> {
+    ) -> Result<MergePullRequestResult, BitbucketError> {
         let url = self.pull_request_action_url(
             workspace,
             repository,
@@ -638,8 +649,21 @@ impl BitbucketClient {
             close_source_branch: input.close_source_branch,
             merge_strategy: input.merge_strategy.as_str(),
         };
-        self.send_json(self.auth(Method::POST, url).json(&body))
+        let response = self
+            .auth(Method::POST, url)
+            .json(&body)
+            .send()
             .await
+            .map_err(BitbucketError::Transport)?;
+        if response.status() == StatusCode::ACCEPTED {
+            return response
+                .json::<MergeTaskSubmission>()
+                .await
+                .map_err(BitbucketError::InvalidResponse)
+                .and_then(merge_pending_result);
+        }
+        ensure_success(&response)?;
+        Ok(MergePullRequestResult::Merged)
     }
 
     /// Declines a pull request without merging it.
@@ -817,6 +841,17 @@ impl BitbucketClient {
     }
 }
 
+fn merge_pending_result(
+    submission: MergeTaskSubmission,
+) -> Result<MergePullRequestResult, BitbucketError> {
+    if submission.task_id.trim().is_empty() {
+        return Err(BitbucketError::InvalidResponseShape);
+    }
+    Ok(MergePullRequestResult::Pending {
+        task_id: submission.task_id,
+    })
+}
+
 fn ensure_page_limit(
     seen_pages: &HashSet<Url>,
     maximum_pages: usize,
@@ -989,6 +1024,20 @@ mod tests {
         BitbucketClient, BitbucketError, CreatePullRequest, MergePullRequest, MergeStrategy,
         PageLimits, PullRequestState, UpdatePullRequest, remember_page,
     };
+
+    #[test]
+    fn pending_merge_returns_the_provider_task_identifier() {
+        let result = super::merge_pending_result(super::MergeTaskSubmission {
+            task_id: "task-1".to_owned(),
+        })
+        .expect("task identifier");
+        assert_eq!(
+            result,
+            super::MergePullRequestResult::Pending {
+                task_id: "task-1".to_owned()
+            }
+        );
+    }
 
     #[tokio::test]
     async fn supports_daily_pull_request_operations() {

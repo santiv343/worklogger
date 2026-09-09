@@ -61,8 +61,7 @@ const RETRY_AFTER_HEADER: &str = "retry-after";
 const ASSIGNED_OPEN_SPRINT_JQL: &str =
     "assignee = currentUser() AND sprint in openSprints() ORDER BY updated DESC";
 const RECENT_ISSUES_JQL: &str = "ORDER BY updated DESC";
-const TEAM_ROSTER_JQL: &str =
-    "assignee is not EMPTY AND sprint in openSprints() ORDER BY updated DESC";
+const TEAM_ROSTER_JQL: &str = "assignee is not EMPTY ORDER BY updated DESC";
 const ISSUE_KEY_FIELD: &str = "key";
 const ISSUE_SUMMARY_FIELD: &str = "summary";
 

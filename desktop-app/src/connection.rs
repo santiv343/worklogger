@@ -546,15 +546,23 @@ fn update_input(
     command: &UpdateWorklogCommand,
     request: &ConnectionRequest,
 ) -> Result<WorklogInput, String> {
-    worklog_input(
-        &CreateWorklogCommand {
-            issue_key: command.issue_key.clone(),
-            date: command.date.clone(),
-            minutes: command.minutes,
-            comment: command.comment.clone(),
-        },
-        request,
-    )
+    let date = parse_date(&command.date)?;
+    validate_date(date, request)?;
+    let local_time = date.with_time(command.original_started.time());
+    let started = local_time.assume_offset(command.original_started.offset());
+    validate_daily_duration(command.minutes, request.maximum_daily_hours)?;
+    let seconds = selected_update_duration(command)?;
+    WorklogInput::new(started, seconds, command.comment.clone()).map_err(display_jira_error)
+}
+
+fn selected_update_duration(command: &UpdateWorklogCommand) -> Result<u32, String> {
+    if command.preserve_original_duration {
+        return Ok(command.original_duration_seconds);
+    }
+    command
+        .minutes
+        .checked_mul(SECONDS_PER_MINUTE)
+        .ok_or_else(|| text("connection.durationTooLarge").to_owned())
 }
 
 fn validate_daily_duration(minutes: u32, maximum_hours: u8) -> Result<(), String> {
@@ -840,10 +848,16 @@ fn copy(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use time::{Date, Month};
+    use time::{Date, Month, Time, UtcOffset};
 
-    use super::{committed_refresh_result, ensure_not_future, validate_issue_membership};
-    use crate::{connection_model::WorklogMutationOutcome, copy::text};
+    use super::{
+        ConnectionRequest, committed_refresh_result, ensure_not_future, update_input,
+        validate_issue_membership,
+    };
+    use crate::{
+        connection_model::{UpdateWorklogCommand, WorklogMutationOutcome},
+        copy::text,
+    };
 
     #[test]
     fn future_dates_are_rejected_before_accessing_jira() {
@@ -871,7 +885,50 @@ mod tests {
         );
     }
 
+    #[test]
+    fn update_preserves_the_original_timestamp_and_seconds_when_duration_is_unchanged() {
+        let original_started = Date::from_calendar_date(2026, Month::September, 4)
+            .expect("date")
+            .with_time(Time::from_hms(9, 30, 45).expect("time"))
+            .assume_offset(UtcOffset::from_hms(-3, 0, 0).expect("offset"));
+        let command = UpdateWorklogCommand {
+            issue_key: "TASK-1".to_owned(),
+            worklog_id: "1".to_owned(),
+            date: "2026-09-05".to_owned(),
+            minutes: 60,
+            comment: "Updated comment".to_owned(),
+            original_started,
+            original_duration_seconds: 3_659,
+            preserve_original_duration: true,
+        };
+        let input = update_input(&command, &request()).expect("valid update");
+        assert_eq!(input.started.date(), date(5));
+        assert_eq!(input.started.time(), original_started.time());
+        assert_eq!(input.started.offset(), original_started.offset());
+        assert_eq!(input.time_spent_seconds, 3_659);
+    }
+
     fn date(day: u8) -> Date {
         Date::from_calendar_date(2026, Month::September, day).expect("test date is valid")
+    }
+
+    fn request() -> ConnectionRequest {
+        ConnectionRequest {
+            site: "https://example.atlassian.net".to_owned(),
+            email: "person@example.com".to_owned(),
+            token: "token".to_owned(),
+            board_id: 1,
+            weekly_target_hours: 40,
+            utc_offset_minutes: -180,
+            request_timeout_seconds: 30,
+            page_size: 50,
+            maximum_collection_items: 100,
+            maximum_issue_search_results: 100,
+            maximum_concurrent_worklog_requests: 4,
+            maximum_daily_hours: 12,
+            default_worklog_start_hour: 9,
+            default_worklog_start_minute: 0,
+            enable_team_reports: false,
+        }
     }
 }

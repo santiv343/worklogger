@@ -506,6 +506,7 @@ fn bitbucket_configuration() -> BitbucketConfiguration {
         request_timeout_seconds: 30,
         page_size: 50,
         maximum_collection_items: 1_000,
+        pull_request_defaults: worklogger_mcp::BitbucketPullRequestDefaults::default(),
     }
 }
 

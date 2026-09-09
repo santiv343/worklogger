@@ -1,4 +1,5 @@
 use jira_adapter::{ProjectPermissions, WeeklyReport};
+use time::OffsetDateTime;
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct ConnectionRequest {
@@ -91,6 +92,9 @@ pub(crate) struct UpdateWorklogCommand {
     pub date: String,
     pub minutes: u32,
     pub comment: String,
+    pub original_started: OffsetDateTime,
+    pub original_duration_seconds: u32,
+    pub preserve_original_duration: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

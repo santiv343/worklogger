@@ -48,6 +48,14 @@ struct SkillDestination {
     skills_directory: PathBuf,
 }
 
+#[derive(Clone)]
+struct SkillSnapshot {
+    directory: PathBuf,
+    existed: bool,
+    skill_contents: Option<Vec<u8>>,
+    marker_contents: Option<Vec<u8>>,
+}
+
 #[derive(Debug, Error)]
 pub(crate) enum CodexSkillInstallationError {
     #[error("no se pudo determinar el directorio de skills del asistente")]
@@ -86,20 +94,44 @@ impl AgentSkillInstaller {
     }
 
     pub(crate) fn install(&self) -> Result<Vec<String>, CodexSkillInstallationError> {
+        self.validate_destinations()?;
+        let snapshots = self.snapshots()?;
+        match self.install_destinations() {
+            Ok(installed) => Ok(installed),
+            Err(error) => {
+                let _rollback = restore_snapshots(&snapshots);
+                Err(error)
+            }
+        }
+    }
+
+    fn validate_destinations(&self) -> Result<(), CodexSkillInstallationError> {
         self.destinations
             .iter()
-            .map(Self::install_destination)
+            .try_for_each(|destination| Self::validate_destination(destination).map(|_| ()))
+    }
+
+    fn snapshots(&self) -> Result<Vec<SkillSnapshot>, CodexSkillInstallationError> {
+        self.destinations
+            .iter()
+            .flat_map(|destination| {
+                BUNDLED_SKILLS
+                    .iter()
+                    .map(move |skill| snapshot(&destination.skills_directory, skill))
+            })
             .collect()
     }
 
-    fn install_destination(
-        destination: &SkillDestination,
-    ) -> Result<String, CodexSkillInstallationError> {
-        Self::validate_destination(destination)?;
-        BUNDLED_SKILLS
+    fn install_destinations(&self) -> Result<Vec<String>, CodexSkillInstallationError> {
+        self.destinations
             .iter()
-            .try_for_each(|skill| install_skill(&destination.skills_directory, skill))?;
-        Ok(destination.name.to_owned())
+            .map(|destination| {
+                BUNDLED_SKILLS
+                    .iter()
+                    .try_for_each(|skill| install_skill(&destination.skills_directory, skill))?;
+                Ok(destination.name.to_owned())
+            })
+            .collect()
     }
 
     fn validate_destination(
@@ -110,6 +142,75 @@ impl AgentSkillInstaller {
             .iter()
             .try_for_each(|skill| validate_skill_target(&destination.skills_directory, skill))?;
         Ok(destination.skills_directory.clone())
+    }
+}
+
+fn snapshot(
+    skills_directory: &Path,
+    skill: &BundledSkill,
+) -> Result<SkillSnapshot, CodexSkillInstallationError> {
+    let directory = skills_directory.join(skill.name);
+    Ok(SkillSnapshot {
+        existed: directory.exists(),
+        skill_contents: read_optional_file(&directory.join("SKILL.md"))?,
+        marker_contents: read_optional_file(&directory.join(SKILL_MARKER_FILE))?,
+        directory,
+    })
+}
+
+fn read_optional_file(path: &Path) -> Result<Option<Vec<u8>>, CodexSkillInstallationError> {
+    match fs::read(path) {
+        Ok(contents) => Ok(Some(contents)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(storage(path, source)),
+    }
+}
+
+fn restore_snapshots(snapshots: &[SkillSnapshot]) -> Result<(), CodexSkillInstallationError> {
+    snapshots.iter().rev().try_for_each(restore_snapshot)
+}
+
+fn restore_snapshot(snapshot: &SkillSnapshot) -> Result<(), CodexSkillInstallationError> {
+    if !snapshot.existed {
+        return remove_created_skill(&snapshot.directory);
+    }
+    restore_file(
+        &snapshot.directory.join("SKILL.md"),
+        snapshot.skill_contents.as_ref(),
+    )?;
+    restore_file(
+        &snapshot.directory.join(SKILL_MARKER_FILE),
+        snapshot.marker_contents.as_ref(),
+    )
+}
+
+fn remove_created_skill(directory: &Path) -> Result<(), CodexSkillInstallationError> {
+    if !directory.exists() {
+        return Ok(());
+    }
+    fs::remove_dir_all(directory).map_err(|source| storage(directory, source))
+}
+
+fn restore_file(
+    path: &Path,
+    contents: Option<&Vec<u8>>,
+) -> Result<(), CodexSkillInstallationError> {
+    let Some(contents) = contents else {
+        return remove_optional_file(path);
+    };
+    let mut file = AtomicWriteFile::options()
+        .open(path)
+        .map_err(|source| storage(path, source))?;
+    file.write_all(contents)
+        .map_err(|source| storage(path, source))?;
+    file.commit().map_err(|source| storage(path, source))
+}
+
+fn remove_optional_file(path: &Path) -> Result<(), CodexSkillInstallationError> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(storage(path, source)),
     }
 }
 

@@ -4,8 +4,8 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use bitbucket_adapter::{
-    BitbucketClient, CreatePullRequest, MergePullRequest, MergeStrategy, PageLimits, PullRequest,
-    PullRequestState, Repository, UpdatePullRequest,
+    BitbucketClient, CreatePullRequest, MergePullRequest, MergePullRequestResult, MergeStrategy,
+    PageLimits, PullRequest, PullRequestState, Repository, UpdatePullRequest,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -131,6 +131,8 @@ pub struct BitbucketPullRequestService {
     workspaces: BTreeMap<String, BTreeSet<String>>,
     page_size: u16,
     maximum_collection_items: usize,
+    reviewer_account_ids: BTreeSet<String>,
+    close_source_branch_by_default: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
@@ -385,6 +387,7 @@ pub enum BitbucketMutationEffect {
     ChangesRequested,
     ChangeRequestRemoved,
     Merged,
+    MergePending { task_id: String },
     Declined,
 }
 
@@ -483,6 +486,11 @@ impl BitbucketPullRequestService {
             workspaces: configuration.workspaces.clone(),
             page_size: configuration.page_size,
             maximum_collection_items: configuration.maximum_collection_items,
+            reviewer_account_ids: configuration
+                .pull_request_defaults
+                .reviewer_account_ids
+                .clone(),
+            close_source_branch_by_default: configuration.pull_request_defaults.close_source_branch,
         })
     }
 
@@ -691,7 +699,7 @@ impl BitbucketPullRequestService {
         self.ensure_repository(&request.workspace, &request.repository)?;
         let actor = self.actor().await?;
         let reviewers = self.resolved_reviewers(&request).await?;
-        let input = create_input(&request, reviewers);
+        let input = self.create_input(&request, reviewers);
         let pull_request = self
             .client
             .create_pull_request(&request.workspace, &request.repository, &input)
@@ -794,18 +802,14 @@ impl BitbucketPullRequestService {
         let actor = self.actor().await?;
         let target = self.target(&key_request(&request)).await?;
         verify_expected_revision(&request, &target)?;
-        self.merge_pull_request(&request).await?;
-        Ok(Self::mutation(
-            actor,
-            target,
-            BitbucketMutationEffect::Merged,
-        ))
+        let effect = self.merge_pull_request(&request).await?;
+        Ok(Self::mutation(actor, target, effect))
     }
 
     async fn merge_pull_request(
         &self,
         request: &BitbucketMergePullRequestRequest,
-    ) -> Result<(), BitbucketBackendError> {
+    ) -> Result<BitbucketMutationEffect, BitbucketBackendError> {
         let input = merge_input(request);
         self.client
             .merge_pull_request(
@@ -815,7 +819,7 @@ impl BitbucketPullRequestService {
                 &input,
             )
             .await
-            .map(|_| ())
+            .map(applied_merge_effect)
             .map_err(|error| provider_error(&error))
     }
 
@@ -851,7 +855,8 @@ impl BitbucketPullRequestService {
             destination_branch: request.destination_branch.clone(),
         };
         let reviewers = self.resolved_reviewers(request).await?;
-        self.plan(target, create_effect(request, reviewers)).await
+        self.plan(target, self.create_effect(request, reviewers))
+            .await
     }
 
     async fn preview_update(
@@ -921,8 +926,33 @@ impl BitbucketPullRequestService {
         let defaults = self.default_reviewer_account_ids(request).await?;
         Ok(merge_reviewer_account_ids(
             defaults,
+            self.reviewer_account_ids.iter().cloned(),
             request.reviewer_account_ids.as_deref(),
         ))
+    }
+
+    fn create_input(
+        &self,
+        request: &BitbucketCreatePullRequestRequest,
+        reviewer_account_ids: Vec<String>,
+    ) -> CreatePullRequest {
+        create_input(
+            request,
+            reviewer_account_ids,
+            self.close_source_branch_by_default,
+        )
+    }
+
+    fn create_effect(
+        &self,
+        request: &BitbucketCreatePullRequestRequest,
+        reviewer_account_ids: Vec<String>,
+    ) -> BitbucketPlannedEffect {
+        create_effect(
+            request,
+            reviewer_account_ids,
+            self.close_source_branch_by_default,
+        )
     }
 
     async fn default_reviewer_account_ids(
@@ -1585,6 +1615,7 @@ impl RevisionBoundRequest for BitbucketMergePullRequestRequest {
 fn create_input(
     request: &BitbucketCreatePullRequestRequest,
     reviewer_account_ids: Vec<String>,
+    default_close_source_branch: bool,
 ) -> CreatePullRequest {
     CreatePullRequest {
         title: request.title.clone(),
@@ -1592,19 +1623,24 @@ fn create_input(
         source_branch: request.source_branch.clone(),
         destination_branch: request.destination_branch.clone(),
         reviewer_account_ids,
-        close_source_branch: request.close_source_branch.unwrap_or(false),
+        close_source_branch: request
+            .close_source_branch
+            .unwrap_or(default_close_source_branch),
     }
 }
 
 fn create_effect(
     request: &BitbucketCreatePullRequestRequest,
     reviewer_account_ids: Vec<String>,
+    default_close_source_branch: bool,
 ) -> BitbucketPlannedEffect {
     BitbucketPlannedEffect::Create {
         title: request.title.clone(),
         description: request.description.clone().unwrap_or_default(),
         reviewer_account_ids,
-        close_source_branch: request.close_source_branch.unwrap_or(false),
+        close_source_branch: request
+            .close_source_branch
+            .unwrap_or(default_close_source_branch),
     }
 }
 
@@ -1625,9 +1661,11 @@ pub(crate) fn bind_resolved_reviewers(
 
 fn merge_reviewer_account_ids(
     default_reviewer_account_ids: Vec<String>,
+    configured_reviewer_account_ids: impl Iterator<Item = String>,
     requested_reviewer_account_ids: Option<&[String]>,
 ) -> Vec<String> {
     let mut reviewer_account_ids = BTreeSet::from_iter(default_reviewer_account_ids);
+    reviewer_account_ids.extend(configured_reviewer_account_ids);
     reviewer_account_ids.extend(
         requested_reviewer_account_ids
             .unwrap_or_default()
@@ -1659,6 +1697,15 @@ fn merge_effect(request: &BitbucketMergePullRequestRequest) -> BitbucketPlannedE
         strategy: request.merge_strategy,
         message: request.message.clone(),
         close_source_branch: request.close_source_branch.unwrap_or(false),
+    }
+}
+
+fn applied_merge_effect(result: MergePullRequestResult) -> BitbucketMutationEffect {
+    match result {
+        MergePullRequestResult::Merged => BitbucketMutationEffect::Merged,
+        MergePullRequestResult::Pending { task_id } => {
+            BitbucketMutationEffect::MergePending { task_id }
+        }
     }
 }
 
@@ -1729,8 +1776,9 @@ mod tests {
                 "reviewerAccountIds": ["reviewer"], "closeSourceBranch": true, "confirmed": false
             }))
             .expect("request");
-        let effect = serde_json::to_value(create_effect(&request, vec!["reviewer".to_owned()]))
-            .expect("effect");
+        let effect =
+            serde_json::to_value(create_effect(&request, vec!["reviewer".to_owned()], false))
+                .expect("effect");
         assert_eq!(effect["description"], "Context");
         assert_eq!(effect["reviewerAccountIds"][0], "reviewer");
         assert_eq!(effect["closeSourceBranch"], true);
@@ -1740,10 +1788,14 @@ mod tests {
     fn reviewers_include_bitbucket_defaults_and_explicit_request_without_duplicates() {
         let reviewers = merge_reviewer_account_ids(
             vec!["default".to_owned(), "shared".to_owned()],
+            vec!["configured".to_owned()].into_iter(),
             Some(&["shared".to_owned(), "requested".to_owned()]),
         );
 
-        assert_eq!(reviewers, vec!["default", "requested", "shared"]);
+        assert_eq!(
+            reviewers,
+            vec!["configured", "default", "requested", "shared"]
+        );
     }
 
     #[test]
@@ -1769,6 +1821,7 @@ mod tests {
             request_timeout_seconds: 30,
             page_size: 50,
             maximum_collection_items: 100,
+            pull_request_defaults: crate::BitbucketPullRequestDefaults::default(),
         }
     }
 }
