@@ -3,6 +3,13 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.7.10] - 2026-09-09
+
+### Changed
+
+- The complete terminal interface, confirmations, status messages, CLI help,
+  and user-facing MCP errors now use English.
+
 ## [0.7.9] - 2026-09-09
 
 ### Added

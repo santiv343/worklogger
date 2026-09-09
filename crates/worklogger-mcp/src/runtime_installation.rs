@@ -35,13 +35,13 @@ pub struct McpServerInstallation {
 
 #[derive(Debug, Error)]
 pub enum RuntimeInstallationError {
-    #[error("no se pudo determinar el directorio de datos del usuario")]
+    #[error("could not determine the user data directory")]
     MissingUserDataDirectory,
-    #[error("el ejecutable MCP de origen no existe o no es una ruta absoluta: {0}")]
+    #[error("the source MCP executable does not exist or is not an absolute path: {0}")]
     InvalidSource(PathBuf),
-    #[error("la ruta de instalación MCP no es absoluta: {0}")]
+    #[error("the MCP installation path is not absolute: {0}")]
     InvalidDestination(PathBuf),
-    #[error("no se pudo instalar el ejecutable MCP en {path}: {source}")]
+    #[error("could not install the MCP executable at {path}: {source}")]
     Storage {
         path: PathBuf,
         #[source]

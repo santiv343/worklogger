@@ -102,27 +102,27 @@ pub enum BitbucketReviewAction {
 
 #[derive(Debug, thiserror::Error)]
 pub enum BitbucketBackendError {
-    #[error("la configuración o el destino de Bitbucket no es válido")]
+    #[error("the Bitbucket configuration or destination is invalid")]
     InvalidConfiguration,
-    #[error("el workspace no pertenece al ámbito configurado")]
+    #[error("the workspace is outside the configured scope")]
     WorkspaceOutsideScope,
-    #[error("el repositorio no pertenece al ámbito configurado")]
+    #[error("the repository is outside the configured scope")]
     RepositoryOutsideScope,
-    #[error("la operación requiere confirmación explícita")]
+    #[error("the operation requires explicit confirmation")]
     ConfirmationRequired,
-    #[error("el pull request cambió después de la confirmación")]
+    #[error("the pull request changed after confirmation")]
     StaleConfirmation,
-    #[error("la sesión de Bitbucket no es válida")]
+    #[error("the Bitbucket session is invalid")]
     AuthenticationRequired,
-    #[error("la cuenta autenticada no tiene permiso para esta operación")]
+    #[error("the authenticated account lacks permission for this operation")]
     Forbidden,
-    #[error("el recurso Bitbucket solicitado no existe")]
+    #[error("the requested Bitbucket resource does not exist")]
     NotFound,
-    #[error("Bitbucket devolvió datos inválidos o una paginación inconsistente")]
+    #[error("Bitbucket returned invalid data or inconsistent pagination")]
     InvalidProviderResponse,
-    #[error("Bitbucket rechazó o no pudo completar la operación")]
+    #[error("Bitbucket rejected or could not complete the operation")]
     Provider { retryable: bool },
-    #[error("Bitbucket rechazó la operación")]
+    #[error("Bitbucket rejected the operation")]
     ProviderRejected,
 }
 

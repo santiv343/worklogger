@@ -206,7 +206,7 @@ pub(crate) struct TuiCopy {
 pub(crate) fn tui_copy() -> &'static TuiCopy {
     static COPY: OnceLock<TuiCopy> = OnceLock::new();
     COPY.get_or_init(|| {
-        serde_json::from_str(EMBEDDED_COPY).expect("el recurso TUI embebido debe ser JSON válido")
+        serde_json::from_str(EMBEDDED_COPY).expect("the embedded TUI resource must be valid JSON")
     })
 }
 

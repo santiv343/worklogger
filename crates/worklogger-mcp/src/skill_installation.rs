@@ -79,13 +79,13 @@ struct SkillSnapshot {
 
 #[derive(Debug, Error)]
 pub(crate) enum CodexSkillInstallationError {
-    #[error("no se pudo determinar el directorio de skills del asistente")]
+    #[error("could not determine the assistant skills directory")]
     MissingSkillsDirectory,
-    #[error("el directorio de skills debe ser una ruta absoluta: {0}")]
+    #[error("the skills directory must be an absolute path: {0}")]
     InvalidSkillsDirectory(PathBuf),
-    #[error("la skill existente no pertenece a Worklogger: {0}")]
+    #[error("the existing skill does not belong to Worklogger: {0}")]
     UnownedSkill(PathBuf),
-    #[error("no se pudo instalar la skill en {path}: {source}")]
+    #[error("could not install the skill at {path}: {source}")]
     Storage {
         path: PathBuf,
         #[source]
@@ -435,7 +435,7 @@ mod tests {
                 .install()
                 .expect_err("unowned skill must fail")
                 .to_string()
-                .contains("no pertenece a Worklogger")
+                .contains("does not belong to Worklogger")
         );
     }
 
@@ -470,7 +470,9 @@ mod tests {
         fn new() -> Self {
             static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
             let sequence = SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let path = std::env::temp_dir().join(format!("worklogger-skills-{sequence}"));
+            let process_id = std::process::id();
+            let path =
+                std::env::temp_dir().join(format!("worklogger-skills-{process_id}-{sequence}"));
             fs::create_dir_all(&path).expect("test directory");
             Self { path }
         }

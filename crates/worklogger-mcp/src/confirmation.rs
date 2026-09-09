@@ -16,11 +16,11 @@ const CONFIRMATION_TOKEN_PROPERTY: &str = "confirmationToken";
 
 #[derive(Debug, Error)]
 pub enum ConfirmationError {
-    #[error("la confirmación no existe, venció o ya fue utilizada")]
+    #[error("the confirmation does not exist, has expired, or was already used")]
     MissingOrExpired,
-    #[error("la operación cambió desde la vista previa")]
+    #[error("the operation changed since the preview")]
     PayloadChanged,
-    #[error("no se pudo preparar la confirmación")]
+    #[error("could not prepare the confirmation")]
     Unavailable,
 }
 

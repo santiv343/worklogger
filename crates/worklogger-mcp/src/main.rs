@@ -136,22 +136,22 @@ enum SetupProvider {
 
 #[derive(Debug, thiserror::Error)]
 enum CliError {
-    #[error("operación cancelada")]
+    #[error("operation cancelled")]
     Cancelled,
     #[error("{0}")]
     Message(String),
     #[error(transparent)]
     Configuration(#[from] worklogger_mcp::ConfigurationError),
-    #[error("no hay configuración MCP; ejecutá `worklogger-mcp setup`")]
+    #[error("no MCP configuration found; run `worklogger-mcp setup`")]
     NotConfigured,
     #[error(
-        "no hay un API token disponible en el almacén seguro ni en {JIRA_API_TOKEN_ENVIRONMENT_VARIABLE}"
+        "no API token is available in the secure store or {JIRA_API_TOKEN_ENVIRONMENT_VARIABLE}"
     )]
     #[cfg(feature = "jira")]
     MissingJiraToken,
     #[cfg(feature = "bitbucket")]
     #[error(
-        "no hay un API token de Bitbucket disponible en el almacén seguro ni en {BITBUCKET_API_TOKEN_ENVIRONMENT_VARIABLE}"
+        "no Bitbucket API token is available in the secure store or {BITBUCKET_API_TOKEN_ENVIRONMENT_VARIABLE}"
     )]
     MissingBitbucketToken,
 }
@@ -259,7 +259,7 @@ fn parse_command(mut arguments: impl Iterator<Item = String>) -> Result<Command,
         "skills" => command_without_arguments(Command::Skills, arguments),
         "uninstall" => command_without_arguments(Command::Uninstall, arguments),
         "help" | "--help" | "-h" => command_without_arguments(Command::Help, arguments),
-        _ => Err(message("comando desconocido; usá --help")),
+        _ => Err(message("unknown command; use --help")),
     }
 }
 
@@ -1183,7 +1183,7 @@ fn required_jira(configuration: &McpConfiguration) -> Result<&JiraConfiguration,
     configuration
         .jira
         .as_ref()
-        .ok_or_else(|| message("falta la conexión Jira habilitada"))
+        .ok_or_else(|| message("the Jira connection is not enabled"))
 }
 
 #[cfg(all(any(windows, target_os = "linux"), feature = "bitbucket"))]
@@ -1193,7 +1193,7 @@ fn required_bitbucket(
     configuration
         .bitbucket
         .as_ref()
-        .ok_or_else(|| message("falta la conexión Bitbucket habilitada"))
+        .ok_or_else(|| message("the Bitbucket connection is not enabled"))
 }
 
 #[cfg(feature = "jira")]
@@ -2787,7 +2787,7 @@ fn apply_client_action(
         | RegistrationState::ConflictingRegistration => &tui_copy().update_action,
         _ => &tui_copy().install_action,
     };
-    if !confirm(&format!("¿{action} {}?", status.client.display_name()))? {
+    if !confirm(&format!("{action} {}?", status.client.display_name()))? {
         terminal_notice(tui_copy().no_changes.clone());
         return Ok(());
     }

@@ -110,42 +110,42 @@ struct LegacyJiraConfiguration {
 
 #[derive(Debug, Error)]
 pub enum ConfigurationError {
-    #[error("schemaVersion no es compatible")]
+    #[error("schemaVersion is not supported")]
     UnsupportedSchema,
-    #[error("la configuración de Jira no es válida: {0}")]
+    #[error("the Jira configuration is invalid: {0}")]
     InvalidJira(&'static str),
-    #[error("la configuración de Bitbucket no es válida: {0}")]
+    #[error("the Bitbucket configuration is invalid: {0}")]
     InvalidBitbucket(&'static str),
-    #[error("la configuración de módulos no es válida")]
+    #[error("the module configuration is invalid")]
     InvalidModules,
-    #[error("la capacidad {capability:?} requiere {required:?}")]
+    #[error("the {capability:?} capability requires {required:?}")]
     MissingRequiredCapability {
         capability: Capability,
         required: Capability,
     },
-    #[error("el módulo {0:?} está habilitado pero no fue incluido en este binario")]
+    #[error("the {0:?} module is enabled but was not included in this binary")]
     ModuleNotBundled(ModuleId),
-    #[error("la configuración de {0:?} está fuera del ámbito organizacional")]
+    #[error("the {0:?} configuration is outside the organization scope")]
     OutsideOrganizationScope(ModuleId),
-    #[error("los límites de {0:?} superan el perfil organizacional")]
+    #[error("the {0:?} limits exceed the organization profile")]
     OutsideOrganizationLimits(ModuleId),
-    #[error("no se pudo acceder a la configuración en {path}: {source}")]
+    #[error("could not access the configuration at {path}: {source}")]
     Storage {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-    #[error("el JSON de configuración en {path} no es válido: {source}")]
+    #[error("the configuration JSON at {path} is invalid: {source}")]
     Decode {
         path: PathBuf,
         #[source]
         source: serde_json::Error,
     },
-    #[error("no se pudo serializar la configuración: {0}")]
+    #[error("could not serialize the configuration: {0}")]
     Encode(#[source] serde_json::Error),
-    #[error("la configuración supera el tamaño máximo permitido")]
+    #[error("the configuration exceeds the maximum allowed size")]
     TooLarge,
-    #[error("no se pudo determinar el directorio de configuración del usuario")]
+    #[error("could not determine the user configuration directory")]
     MissingUserConfigurationDirectory,
 }
 
@@ -726,7 +726,7 @@ fn create_parent(path: &Path) -> Result<(), ConfigurationError> {
     let parent = path.parent().ok_or_else(|| {
         storage_error(
             path,
-            std::io::Error::other("la ruta no tiene directorio padre"),
+            std::io::Error::other("the path has no parent directory"),
         )
     })?;
     fs::create_dir_all(parent).map_err(|source| storage_error(path, source))
@@ -838,7 +838,7 @@ fn validate_positive_values(jira: &JiraConfiguration) -> Result<(), Configuratio
         && jira.maximum_collection_items > 0
         && jira.maximum_issue_search_results > 0;
     if !valid {
-        return Err(invalid_jira("los límites deben ser mayores que cero"));
+        return Err(invalid_jira("limits must be greater than zero"));
     }
     Ok(())
 }

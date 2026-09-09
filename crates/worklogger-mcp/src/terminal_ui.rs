@@ -35,9 +35,9 @@ const ACCENT: Color = Color::Rgb(139, 180, 255);
 const SELECTION_BACKGROUND: Color = Color::Rgb(48, 68, 101);
 const CHECKED_MARKER: &str = "[x] ";
 const UNCHECKED_MARKER: &str = "[ ] ";
-const SINGLE_SELECT_HELP: &str = "↑↓ navegar · Enter elegir · Esc cancelar · Click seleccionar";
-const MULTI_SELECT_HELP: &str = "↑↓ navegar · Espacio marcar · Enter continuar · Esc cancelar";
-const INPUT_HELP: &str = "Enter continuar · Esc cancelar";
+const SINGLE_SELECT_HELP: &str = "↑↓ navigate · Enter select · Esc cancel · Click select";
+const MULTI_SELECT_HELP: &str = "↑↓ navigate · Space toggle · Enter continue · Esc cancel";
+const INPUT_HELP: &str = "Enter continue · Esc cancel";
 
 pub(crate) struct Dashboard {
     title: String,
@@ -97,7 +97,7 @@ impl TerminalUiSession {
     pub(crate) fn start() -> io::Result<Self> {
         let mut active = active_terminal()?;
         if active.is_some() {
-            return Err(io::Error::other("la sesión TUI ya está activa"));
+            return Err(io::Error::other("the TUI session is already active"));
         }
         *active = Some(ActiveTerminal {
             terminal: enter_terminal()?,
@@ -191,7 +191,7 @@ pub(crate) fn choose_detailed(title: &str, items: &[DetailedChoice]) -> io::Resu
 }
 
 pub(crate) fn confirm(title: &str, default_yes: bool) -> io::Result<bool> {
-    let choices = vec!["Sí, continuar".to_owned(), "No, cancelar".to_owned()];
+    let choices = vec!["Yes, continue".to_owned(), "No, cancel".to_owned()];
     let default = usize::from(!default_yes);
     with_terminal(|terminal| select_one(terminal, title, &choices, default))
         .map(|selected| selected == 0)
@@ -246,7 +246,7 @@ fn take_notices() -> io::Result<Vec<String>> {
 fn active_terminal() -> io::Result<MutexGuard<'static, Option<ActiveTerminal>>> {
     terminal_session()
         .lock()
-        .map_err(|_| io::Error::other("la sesión TUI no está disponible"))
+        .map_err(|_| io::Error::other("the TUI session is unavailable"))
 }
 
 fn terminal_session() -> &'static Mutex<Option<ActiveTerminal>> {
@@ -431,7 +431,7 @@ fn read_value(
 }
 
 fn cancelled() -> io::Error {
-    io::Error::new(io::ErrorKind::Interrupted, "operación cancelada")
+    io::Error::new(io::ErrorKind::Interrupted, "operation cancelled")
 }
 
 enum SelectionInput {

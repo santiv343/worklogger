@@ -1,32 +1,32 @@
-# Estado operativo
+# Operating status
 
-- Fecha UTC: 2026-09-09
-- Rama: `main`
-- Objetivo: permitir instalación MCP manual y no interactiva, documentada para personas y asistentes.
+- UTC date: 2026-09-09
+- Branch: `main`
+- Objective: provide documented manual and non-interactive MCP installation for people and assistants, with an English-only interface.
 
-## En curso
+## In progress
 
-- [-] Verificar el release `0.7.9`, actualizar el estado operativo y preparar el push.
+- [x] Translated the complete terminal interface and visible CLI help to English; validated release `0.7.10`.
 
-## Decisiones recientes
+## Recent decisions
 
-- La configuración manual reutiliza el schema local `mcp.json`; los tokens sólo se aceptan desde el almacén seguro o variables de entorno.
-- La TUI sigue siendo el flujo guiado; el modo headless requiere `--yes` explícito antes de modificar configuración de clientes.
-- La documentación pública usa inglés; la TUI conserva español como idioma de interfaz.
-- `--skills` se documenta como una operación separada de `--clients` porque instala en todos los destinos de skills compatibles detectados.
+- Manual configuration reuses the local `mcp.json` schema; tokens are accepted only from the secure store or environment variables.
+- The TUI remains the guided flow; headless mode requires explicit `--yes` before changing client configuration.
+- Public documentation, terminal UI, visible CLI help, confirmations, and user-facing errors use English. Internal resource identifiers remain stable.
+- `--skills` is documented separately from `--clients` because it installs into every compatible skill destination detected.
 
-## Riesgos
+## Risks
 
-- Los registros MCP ajenos o inválidos no se reemplazan en modo no interactivo.
+- Unrelated or invalid MCP registrations are never replaced in non-interactive mode.
 
-## Validaciones
+## Validation
 
 - `cargo +1.88.0 fmt --all --check`
 - `cargo +1.88.0 clippy --workspace --all-targets --locked --offline -- -D warnings`
-- `cargo +1.88.0 test --workspace --locked --offline` (pruebas live sin credenciales: ignoradas)
-- `npm test` en `packages/setup`
+- `cargo +1.88.0 test --workspace --locked --offline` (live tests without credentials: ignored)
+- `npm test` in `packages/setup`
 - `cargo +1.88.0 run -p worklogger-mcp -- --help`
 
-## Próxima acción
+## Next action
 
-- Crear el commit y tag de release `v0.7.9`, luego verificar la publicación npm.
+- Publish the `v0.7.10` tag and verify the npm package.

@@ -29,17 +29,17 @@ pub trait OwnHoursBackend: Send + Sync {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OwnHoursBackendError {
-    #[error("la configuración de Jira no es válida")]
+    #[error("the Jira configuration is invalid")]
     InvalidConfiguration,
-    #[error("la sesión de Jira no es válida")]
+    #[error("the Jira session is invalid")]
     AuthenticationRequired,
-    #[error("la cuenta autenticada no tiene permiso para consultar sus horas")]
+    #[error("the authenticated account cannot view its hours")]
     Forbidden,
-    #[error("el recurso Jira solicitado no existe")]
+    #[error("the requested Jira resource does not exist")]
     NotFound,
-    #[error("Jira devolvió datos inválidos o una paginación inconsistente")]
+    #[error("Jira returned invalid data or inconsistent pagination")]
     InvalidProviderResponse,
-    #[error("Jira rechazó o no pudo completar la consulta de horas")]
+    #[error("Jira rejected or could not complete the hours query")]
     Provider { retryable: bool },
 }
 
@@ -373,13 +373,13 @@ fn page_limits(configuration: &JiraConfiguration) -> Result<PageLimits, OwnHours
 
 fn local_today(now: OffsetDateTime, minutes: i16) -> Result<Date, ToolFailure> {
     let offset = UtcOffset::from_whole_seconds(i32::from(minutes) * 60)
-        .map_err(|_| invalid_period("utcOffsetMinutes no es válido"))?;
+        .map_err(|_| invalid_period("utcOffsetMinutes is invalid"))?;
     Ok(now.to_offset(offset).date())
 }
 
 fn current_partial_week(today: Date) -> Result<DateRange, ToolFailure> {
     let week = DateRange::week_containing(today);
-    DateRange::new(week.start(), today).map_err(|_| invalid_period("el período no es válido"))
+    DateRange::new(week.start(), today).map_err(|_| invalid_period("the period is invalid"))
 }
 
 fn explicit_period(date_from: &str, date_to: &str, today: Date) -> Result<DateRange, ToolFailure> {
@@ -391,7 +391,7 @@ fn explicit_period(date_from: &str, date_to: &str, today: Date) -> Result<DateRa
     let period =
         DateRange::new(start, end).map_err(|_| invalid_period("dateFrom supera dateTo"))?;
     if period.day_count() > MAXIMUM_REPORT_DAYS {
-        return Err(invalid_period("el período no puede superar 7 días"));
+        return Err(invalid_period("the period cannot exceed 7 days"));
     }
     Ok(period)
 }

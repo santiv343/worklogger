@@ -70,25 +70,25 @@ pub enum JiraMutationRequest {
 
 #[derive(Debug, thiserror::Error)]
 pub enum JiraIssueBackendError {
-    #[error("la configuración de Jira no es válida")]
+    #[error("the Jira configuration is invalid")]
     InvalidConfiguration,
-    #[error("el issue no pertenece al tablero configurado")]
+    #[error("the issue is not in the configured board")]
     IssueOutsideScope,
-    #[error("la operación requiere confirmación explícita")]
+    #[error("the operation requires explicit confirmation")]
     ConfirmationRequired,
-    #[error("el issue cambió después de la confirmación")]
+    #[error("the issue changed after confirmation")]
     StaleConfirmation,
-    #[error("la sesión de Jira no es válida")]
+    #[error("the Jira session is invalid")]
     AuthenticationRequired,
-    #[error("la cuenta autenticada no tiene permiso para esta operación")]
+    #[error("the authenticated account lacks permission for this operation")]
     Forbidden,
-    #[error("el recurso Jira solicitado no existe")]
+    #[error("the requested Jira resource does not exist")]
     NotFound,
-    #[error("Jira devolvió datos inválidos o una paginación inconsistente")]
+    #[error("Jira returned invalid data or inconsistent pagination")]
     InvalidProviderResponse,
-    #[error("Jira rechazó o no pudo completar la operación")]
+    #[error("Jira rejected or could not complete the operation")]
     Provider { retryable: bool },
-    #[error("Jira rechazó la operación: {detail}")]
+    #[error("Jira rejected the operation: {detail}")]
     ProviderRejected { detail: String },
 }
 

@@ -123,28 +123,28 @@ pub struct ClientRegistrationService {
 
 #[derive(Debug, Error)]
 pub enum ClientRegistrationError {
-    #[error("no se pudo determinar el directorio del usuario")]
+    #[error("could not determine the user directory")]
     MissingUserDirectory,
-    #[error("{0:?} no está disponible en esta computadora")]
+    #[error("{0:?} is not available on this computer")]
     ClientUnavailable(McpClientId),
-    #[error("el ejecutable MCP no existe o no es una ruta absoluta: {0}")]
+    #[error("the MCP executable does not exist or is not an absolute path: {0}")]
     InvalidServerExecutable(PathBuf),
-    #[error("la configuración de {client:?} en {path} no es válida")]
+    #[error("the {client:?} configuration at {path} is invalid")]
     InvalidConfiguration { client: McpClientId, path: PathBuf },
-    #[error("no se pudo acceder a {path}: {source}")]
+    #[error("could not access {path}: {source}")]
     Storage {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-    #[error("{client:?} rechazó el cambio: {message}")]
+    #[error("{client:?} rejected the change: {message}")]
     ClientCommand {
         client: McpClientId,
         message: String,
     },
-    #[error("{client:?} no respondió dentro del tiempo permitido")]
+    #[error("{client:?} did not respond within the allowed time")]
     ClientCommandTimeout { client: McpClientId },
-    #[error("la configuración de {client:?} cambió durante la operación: {path}")]
+    #[error("the {client:?} configuration changed during the operation: {path}")]
     ConcurrentModification { client: McpClientId, path: PathBuf },
 }
 

@@ -19,7 +19,7 @@ pub(crate) const ERROR_CONFIRMATION_REQUIRED: &str = "confirmation_required";
 pub(crate) const ERROR_INVALID_CONFIRMATION: &str = "invalid_confirmation";
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 pub(crate) const CONFIRMATION_REQUIRED_MESSAGE: &str =
-    "la operación requiere confirmed=true después de revisar su efecto";
+    "the operation requires confirmed=true after reviewing its effect";
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
 pub(crate) const ERROR_STALE_CONFIRMATION: &str = "stale_confirmation";
 #[cfg(any(feature = "jira", feature = "bitbucket"))]
