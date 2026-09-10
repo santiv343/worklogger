@@ -32,6 +32,7 @@ pub(crate) struct TuiCopy {
     pub modules_label: String,
     pub server_state_label: String,
     pub clients_label: String,
+    pub more_clients_label: String,
     pub state_configured: String,
     pub state_not_configured: String,
     pub no_enabled_modules: String,

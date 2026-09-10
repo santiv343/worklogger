@@ -3,6 +3,14 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.9.1] - 2026-09-10
+
+### Fixed
+
+- The TUI dashboard now shows a compact MCP-client preview and a visible link
+  to the complete client list instead of silently clipping additional clients
+  in a standard terminal.
+
 ## [0.9.0] - 2026-09-10
 
 ### Added

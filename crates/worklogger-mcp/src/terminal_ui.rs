@@ -26,6 +26,7 @@ const APP_CONTEXT: &str = "MCP";
 const MAX_PANEL_WIDTH: u16 = 120;
 const PANEL_MARGIN: u16 = 2;
 const WIDE_LAYOUT_WIDTH: u16 = 70;
+const DASHBOARD_CLIENT_PREVIEW: usize = 3;
 const SELECTED_MARKER: &str = " ▸ ";
 const BACKGROUND: Color = Color::Rgb(17, 20, 28);
 const SURFACE: Color = Color::Rgb(25, 30, 41);
@@ -1069,7 +1070,8 @@ fn remove_at_cursor(value: &mut String, cursor: usize) {
 
 fn draw_overview(frame: &mut ratatui::Frame, area: Rect, dashboard: &Dashboard) {
     frame.render_widget(Block::default().style(surface_style()), area);
-    let roomy = area.height >= 18;
+    let has_hidden_clients = dashboard.clients.len() > DASHBOARD_CLIENT_PREVIEW;
+    let roomy = area.height >= 18 && !has_hidden_clients;
     let mut lines = vec![section_heading(&tui_copy().menu_overview_title)];
     if roomy {
         lines.push(Line::default());
@@ -1091,8 +1093,19 @@ fn draw_overview(frame: &mut ratatui::Frame, area: Rect, dashboard: &Dashboard) 
         dashboard
             .clients
             .iter()
+            .take(DASHBOARD_CLIENT_PREVIEW)
             .map(|text| Line::from(text.as_str())),
     );
+    if has_hidden_clients {
+        let hidden_clients = dashboard
+            .clients
+            .len()
+            .saturating_sub(DASHBOARD_CLIENT_PREVIEW);
+        lines.push(Line::styled(
+            format!("+{hidden_clients} {}", tui_copy().more_clients_label),
+            Style::default().fg(ACCENT),
+        ));
+    }
     frame.render_widget(
         Paragraph::new(lines).wrap(Wrap { trim: false }),
         panel_inner(area),
@@ -1240,7 +1253,9 @@ mod tests {
             .iter()
             .map(ratatui::buffer::Cell::symbol)
             .collect();
-        assert_eq!(symbols.matches(&tui_copy().clients_label).count(), 1);
+        assert_eq!(symbols.matches(&tui_copy().clients_label).count(), 2);
+        assert!(symbols.contains("+2"));
+        assert!(symbols.contains(&tui_copy().more_clients_label));
         let selection = dashboard_action_items_area(Rect::new(0, 0, 80, 24));
         assert_eq!(
             terminal.backend().buffer()[(selection.x, selection.y + 3)].bg,

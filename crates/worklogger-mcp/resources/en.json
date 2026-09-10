@@ -30,6 +30,7 @@
   "modulesLabel": "Active modules",
   "serverStateLabel": "Local MCP server",
   "clientsLabel": "MCP clients",
+  "moreClientsLabel": "more · MCP clients",
   "stateConfigured": "Configured",
   "stateNotConfigured": "Not configured",
   "noEnabledModules": "None",
