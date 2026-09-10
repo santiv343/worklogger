@@ -25,6 +25,7 @@
   "pageSize": "Tamaño de página",
   "collectionLimit": "Límite de elementos",
   "concurrency": "Consultas de worklogs simultáneas",
+  "reportPeriodLimit": "Límite del período de reporte (días)",
   "back": "Volver",
   "verified": "Verificado en esta sesión",
   "saved": "Guardado, sin verificar",

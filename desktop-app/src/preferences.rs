@@ -41,6 +41,7 @@ struct HoursDraft {
     weekly_target_hours: String,
     utc_offset_minutes: String,
     maximum_daily_hours: String,
+    maximum_report_period_days: String,
     default_worklog_start_hour: String,
     default_worklog_start_minute: String,
 }
@@ -119,6 +120,7 @@ impl From<&ConnectionConfiguration> for HoursDraft {
             weekly_target_hours: configuration.hours.weekly_target_hours.to_string(),
             utc_offset_minutes: configuration.hours.utc_offset_minutes.to_string(),
             maximum_daily_hours: configuration.hours.maximum_daily_hours.to_string(),
+            maximum_report_period_days: configuration.hours.maximum_report_period_days.to_string(),
             default_worklog_start_hour: configuration.hours.default_worklog_start_hour.to_string(),
             default_worklog_start_minute: configuration
                 .hours
@@ -958,6 +960,7 @@ fn HoursSettings(mut draft: Signal<ConfigurationDraft>) -> Element {
         SettingsHeading { id: "hours-settings-title", mark: "H", title: text("preferences.hoursTitle"), description: text("preferences.hoursDescription"), module: false }
         NumberField { id: "preferences-target", label: text("setup.targetLabel"), help: text("setup.targetHelp"), minimum: limits.minimum_weekly_target_hours.to_string(), maximum: limits.maximum_weekly_target_hours.to_string(), value: draft().hours.weekly_target_hours, on_input: move |value| draft.write().hours.weekly_target_hours = value }
         NumberField { id: "preferences-daily-limit", label: text("preferences.dailyLimitLabel"), help: text("preferences.dailyLimitHelp"), maximum: limits.maximum_daily_hours.to_string(), value: draft().hours.maximum_daily_hours, on_input: move |value| draft.write().hours.maximum_daily_hours = value }
+        NumberField { id: "preferences-report-period-limit", label: text("preferences.reportPeriodLimitLabel"), help: text("preferences.reportPeriodLimitHelp"), maximum: limits.maximum_custom_range_days.to_string(), value: draft().hours.maximum_report_period_days, on_input: move |value| draft.write().hours.maximum_report_period_days = value }
         NumberField { id: "preferences-start-hour", label: text("preferences.startHourLabel"), help: text("preferences.startHourHelp"), minimum: "0".to_owned(), maximum: MAXIMUM_CLOCK_HOUR.to_string(), value: draft().hours.default_worklog_start_hour, on_input: move |value| draft.write().hours.default_worklog_start_hour = value }
         NumberField { id: "preferences-start-minute", label: text("preferences.startMinuteLabel"), help: text("preferences.startMinuteHelp"), minimum: "0".to_owned(), maximum: MAXIMUM_CLOCK_MINUTE.to_string(), value: draft().hours.default_worklog_start_minute, on_input: move |value| draft.write().hours.default_worklog_start_minute = value }
     } }
@@ -1110,6 +1113,7 @@ fn parse_hours(draft: &ConfigurationDraft) -> Result<HoursConfiguration, String>
         weekly_target_hours: parse_positive(&draft.hours.weekly_target_hours)?,
         utc_offset_minutes: parse_offset(&draft.hours.utc_offset_minutes)?,
         maximum_daily_hours: parse_positive(&draft.hours.maximum_daily_hours)?,
+        maximum_report_period_days: parse_positive(&draft.hours.maximum_report_period_days)?,
         default_worklog_start_hour: parse_number(&draft.hours.default_worklog_start_hour)?,
         default_worklog_start_minute: parse_number(&draft.hours.default_worklog_start_minute)?,
     };
@@ -1125,9 +1129,11 @@ fn validate_hours(configuration: &HoursConfiguration) -> Result<(), String> {
         ..=defaults.maximum_weekly_target_hours)
         .contains(&target);
     let valid_daily = configuration.maximum_daily_hours <= defaults.maximum_daily_hours;
+    let valid_report_period =
+        configuration.maximum_report_period_days <= defaults.maximum_custom_range_days;
     let valid_time = configuration.default_worklog_start_hour <= MAXIMUM_CLOCK_HOUR
         && configuration.default_worklog_start_minute <= MAXIMUM_CLOCK_MINUTE;
-    if !valid_target || !valid_daily || !valid_time {
+    if !valid_target || !valid_daily || !valid_report_period || !valid_time {
         return Err(text("preferences.invalidNumber").to_owned());
     }
     Ok(())

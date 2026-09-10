@@ -19,12 +19,13 @@ use worklogger_mcp::{
     BitbucketRepositoryListData,
 };
 use worklogger_mcp::{
-    Capability, JiraConfiguration, JiraHoursConfiguration, JiraIssueBackend, JiraIssueBackendError,
-    JiraIssueFuture, JiraMutationEffect, JiraMutationPlan, JiraMutationRequest, JiraMutationTarget,
-    JiraPlannedEffect, JiraPlannedWorklogEffect, JiraWorklogBackend, JiraWorklogData,
-    JiraWorklogEffect, JiraWorklogFuture, JiraWorklogPlan, McpConfiguration, ModuleConfiguration,
-    ModuleId, OwnHoursBackend, OwnHoursBackendError, OwnHoursFuture, OwnHoursRequest,
-    OwnHoursToolResponse, UnloggedIssue, UnloggedIssuesFuture, WorkloggerMcpServer, resolve_period,
+    Capability, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, JiraConfiguration, JiraHoursConfiguration,
+    JiraIssueBackend, JiraIssueBackendError, JiraIssueFuture, JiraMutationEffect, JiraMutationPlan,
+    JiraMutationRequest, JiraMutationTarget, JiraPlannedEffect, JiraPlannedWorklogEffect,
+    JiraWorklogBackend, JiraWorklogData, JiraWorklogEffect, JiraWorklogFuture, JiraWorklogPlan,
+    MAXIMUM_REPORT_PERIOD_DAYS, McpConfiguration, ModuleConfiguration, ModuleId, OwnHoursBackend,
+    OwnHoursBackendError, OwnHoursFuture, OwnHoursRequest, OwnHoursToolResponse, UnloggedIssue,
+    UnloggedIssuesFuture, WorkloggerMcpServer, resolve_period,
 };
 
 #[derive(Default)]
@@ -368,7 +369,8 @@ fn default_period_is_the_current_week_capped_at_today() {
     let request = OwnHoursRequest::default();
     let now = datetime!(2026-09-03 12:00 UTC);
 
-    let period = resolve_period(&request, 0, now).expect("default period is valid");
+    let period = resolve_period(&request, 0, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, now)
+        .expect("default period is valid");
 
     assert_eq!(period.start(), date!(2026 - 08 - 31));
     assert_eq!(period.end(), date!(2026 - 09 - 03));
@@ -381,13 +383,13 @@ fn future_and_partial_explicit_periods_are_rejected() {
     let future = request(Some("2026-09-01"), Some("2026-09-04"));
 
     assert_eq!(
-        resolve_period(&partial, 0, now)
+        resolve_period(&partial, 0, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, now)
             .expect_err("partial period is rejected")
             .code,
         "invalid_period"
     );
     assert_eq!(
-        resolve_period(&future, 0, now)
+        resolve_period(&future, 0, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, now)
             .expect_err("future period is rejected")
             .code,
         "invalid_period"
@@ -395,13 +397,33 @@ fn future_and_partial_explicit_periods_are_rejected() {
 }
 
 #[test]
-fn periods_longer_than_one_week_are_rejected() {
+fn periods_longer_than_the_configured_limit_are_rejected() {
     let request = request(Some("2026-08-01"), Some("2026-08-08"));
 
-    let error = resolve_period(&request, 0, datetime!(2026-09-03 12:00 UTC))
-        .expect_err("long period is rejected");
+    let error = resolve_period(
+        &request,
+        0,
+        DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
+        datetime!(2026-09-03 12:00 UTC),
+    )
+    .expect_err("long period is rejected");
 
     assert_eq!(error.code, "invalid_period");
+}
+
+#[test]
+fn configured_monthly_period_is_accepted() {
+    let request = request(Some("2026-08-04"), Some("2026-09-03"));
+
+    let period = resolve_period(
+        &request,
+        0,
+        MAXIMUM_REPORT_PERIOD_DAYS,
+        datetime!(2026-09-03 12:00 UTC),
+    )
+    .expect("monthly period is valid");
+
+    assert_eq!(period.day_count(), u64::from(MAXIMUM_REPORT_PERIOD_DAYS));
 }
 
 #[test]
@@ -896,6 +918,7 @@ fn jira_configuration() -> JiraConfiguration {
             weekly_target_hours: 40,
             utc_offset_minutes: 0,
             maximum_daily_hours: 24,
+            maximum_report_period_days: 7,
             maximum_concurrent_worklog_requests: 8,
         }),
     }

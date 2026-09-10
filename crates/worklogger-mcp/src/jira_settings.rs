@@ -2,10 +2,11 @@
 
 use super::{
     BTreeSet, Capability, CliError, ConfigurationStore, CredentialPurpose, CredentialStore,
-    DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, Duration, JiraClient, JiraHoursConfiguration,
-    JiraModuleProfile, JiraSetupValues, JiraSiteUrl, McpConfiguration, ModuleId,
-    OrganizationProfile, ProviderRequestLimits, apply_setup_profile, capability_available, choose,
-    choose_board, choose_jira_site, configured_jira, credential_transaction, default_jira_hours,
+    DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, Duration, JiraClient,
+    JiraHoursConfiguration, JiraModuleProfile, JiraSetupValues, JiraSiteUrl,
+    MAXIMUM_REPORT_PERIOD_DAYS, McpConfiguration, ModuleId, OrganizationProfile,
+    ProviderRequestLimits, apply_setup_profile, capability_available, choose, choose_board,
+    choose_jira_site, configured_jira, credential_transaction, default_jira_hours,
     default_provider_request_limits, disable_dependent_jira_capabilities, discover,
     environment_token, format_utc_offset, jira_profile_limits, jira_request_limits_allowed,
     message, profile_jira_hours, prompt, prompt_utc_offset, prompt_weekly_target, read_token,
@@ -176,6 +177,10 @@ impl<'profile> Editor<'profile> {
             row(
                 &settings_copy().concurrency,
                 &hours.maximum_concurrent_worklog_requests.to_string(),
+            ),
+            row(
+                &settings_copy().report_period_limit,
+                &hours.maximum_report_period_days.to_string(),
             ),
         ]
     }
@@ -350,15 +355,24 @@ impl<'profile> Editor<'profile> {
         match index {
             0 => hours.weekly_target_hours = prompt_weekly_target(hours.weekly_target_hours)?,
             1 => hours.utc_offset_minutes = prompt_utc_offset(hours.utc_offset_minutes)?,
-            _ => {
+            2 => {
                 hours.maximum_concurrent_worklog_requests = number(
                     &settings_copy().concurrency,
                     hours.maximum_concurrent_worklog_requests,
                 )?;
             }
+            _ => {
+                hours.maximum_report_period_days = number(
+                    &settings_copy().report_period_limit,
+                    hours.maximum_report_period_days,
+                )?;
+            }
         }
         validate_prompted_hours(&hours, self.policy())?;
-        if hours.weekly_target_hours > 168 || hours.utc_offset_minutes.abs() > 840 {
+        if hours.weekly_target_hours > 168
+            || hours.utc_offset_minutes.abs() > 840
+            || hours.maximum_report_period_days > MAXIMUM_REPORT_PERIOD_DAYS
+        {
             return Err(message(&settings_copy().number_required));
         }
         self.values.hours = Some(hours);
@@ -619,6 +633,7 @@ fn update_shared_hours(
     shared.weekly_target_hours = Some(hours.weekly_target_hours);
     shared.utc_offset_minutes = Some(hours.utc_offset_minutes);
     shared.maximum_daily_hours = Some(hours.maximum_daily_hours);
+    shared.maximum_report_period_days = Some(hours.maximum_report_period_days);
 }
 
 fn update_shared_permissions(
@@ -681,6 +696,9 @@ fn from_shared(
                 weekly_target_hours: hours.weekly_target_hours?,
                 utc_offset_minutes: hours.utc_offset_minutes?,
                 maximum_daily_hours: hours.maximum_daily_hours.unwrap_or(24),
+                maximum_report_period_days: hours
+                    .maximum_report_period_days
+                    .unwrap_or(DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS),
                 maximum_concurrent_worklog_requests: jira.maximum_concurrent_worklog_requests?,
             })
         });

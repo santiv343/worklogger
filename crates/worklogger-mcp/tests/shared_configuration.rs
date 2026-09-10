@@ -22,6 +22,7 @@ fn runtime() -> McpConfiguration {
                 weekly_target_hours: 40,
                 utc_offset_minutes: 0,
                 maximum_daily_hours: 12,
+                maximum_report_period_days: 7,
                 maximum_concurrent_worklog_requests: 4,
             }),
         },

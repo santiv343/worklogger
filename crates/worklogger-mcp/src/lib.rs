@@ -39,8 +39,9 @@ pub use client_registration::{
 };
 pub use configuration::{
     BitbucketConfiguration, BitbucketPullRequestDefaults, Capability, ConfigurationError,
-    ConfigurationStore, DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, JiraConfiguration,
-    JiraHoursConfiguration, McpConfiguration, ModuleConfiguration, ModuleId,
+    ConfigurationStore, DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
+    JiraConfiguration, JiraHoursConfiguration, MAXIMUM_REPORT_PERIOD_DAYS, McpConfiguration,
+    ModuleConfiguration, ModuleId,
 };
 pub use confirmation::{
     ConfirmationError, ConfirmationGate, MutationConfirmation, confirmation_payload,

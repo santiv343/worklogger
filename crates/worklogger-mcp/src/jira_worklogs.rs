@@ -537,6 +537,7 @@ mod tests {
                     .parse()
                     .expect("test UTC offset is numeric"),
                 maximum_daily_hours: 24,
+                maximum_report_period_days: crate::DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
                 maximum_concurrent_worklog_requests: 1,
             }),
         }

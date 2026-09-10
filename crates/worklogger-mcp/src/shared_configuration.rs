@@ -6,7 +6,8 @@ use worklogger_settings::{JiraSettings, McpSettings, ModuleSettings, SettingsDoc
 
 use crate::{
     BitbucketConfiguration, BitbucketPullRequestDefaults, Capability, ConfigurationError,
-    JiraConfiguration, JiraHoursConfiguration, McpConfiguration, ModuleConfiguration, ModuleId,
+    DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, JiraConfiguration, JiraHoursConfiguration,
+    McpConfiguration, ModuleConfiguration, ModuleId,
 };
 
 impl McpConfiguration {
@@ -111,6 +112,9 @@ fn project_hours(document: &SettingsDocument) -> Option<JiraHoursConfiguration> 
         weekly_target_hours: hours.weekly_target_hours?,
         utc_offset_minutes: hours.utc_offset_minutes?,
         maximum_daily_hours: hours.maximum_daily_hours.unwrap_or(24),
+        maximum_report_period_days: hours
+            .maximum_report_period_days
+            .unwrap_or(DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS),
         maximum_concurrent_worklog_requests: document
             .jira
             .as_ref()?
@@ -187,4 +191,5 @@ fn update_hours(document: &mut SettingsDocument, hours: Option<&JiraHoursConfigu
     current.weekly_target_hours = Some(hours.weekly_target_hours);
     current.utc_offset_minutes = Some(hours.utc_offset_minutes);
     current.maximum_daily_hours = Some(hours.maximum_daily_hours);
+    current.maximum_report_period_days = Some(hours.maximum_report_period_days);
 }

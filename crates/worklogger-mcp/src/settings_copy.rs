@@ -31,6 +31,7 @@ pub(crate) struct SettingsCopy {
     pub page_size: String,
     pub collection_limit: String,
     pub concurrency: String,
+    pub report_period_limit: String,
     pub back: String,
     pub verified: String,
     pub saved: String,

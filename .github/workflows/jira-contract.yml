@@ -1,0 +1,46 @@
+name: Jira read-only contract
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jira_contract:
+    runs-on: ubuntu-22.04
+    env:
+      WORKLOGGER_TEST_JIRA_URL: ${{ secrets.WORKLOGGER_TEST_JIRA_URL }}
+      WORKLOGGER_TEST_JIRA_EMAIL: ${{ secrets.WORKLOGGER_TEST_JIRA_EMAIL }}
+      WORKLOGGER_TEST_JIRA_TOKEN: ${{ secrets.WORKLOGGER_TEST_JIRA_TOKEN }}
+      WORKLOGGER_TEST_JIRA_BOARD_ID: ${{ secrets.WORKLOGGER_TEST_JIRA_BOARD_ID }}
+      WORKLOGGER_TEST_JIRA_ISSUE_KEY: ${{ secrets.WORKLOGGER_TEST_JIRA_ISSUE_KEY }}
+      WORKLOGGER_TEST_JIRA_UTC_OFFSET_MINUTES: ${{ secrets.WORKLOGGER_TEST_JIRA_UTC_OFFSET_MINUTES }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal
+          rustup default 1.88.0
+      - name: Run read-only contracts when the sandbox is configured
+        shell: bash
+        run: |
+          required_variables=(
+            WORKLOGGER_TEST_JIRA_URL
+            WORKLOGGER_TEST_JIRA_EMAIL
+            WORKLOGGER_TEST_JIRA_TOKEN
+            WORKLOGGER_TEST_JIRA_BOARD_ID
+            WORKLOGGER_TEST_JIRA_ISSUE_KEY
+            WORKLOGGER_TEST_JIRA_UTC_OFFSET_MINUTES
+          )
+          for variable in "${required_variables[@]}"; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::notice title=Jira contract test skipped::Set the documented read-only sandbox secrets to enable this scheduled check."
+              exit 0
+            fi
+          done
+          cargo test --package jira-adapter --lib --locked -- --ignored
+          cargo test --package worklogger-mcp --lib --locked -- --ignored

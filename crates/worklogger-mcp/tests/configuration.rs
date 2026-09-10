@@ -8,8 +8,8 @@ use serde_json::json;
 #[cfg(all(feature = "jira", feature = "bitbucket"))]
 use worklogger_mcp::BitbucketConfiguration;
 use worklogger_mcp::{
-    Capability, ConfigurationStore, JiraConfiguration, JiraHoursConfiguration, McpConfiguration,
-    ModuleConfiguration, ModuleId,
+    Capability, ConfigurationStore, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, JiraConfiguration,
+    JiraHoursConfiguration, McpConfiguration, ModuleConfiguration, ModuleId,
 };
 use worklogger_profile::OrganizationProfile;
 
@@ -36,6 +36,27 @@ fn disabling_the_module_exposes_no_tools() {
     });
 
     assert!(!configuration.capability_enabled(Capability::ReadOwnTimeEntries));
+}
+
+#[test]
+fn defaults_the_report_period_when_loading_existing_configuration() {
+    let mut value = serde_json::to_value(jira_configuration()).expect("fixture serializes");
+    value
+        .get_mut("hours")
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("hours object")
+        .remove("maximumReportPeriodDays");
+
+    let configuration: JiraConfiguration =
+        serde_json::from_value(value).expect("existing configuration loads");
+
+    assert_eq!(
+        configuration
+            .hours
+            .expect("hours configuration")
+            .maximum_report_period_days,
+        DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
+    );
 }
 
 #[test]
@@ -499,6 +520,7 @@ fn jira_configuration() -> JiraConfiguration {
             weekly_target_hours: 40,
             utc_offset_minutes: 0,
             maximum_daily_hours: 24,
+            maximum_report_period_days: 7,
             maximum_concurrent_worklog_requests: 8,
         }),
     }

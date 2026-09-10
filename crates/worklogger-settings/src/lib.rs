@@ -10,6 +10,8 @@ pub use storage::{SettingsError, SettingsStore};
 use worklogger_profile::{Capability, IntegrationModuleId};
 
 pub const SCHEMA_VERSION: u16 = 1;
+pub const DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS: u16 = 7;
+pub const MAXIMUM_REPORT_PERIOD_DAYS: u16 = 31;
 const MAXIMUM_WEEKLY_HOURS: u16 = 168;
 const MAXIMUM_OFFSET_MINUTES: i16 = 14 * 60;
 const MAXIMUM_DAILY_HOURS: u8 = 24;
@@ -71,6 +73,7 @@ pub struct HoursSettings {
     pub weekly_target_hours: Option<u16>,
     pub utc_offset_minutes: Option<i16>,
     pub maximum_daily_hours: Option<u8>,
+    pub maximum_report_period_days: Option<u16>,
     pub default_worklog_start_hour: Option<u8>,
     pub default_worklog_start_minute: Option<u8>,
 }
@@ -179,6 +182,12 @@ fn validate_hours(hours: &HoursSettings) -> Result<(), SettingsError> {
             .maximum_daily_hours
             .is_none_or(|hours| (1..=MAXIMUM_DAILY_HOURS).contains(&hours)),
         "hours.maximumDailyHours",
+    )?;
+    require(
+        hours
+            .maximum_report_period_days
+            .is_none_or(|days| (1..=MAXIMUM_REPORT_PERIOD_DAYS).contains(&days)),
+        "hours.maximumReportPeriodDays",
     )?;
     require(
         hours

@@ -11,6 +11,7 @@
     "hours": {
       "weeklyTargetHours": 40,
       "utcOffsetMinutes": 0,
+      "maximumReportPeriodDays": 7,
       "maximumConcurrentWorklogRequests": 8
     }
   },

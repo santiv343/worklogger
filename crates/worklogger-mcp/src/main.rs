@@ -33,8 +33,9 @@ use worklogger_mcp::{
 };
 #[cfg(feature = "jira")]
 use worklogger_mcp::{
-    DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, JIRA_API_TOKEN_ENVIRONMENT_VARIABLE, JiraConfiguration,
-    JiraHoursConfiguration, JiraIssueService, JiraOwnHoursBackend, JiraWorklogService,
+    DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
+    JIRA_API_TOKEN_ENVIRONMENT_VARIABLE, JiraConfiguration, JiraHoursConfiguration,
+    JiraIssueService, JiraOwnHoursBackend, JiraWorklogService, MAXIMUM_REPORT_PERIOD_DAYS,
 };
 #[cfg(feature = "bitbucket")]
 use worklogger_profile::BitbucketModuleProfile;
@@ -1820,6 +1821,7 @@ const fn default_jira_hours() -> JiraHoursConfiguration {
         weekly_target_hours: DEFAULT_WEEKLY_TARGET_HOURS,
         utc_offset_minutes: DEFAULT_UTC_OFFSET_MINUTES,
         maximum_daily_hours: 24,
+        maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
         maximum_concurrent_worklog_requests: DEFAULT_MAXIMUM_CONCURRENT_REQUESTS,
     }
 }
@@ -1848,6 +1850,7 @@ fn prompt_jira_hours(
         weekly_target_hours,
         utc_offset_minutes,
         maximum_daily_hours: defaults.maximum_daily_hours,
+        maximum_report_period_days: defaults.maximum_report_period_days,
         maximum_concurrent_worklog_requests: defaults.maximum_concurrent_worklog_requests,
     };
     validate_prompted_hours(&hours, profile)?;
@@ -1864,6 +1867,7 @@ fn validate_prompted_hours(
             .hours
             .allows_weekly_target(u32::from(hours.weekly_target_hours))
             && policy.hours.allows_utc_offset(hours.utc_offset_minutes)
+            && hours.maximum_report_period_days <= policy.hours.maximum_custom_range_days
     });
     allowed
         .then_some(())
@@ -1916,6 +1920,9 @@ fn constrained_jira_hours(
     hours.maximum_concurrent_worklog_requests = hours
         .maximum_concurrent_worklog_requests
         .min(profile.maximum_allowed_concurrent_worklog_requests);
+    hours.maximum_report_period_days = hours
+        .maximum_report_period_days
+        .min(profile.hours.maximum_custom_range_days);
     Ok(hours)
 }
 
@@ -1927,6 +1934,8 @@ fn profile_jira_hours(profile: &JiraModuleProfile) -> Result<JiraHoursConfigurat
         weekly_target_hours,
         utc_offset_minutes: profile.hours.suggested_utc_offset_minutes,
         maximum_daily_hours: 24,
+        maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
+            .min(profile.hours.maximum_custom_range_days),
         maximum_concurrent_worklog_requests: profile.maximum_concurrent_worklog_requests,
     })
 }
@@ -3298,6 +3307,7 @@ mod jira_setup_tests {
             weekly_target_hours: 30,
             utc_offset_minutes: -180,
             maximum_daily_hours: 24,
+            maximum_report_period_days: 7,
             maximum_concurrent_worklog_requests: 4,
         };
         let current = jira_setup_configuration(expected.clone());
@@ -3316,6 +3326,7 @@ mod jira_setup_tests {
             weekly_target_hours: 30,
             utc_offset_minutes: 120,
             maximum_daily_hours: 24,
+            maximum_report_period_days: 7,
             maximum_concurrent_worklog_requests: 40,
         });
 

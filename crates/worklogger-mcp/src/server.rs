@@ -739,8 +739,13 @@ impl WorkloggerMcpServer {
     ) -> Result<(hours_core::DateRange, u64), ToolFailure> {
         let jira = self.configuration.jira.as_ref().ok_or_else(hours_failure)?;
         let hours = jira.hours.as_ref().ok_or_else(hours_failure)?;
-        resolve_period(request, hours.utc_offset_minutes, generated_at)
-            .map(|period| (period, jira.board_id))
+        resolve_period(
+            request,
+            hours.utc_offset_minutes,
+            hours.maximum_report_period_days,
+            generated_at,
+        )
+        .map(|period| (period, jira.board_id))
     }
 
     async fn jira_confirmation_step<Request: Serialize>(

@@ -234,6 +234,8 @@
   "preferences.hoursDescription": "Targets and behavior for your personal time tracking.",
   "preferences.dailyLimitLabel": "Maximum daily entry",
   "preferences.dailyLimitHelp": "Avoid accidentally logging more time than this limit.",
+  "preferences.reportPeriodLimitLabel": "Report period limit",
+  "preferences.reportPeriodLimitHelp": "Maximum days an assistant can request in one personal time report.",
   "preferences.startHourLabel": "Default start hour",
   "preferences.startHourHelp": "Local hour used when creating an entry.",
   "preferences.startMinuteLabel": "Default start minute",
