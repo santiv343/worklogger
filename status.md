@@ -1,12 +1,12 @@
 # Operating status
 
 - UTC date: 2026-09-10
-- Branch: `docs/clarify-public-value`
-- Objective: make Worklogger's public GitHub and npm entry points explain its value, safe operating model, and installation path clearly.
+- Branch: `release/v0.9.3`
+- Objective: publish the first durable public GitHub Release with the validated 0.9.3 product and distribution documentation.
 
 ## In progress
 
-- [-] Validate the public-product documentation and release workflow, then open a focused pull request.
+- [-] Validate the 0.9.3 release version, merge its release PR, then create the release tag.
 
 ## Recent decisions
 
@@ -23,6 +23,7 @@
 - The public GitHub description and discovery topics now state the concrete product: personal Jira time tracking and reviewed Jira/Bitbucket workflows for AI assistants.
 - The public entry points now lead with concrete tasks, supported surfaces, an install path, and the observable confirmation model; implementation detail remains in reference documentation.
 - A future `v*` tag will create a GitHub Release containing durable Community Desktop and MCP downloads after the npm publish succeeds.
+- Version 0.9.3 is a patch release for the public product surface and distribution path; it does not change provider behavior.
 
 ## Risks
 
@@ -43,4 +44,4 @@
 
 ## Next action
 
-- Push the documentation and release-workflow branch, open a pull request, and let the protected Windows/Linux workflow validate it.
+- Regenerate the lockfile for 0.9.3, validate the release PR, merge it, and push `v0.9.3`.

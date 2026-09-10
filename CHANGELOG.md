@@ -3,6 +3,21 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.9.3] - 2026-09-10
+
+### Added
+
+- GitHub Releases now publish the Community Windows installer, portable ZIP,
+  Windows and Linux MCP binaries, and checksums from a successful version tag.
+- Public contribution, security, and issue-reporting guidance.
+
+### Changed
+
+- GitHub and npm now describe Worklogger through personal time tracking and
+  reviewed Jira and Bitbucket workflows instead of installer internals.
+- Public product, architecture, and security documentation is available in
+  English with clear installation, privacy, and release paths.
+
 ## [0.9.2] - 2026-09-10
 
 ### Fixed
