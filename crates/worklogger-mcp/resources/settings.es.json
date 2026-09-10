@@ -5,7 +5,7 @@
   "mcpClients": "Clientes MCP",
   "assistantSkills": "Skills para asistentes",
   "language": "Idioma",
-  "languageSaved": "Idioma guardado. Reiniciá Worklogger para aplicarlo.",
+  "languageSaved": "El idioma cambió en esta sesión y quedó guardado para próximos inicios.",
   "connection": "Conexión",
   "site": "URL del sitio",
   "email": "Correo de la cuenta",

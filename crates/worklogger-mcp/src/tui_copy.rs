@@ -21,7 +21,6 @@ pub(crate) struct TuiCopy {
     pub input_value_label: String,
     pub progress_description: String,
     pub skills_ready: String,
-    pub skills_verified: String,
     pub skills_conflicts: String,
     pub menu_title: String,
     pub menu_subtitle: String,
@@ -45,6 +44,12 @@ pub(crate) struct TuiCopy {
     pub menu_uninstall_action: String,
     pub menu_exit_action: String,
     pub tui_navigation_hint: String,
+    pub single_select_help: String,
+    pub multi_select_help: String,
+    pub input_help: String,
+    pub acknowledge_help: String,
+    pub confirm_accept: String,
+    pub confirm_cancel: String,
     pub profile_path_required: String,
     pub invalid_setup_arguments: String,
     pub install_config_path_required: String,
@@ -206,17 +211,20 @@ pub(crate) struct TuiCopy {
 }
 
 pub(crate) fn tui_copy() -> &'static TuiCopy {
-    static COPY: OnceLock<TuiCopy> = OnceLock::new();
-    COPY.get_or_init(|| {
-        serde_json::from_str(selected_copy()).expect("the embedded TUI resource must be valid JSON")
-    })
+    copy_for(super::preferred_language())
 }
 
-fn selected_copy() -> &'static str {
-    match super::preferred_language() {
-        worklogger_settings::Language::English => ENGLISH_COPY,
-        worklogger_settings::Language::Spanish => SPANISH_COPY,
+fn copy_for(language: worklogger_settings::Language) -> &'static TuiCopy {
+    static ENGLISH: OnceLock<TuiCopy> = OnceLock::new();
+    static SPANISH: OnceLock<TuiCopy> = OnceLock::new();
+    match language {
+        worklogger_settings::Language::English => ENGLISH.get_or_init(|| parse(ENGLISH_COPY)),
+        worklogger_settings::Language::Spanish => SPANISH.get_or_init(|| parse(SPANISH_COPY)),
     }
+}
+
+fn parse(copy: &str) -> TuiCopy {
+    serde_json::from_str(copy).expect("the embedded TUI resource must be valid JSON")
 }
 
 #[cfg(test)]
@@ -234,5 +242,12 @@ mod tests {
     fn both_language_resources_match_the_tui_schema() {
         let _: TuiCopy = serde_json::from_str(ENGLISH_COPY).expect("English TUI copy is valid");
         let _: TuiCopy = serde_json::from_str(SPANISH_COPY).expect("Spanish TUI copy is valid");
+    }
+
+    #[test]
+    fn copy_changes_with_the_selected_language() {
+        let english = copy_for(worklogger_settings::Language::English);
+        let spanish = copy_for(worklogger_settings::Language::Spanish);
+        assert_ne!(english.menu_title, spanish.menu_title);
     }
 }

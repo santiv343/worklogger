@@ -3,6 +3,19 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.9.2] - 2026-09-10
+
+### Fixed
+
+- Changing the interface language now takes effect immediately in the running
+  TUI and persists for the next launch.
+- Back navigation now returns one screen at a time from Settings subflows.
+- TUI confirmations, keyboard hints, and result messages consistently follow
+  the selected language; action results are no longer deferred until later
+  navigation.
+- Skill installation no longer shows a redundant completion dialog after its
+  verified status screen.
+
 ## [0.9.1] - 2026-09-10
 
 ### Fixed

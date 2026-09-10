@@ -168,7 +168,7 @@ impl<'profile> Editor<'profile> {
             self.replace_token()?;
         }
         self.save_draft()?;
-        show_notice(&settings_copy().connection_changed);
+        show_notice(&settings_copy().connection_changed)?;
         Ok(())
     }
 
@@ -367,7 +367,7 @@ impl<'profile> Editor<'profile> {
     fn save(&self) -> Result<(), CliError> {
         self.save_draft()?;
         if self.values.workspaces.is_empty() || self.token().is_err() {
-            show_notice(&settings_copy().pending);
+            show_notice(&settings_copy().pending)?;
             return Ok(());
         }
         let store = ConfigurationStore::for_current_user()?;
@@ -375,7 +375,7 @@ impl<'profile> Editor<'profile> {
         let configuration =
             apply_setup_profile(self.configuration(current.as_ref())?, self.profile)?;
         store.save(&configuration)?;
-        show_notice(&settings_copy().applied);
+        show_notice(&settings_copy().applied)?;
         Ok(())
     }
 
@@ -493,6 +493,8 @@ where
         .map_err(|_| message(&settings_copy().number_required))
 }
 
-fn show_notice(value: &str) {
-    super::terminal_notice(value.to_owned());
+fn show_notice(value: &str) -> Result<(), CliError> {
+    super::show_message(&tui_copy().result_title, &[value.to_owned()])
+        .map(|_| ())
+        .map_err(|error| terminal_error(&error))
 }

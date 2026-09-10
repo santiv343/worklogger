@@ -5,7 +5,7 @@
   "mcpClients": "MCP clients",
   "assistantSkills": "Assistant skills",
   "language": "Language",
-  "languageSaved": "Language saved. Restart Worklogger to apply it.",
+  "languageSaved": "Language changed for this session and saved for future launches.",
   "connection": "Connection",
   "site": "Site URL",
   "email": "Account email",

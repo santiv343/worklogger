@@ -49,15 +49,34 @@ pub(crate) struct SettingsCopy {
 }
 
 pub(crate) fn settings_copy() -> &'static SettingsCopy {
-    static COPY: OnceLock<SettingsCopy> = OnceLock::new();
-    COPY.get_or_init(|| {
-        serde_json::from_str(selected_copy()).expect("bundled settings copy must be valid")
-    })
+    copy_for(super::preferred_language())
 }
 
-fn selected_copy() -> &'static str {
-    match super::preferred_language() {
-        worklogger_settings::Language::English => include_str!("../resources/settings.en.json"),
-        worklogger_settings::Language::Spanish => include_str!("../resources/settings.es.json"),
+fn copy_for(language: worklogger_settings::Language) -> &'static SettingsCopy {
+    static ENGLISH: OnceLock<SettingsCopy> = OnceLock::new();
+    static SPANISH: OnceLock<SettingsCopy> = OnceLock::new();
+    match language {
+        worklogger_settings::Language::English => {
+            ENGLISH.get_or_init(|| parse(include_str!("../resources/settings.en.json")))
+        }
+        worklogger_settings::Language::Spanish => {
+            SPANISH.get_or_init(|| parse(include_str!("../resources/settings.es.json")))
+        }
+    }
+}
+
+fn parse(copy: &str) -> SettingsCopy {
+    serde_json::from_str(copy).expect("bundled settings copy must be valid")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn copy_changes_with_the_selected_language() {
+        let english = copy_for(worklogger_settings::Language::English);
+        let spanish = copy_for(worklogger_settings::Language::Spanish);
+        assert_ne!(english.title, spanish.title);
     }
 }

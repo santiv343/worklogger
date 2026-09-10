@@ -545,7 +545,6 @@ fn install_skills() -> Result<(), CliError> {
     let final_status = installer
         .inspect()
         .map_err(|error| message(error.to_string()))?;
-    terminal_notice(copy.skills_verified.clone());
     terminal_ui::show_skill_status(&final_status).map_err(|error| message(error.to_string()))?;
     Ok(())
 }
@@ -832,22 +831,27 @@ async fn settings(profile_path: Option<PathBuf>) -> Result<(), CliError> {
             Err(CliError::Cancelled) => SettingsAction::Back,
             Err(error) => return Err(error),
         };
-        match action {
+        let result = match action {
             #[cfg(feature = "jira")]
             SettingsAction::Jira => {
                 let profile = load_setup_profile(profile_path.as_deref())?;
-                jira_settings::run(profile.as_ref()).await?;
+                jira_settings::run(profile.as_ref()).await
             }
             #[cfg(feature = "bitbucket")]
             SettingsAction::Bitbucket => {
                 let profile = load_setup_profile(profile_path.as_deref())?;
-                bitbucket_settings::run(profile.as_ref()).await?;
+                bitbucket_settings::run(profile.as_ref()).await
             }
-            SettingsAction::Clients => manage_clients()?,
-            SettingsAction::Skills => install_skills()?,
-            SettingsAction::Language => configure_language()?,
+            SettingsAction::Clients => manage_clients(),
+            SettingsAction::Skills => install_skills(),
+            SettingsAction::Language => configure_language(),
             SettingsAction::Back => return Ok(()),
+        };
+        match result {
+            Ok(()) | Err(CliError::Cancelled) => {}
+            Err(error) => return Err(error),
         }
+        present_notices(&tui_copy().result_title).map_err(|error| message(error.to_string()))?;
     }
 }
 

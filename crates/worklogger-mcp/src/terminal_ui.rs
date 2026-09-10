@@ -36,9 +36,6 @@ const ACCENT: Color = Color::Rgb(139, 180, 255);
 const SELECTION_BACKGROUND: Color = Color::Rgb(48, 68, 101);
 const CHECKED_MARKER: &str = "[x] ";
 const UNCHECKED_MARKER: &str = "[ ] ";
-const SINGLE_SELECT_HELP: &str = "↑↓ navigate · Enter select · Esc cancel · Click select";
-const MULTI_SELECT_HELP: &str = "↑↓ navigate · Space toggle · Enter continue · Esc cancel";
-const INPUT_HELP: &str = "Enter continue · Esc cancel";
 
 pub(crate) struct Dashboard {
     title: String,
@@ -192,7 +189,8 @@ pub(crate) fn choose_detailed(title: &str, items: &[DetailedChoice]) -> io::Resu
 }
 
 pub(crate) fn confirm(title: &str, default_yes: bool) -> io::Result<bool> {
-    let choices = vec!["Yes, continue".to_owned(), "No, cancel".to_owned()];
+    let copy = tui_copy();
+    let choices = vec![copy.confirm_accept.clone(), copy.confirm_cancel.clone()];
     let default = usize::from(!default_yes);
     with_terminal(|terminal| select_one(terminal, title, &choices, default))
         .map(|selected| selected == 0)
@@ -620,7 +618,7 @@ fn draw_selection(
     scroll: usize,
 ) {
     let layout = selection_layout(area);
-    draw_screen_shell(frame, layout, title, SINGLE_SELECT_HELP);
+    draw_screen_shell(frame, layout, title, &tui_copy().single_select_help);
     draw_compact_surface(frame, layout.content, items.len());
     draw_list(frame, selection_items_area(area), items, selected, scroll);
 }
@@ -633,7 +631,7 @@ fn draw_detailed_selection(
     selected: usize,
 ) {
     let layout = selection_layout(area);
-    draw_screen_shell(frame, layout, title, SINGLE_SELECT_HELP);
+    draw_screen_shell(frame, layout, title, &tui_copy().single_select_help);
     draw_compact_surface(frame, layout.content, items.len() * 2);
     let items = items.iter().map(|item| {
         ListItem::new(vec![
@@ -676,7 +674,7 @@ fn draw_multi_selection(
         })
         .collect::<Vec<_>>();
     let layout = selection_layout(area);
-    draw_screen_shell(frame, layout, title, MULTI_SELECT_HELP);
+    draw_screen_shell(frame, layout, title, &tui_copy().multi_select_help);
     draw_compact_surface(frame, layout.content, items.len());
     draw_list(frame, selection_items_area(area), &items, selected, scroll);
 }
@@ -690,7 +688,7 @@ fn draw_text_input(
     secret: bool,
 ) {
     let layout = selection_layout(area);
-    draw_screen_shell(frame, layout, label, INPUT_HELP);
+    draw_screen_shell(frame, layout, label, &tui_copy().input_help);
     draw_compact_surface(frame, layout.content, 5);
     let content = selection_items_area(area);
     frame.render_widget(
@@ -706,7 +704,7 @@ fn draw_text_input(
 
 fn draw_message(area: Rect, frame: &mut ratatui::Frame, title: &str, messages: &[String]) {
     let layout = selection_layout(area);
-    draw_screen_shell(frame, layout, title, "Enter continuar · Esc volver");
+    draw_screen_shell(frame, layout, title, &tui_copy().acknowledge_help);
     let content = messages.join("\n\n");
     let rows = message_rows(&content, selection_items_area(area).width);
     let paragraph = Paragraph::new(content)
@@ -769,7 +767,7 @@ fn draw_skill_status(frame: &mut ratatui::Frame, statuses: &[SkillDestinationSta
         frame,
         layout,
         &copy.skills_status_title,
-        "Enter continuar · Esc volver",
+        &copy.acknowledge_help,
     );
     frame.render_widget(
         Paragraph::new(copy.skills_status_subtitle.as_str()).style(Style::default().fg(MUTED)),
