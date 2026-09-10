@@ -5,7 +5,10 @@ Worklogger has two complementary uses:
 - **Desktop:** view tasks, log time, and read reports.
 - **MCP:** make those capabilities available to an assistant such as Codex or Claude.
 
-MCP uses your own Jira or Bitbucket account and permissions. Never share API tokens: Worklogger keeps them in your operating system's secure store and never writes them to client configuration files.
+MCP uses your own Jira or Bitbucket account and permissions. Never share API
+tokens: Windows uses Credential Manager and Linux uses a private,
+permission-restricted store. Worklogger never writes them to client
+configuration files.
 
 ![Worklogger Desktop walkthrough](assets/desktop-flow.svg)
 
@@ -85,16 +88,22 @@ npx @santiv343/worklogger setup --profile /path/organization.json
 Use this only after a person has reviewed a configuration. Copy [`config/example.mcp.json`](../../config/example.mcp.json) to a private location, fill in real values, and keep tokens out of the file.
 
 ```shell
-export WORKLOGGER_JIRA_API_TOKEN="<jira-token>"
-export WORKLOGGER_BITBUCKET_API_TOKEN="<bitbucket-token>"
+read -rsp "Jira API token: " WORKLOGGER_JIRA_API_TOKEN; echo
+export WORKLOGGER_JIRA_API_TOKEN
+read -rsp "Bitbucket API token: " WORKLOGGER_BITBUCKET_API_TOKEN; echo
+export WORKLOGGER_BITBUCKET_API_TOKEN
 npx --yes @santiv343/worklogger install \
   --config /private/path/mcp.json \
   --clients codex,claude-code \
   --skills \
   --yes
+unset WORKLOGGER_JIRA_API_TOKEN WORKLOGGER_BITBUCKET_API_TOKEN
 ```
 
-In PowerShell, define `$env:WORKLOGGER_JIRA_API_TOKEN = "<jira-token>"` before the command. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`, `github-copilot`, and `trae-code`; `--skills` is optional.
+In PowerShell, prefer the interactive setup so the person can enter the token
+locally. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`,
+`cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`, `github-copilot`, and
+`trae-code`; `--skills` is optional.
 
 The first `--yes` accepts npm's first-install prompt; the final `--yes` confirms Worklogger. The command saves local configuration, installs the local server, and registers the selected clients. It stops rather than replacing an unrelated or invalid MCP registration. `--skills` installs skills for every compatible assistant destination detected on that account, independently of `--clients`. Restart registered clients, then verify:
 

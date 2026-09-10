@@ -236,3 +236,45 @@ jobs:
           test "$actual" = "$expected"
           npm version "$WORKLOGGER_VERSION" --no-git-tag-version --allow-same-version
           npm publish --access public
+
+  publish_release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [verify_desktop, verify_windows_mcp, verify_linux_mcp, publish_mcp]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Community installer
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-Community-${{ github.sha }}
+          path: release-assets/installer
+      - name: Download Community portable
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-Community-Portable-${{ github.sha }}
+          path: release-assets/portable
+      - name: Download Windows MCP server
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-MCP-Windows-x64-${{ github.sha }}
+          path: release-assets/mcp-windows-x64
+      - name: Download Linux MCP server
+        uses: actions/download-artifact@v7
+        with:
+          name: Worklogger-MCP-Linux-x64-${{ github.sha }}
+          path: release-assets/mcp-linux-x64
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=()
+          while IFS= read -r -d '' asset; do
+            assets+=("$asset")
+          done < <(find release-assets -type f -print0 | sort -z)
+          test "${#assets[@]}" -gt 0
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Worklogger ${GITHUB_REF_NAME#v}" \
+            --generate-notes

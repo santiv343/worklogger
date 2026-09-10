@@ -1,43 +1,44 @@
-# Distribuciones personalizadas
+# Custom distributions
 
-## Modelo
+## Model
 
-Una sola base de código genera:
+One codebase produces:
 
-- `Community`: configuración organizacional mutable;
-- `Managed`: perfil organizacional embebido e inmutable.
+- `Community`: editable organization configuration.
+- `Managed`: an embedded, immutable organization profile.
 
-Ambas pueden incluir `jira`, `bitbucket`, ambos addons MCP o ninguno. La
-selección se realiza en build time y el código del addon excluido no forma parte
-de los binarios.
+Both can include the `jira` MCP add-on, the `bitbucket` MCP add-on, both, or
+neither. Selection happens at build time; excluded add-on code is not part of
+the resulting binaries.
 
-No se crea un fork por empresa. Cada organización mantiene fuera del repo un
-JSON sin secretos y genera su instalador contra una versión concreta.
+There is no fork for each organization. Each organization keeps a secret-free
+JSON profile outside the repository and builds its installer from a specific
+version.
 
-## Perfil
+## Profile
 
-Copiar `config/example.organization.json` y modificar únicamente valores
-explícitos. El perfil puede definir:
+Copy `config/example.organization.json` and edit its explicit values. A profile
+can define:
 
-- nombre, logo y colores;
-- módulos disponibles bajo `modules`;
-- sitios y tableros Jira sugeridos o permitidos;
-- workspaces y repositorios Bitbucket permitidos;
-- capacidades MCP máximas por proveedor;
-- límites operativos;
-- defaults de Horas;
-- política de acceso a reportes de equipo;
-- límites visuales y de exportación.
+- Name, logo, and colors.
+- Available modules under `modules`.
+- Suggested or allowed Jira sites and boards.
+- Allowed Bitbucket workspaces and repositories.
+- Maximum MCP capabilities for each provider.
+- Operational limits.
+- Time Tracking defaults.
+- Team report access policy.
+- Display and export limits.
 
-Cada proveedor declara `scopeMode`. `restricted` requiere recursos permitidos;
-`unrestricted` requiere un ámbito vacío y habilita la selección dentro de todo
-lo que permita la cuenta autenticada. Las capacidades y campos
-`maximumAllowed*` son máximos: la configuración local sólo puede reducirlos.
-Los límites sin ese prefijo son los valores sugeridos para conexiones nuevas.
+Each provider declares `scopeMode`. `restricted` requires allowed resources;
+`unrestricted` requires an empty scope and allows selection from resources
+visible to the authenticated account. Capabilities and `maximumAllowed*` fields
+are maximums: local configuration can only reduce them. Limits without that
+prefix are suggested values for new connections.
 
-Nunca debe contener correos personales, API tokens ni otros secretos.
-Una sección de módulo ausente lo deshabilita para esa organización; una sección
-presente no incorpora el addon si el binario fue compilado sin él.
+Profiles must never contain personal emails, API tokens, or other secrets.
+A missing module section disables that module for the organization; a present
+section does not add code if the binary was built without its add-on.
 
 ## Community
 
@@ -45,10 +46,10 @@ presente no incorpora el addon si el binario fue compilado sin él.
 .\scripts\build-windows.ps1 -Edition Community
 ```
 
-Incluye `configurable-organization`; el usuario puede completar la configuración
-manualmente o importar/exportar un JSON validado.
+This includes `configurable-organization`. Users can configure it manually or
+import and export validated JSON.
 
-Para acotar los addons MCP compilados:
+To limit the compiled MCP add-ons:
 
 ```powershell
 .\scripts\build-windows.ps1 -Edition Community -McpAddons jira
@@ -56,8 +57,9 @@ Para acotar los addons MCP compilados:
 .\scripts\build-windows.ps1 -Edition Community -McpAddons @()
 ```
 
-Sin `-McpAddons`, se incluyen Jira y Bitbucket. Esta selección no habilita
-capacidades por sí sola: cada usuario las configura después según sus permisos.
+Without `-McpAddons`, Jira and Bitbucket are included. This selection does not
+enable capabilities by itself; each user configures them within their
+permissions afterward.
 
 ## Managed
 
@@ -68,27 +70,26 @@ capacidades por sí sola: cada usuario las configura después según sus permiso
   -Name Company
 ```
 
-El build:
+The build:
 
-1. valida que el archivo exista y sea JSON;
-2. compila `managed-distribution` sin `configurable-organization`;
-3. incorpora el contenido al ejecutable;
-4. valida siempre el schema embebido y, salvo con `-SkipChecks`, ejecuta formato,
-   Clippy y todos los tests;
-5. genera un instalador NSIS y un ZIP portable en `dist/`.
+1. Checks that the profile exists and contains JSON.
+2. Compiles `managed-distribution` without `configurable-organization`.
+3. Embeds the profile in the executable.
+4. Always validates the embedded schema and, unless `-SkipChecks` is set, runs
+   formatting checks, Clippy, and all tests.
+5. Generates an NSIS installer and a portable ZIP in `dist/`.
 
-Al ejecutarse, la edición Managed no busca `WORKLOGGER_CONFIG`, un archivo junto
-al `.exe` ni `%APPDATA%\Worklogger\organization.json`. Tampoco incorpora la UI
-para seleccionar o exportar configuraciones. Esto no afecta la exportación de
-reportes XLSX/PDF.
+At runtime, Managed does not look for `WORKLOGGER_CONFIG`, a file beside the
+`.exe`, or `%APPDATA%\Worklogger\organization.json`. It also omits the UI for
+selecting or exporting profiles. This does not affect XLSX or PDF report exports.
 
-El mismo perfil se incorpora al sidecar `worklogger-mcp.exe`. Ni Desktop ni MCP
-aceptan reemplazarlo mediante `--profile` o archivos locales. El Desktop actual
-incluye Horas como experiencia principal y por eso requiere el módulo Jira; el
-MCP standalone sí admite builds sólo-Jira, sólo-Bitbucket o sin addons. Reportes
-puede omitirse y desaparece de la navegación.
+The same profile is embedded in the `worklogger-mcp.exe` sidecar. Neither
+Desktop nor MCP accepts a replacement through `--profile` or local files.
+Desktop currently requires Jira because Time Tracking is its primary
+experience. Standalone MCP supports Jira-only, Bitbucket-only, and no-add-on
+builds. Reports can be omitted and then disappears from navigation.
 
-## Generar las dos ediciones
+## Build both editions
 
 ```powershell
 .\scripts\build-release-set.ps1 `
@@ -96,7 +97,7 @@ puede omitirse y desaparece de la navegación.
   -ManagedName Company
 ```
 
-El resultado usa nombres versionados:
+The output uses versioned names:
 
 ```text
 dist/Worklogger-Community-<version>-Setup.exe
@@ -110,34 +111,34 @@ dist/Worklogger-Company-<version>-Portable.zip.sha256
 dist/Worklogger-Company-<version>-Profile.sha256
 ```
 
-Cada ZIP portable conserva el ejecutable y sus assets en una única carpeta. No
-requiere instalación ni permisos de administrador, pero usa WebView2 Evergreen,
-la configuración de `%APPDATA%\Worklogger` y Windows Credential Manager. El
-archivo `.sha256` contiguo permite verificar la descarga.
-La edición Managed agrega el hash del perfil embebido sin publicar su contenido.
+Each portable ZIP keeps the executable and its assets in one folder. It needs
+no installation or administrator permissions, but uses WebView2 Evergreen,
+configuration in `%APPDATA%\Worklogger`, and Windows Credential Manager. The
+adjacent `.sha256` file can be used to verify the download. Managed also includes
+the embedded profile's hash without publishing its contents.
 
-El repositorio público construye y publica únicamente la edición Community. Una
-organización que necesite una edición Managed ejecuta el script de build desde
-un pipeline privado, tomando un tag público como fuente y un perfil externo
-que no se incorpora al repositorio ni a sus workflows. El nombre, branding y
-comportamiento corporativo siguen viniendo exclusivamente del perfil embebido.
+The public repository builds and publishes only Community. An organization
+that needs Managed runs the build script in a private pipeline, using a public
+tag as its source and an external profile that is not added to the repository
+or its workflows. The embedded profile remains the sole source of organization
+names, branding, and policy.
 
-## Requisitos del equipo de build
+## Build machine requirements
 
-- Windows 10/11;
-- Rust 1.88;
-- Dioxus CLI 0.7.9;
-- Visual Studio Build Tools 2022 con `Desktop development with C++`;
-- NSIS disponible para Dioxus.
+- Windows 10 or 11.
+- Rust 1.88.
+- Dioxus CLI 0.7.9.
+- Visual Studio Build Tools 2022 with `Desktop development with C++`.
+- NSIS available to Dioxus.
 
-El usuario final sólo necesita Windows y el instalador.
+End users need Windows and the installer, not the build tools.
 
-## Checklist antes de distribuir
+## Before distribution
 
-- perfil revisado y sin secretos;
-- tests Community y Managed verdes;
-- instalador y portable ejecutados en un usuario limpio;
-- onboarding validado con una cuenta sin permisos administrativos;
-- identidad y permisos visibles después de conectar;
-- firma de código aplicada cuando exista certificado;
-- hash y versión del instalador registrados.
+- Review the profile and check that it contains no secrets.
+- Pass tests for both Community and Managed.
+- Run the installer and portable app under a clean user account.
+- Test initial configuration with a non-administrator account.
+- Check that identity and permissions are visible after connecting.
+- Apply code signing when a certificate is available.
+- Record the installer hash and version.

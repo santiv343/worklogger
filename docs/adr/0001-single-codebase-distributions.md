@@ -1,45 +1,45 @@
-# ADR 0001: una base de código para múltiples distribuciones
+# ADR 0001: one codebase, multiple distributions
 
-Fecha: 2026-09-03
-Estado: aceptada
+Date: 2026-09-03
+Status: accepted
 
-## Contexto
+## Context
 
-Se necesita una edición genérica configurable y ediciones preparadas para
-organizaciones cuyo perfil no pueda modificarse. Mantener un repositorio o fork
-por empresa duplicaría correcciones, seguridad, tests y releases.
+Worklogger needs a configurable generic edition and organization editions whose
+profiles cannot be changed. Maintaining a repository or fork for each
+organization would duplicate fixes, security work, tests, and releases.
 
-## Decisión
+## Decision
 
-Mantener una única base de código genérica.
+Maintain one generic codebase.
 
-- Community compila `configurable-organization`.
-- Managed compila `managed-distribution` con un perfil externo indicado por
-  `WORKLOGGER_DISTRIBUTION_PROFILE`.
-- El build copia el perfil validado al artefacto generado de Cargo.
-- Managed no compila la UI de importación/exportación y no consulta overrides.
-- Perfiles organizacionales reales viven fuera del repositorio genérico.
+- Community builds include `configurable-organization`.
+- Managed builds include `managed-distribution` and an external profile supplied
+  through `WORKLOGGER_DISTRIBUTION_PROFILE`.
+- The build copies the validated profile into the generated Cargo artifact.
+- Managed builds omit the profile import/export UI and do not read overrides.
+- Real organization profiles stay outside the generic repository.
 
-## Consecuencias positivas
+## Benefits
 
-- cada corrección llega a todas las organizaciones;
-- no hay datos corporativos en el producto base;
-- los instaladores son reproducibles;
-- el bloqueo no depende de ocultar botones;
-- futuras ediciones pueden elegir addons mediante Cargo features.
+- Fixes reach every organization.
+- The base product contains no organization-specific data.
+- Installers are reproducible.
+- Profile restrictions do not depend on hiding buttons.
+- Future editions can select add-ons through Cargo features.
 
-## Costos y límites
+## Costs and limitations
 
-- cada combinación publicada debe probarse explícitamente;
-- el branding del instalador sigue siendo común hasta incorporar generación de
-  metadata e iconos por distribución;
-- un binario Managed restringe configuración, pero no reemplaza permisos del
-  proveedor ni una política central firmada;
-- la firma de código continúa siendo un proceso externo.
+- Every published combination must be tested explicitly.
+- Installer branding remains shared until metadata and icon generation support
+  individual distributions.
+- A Managed binary restricts configuration; it does not replace provider
+  permissions or a signed central policy.
+- Code signing remains a separate process.
 
-## Alternativas descartadas
+## Alternatives rejected
 
-- repositorio o fork por empresa;
-- distribuir un JSON editable junto al instalador;
-- descargar perfiles desde un servicio antes de validar valor de producto;
-- sistema dinámico de plugins o marketplace.
+- A repository or fork for each organization.
+- An editable JSON file distributed alongside the installer.
+- Downloading profiles from a service before validating the product's value.
+- A dynamic plugin system or marketplace.

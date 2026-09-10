@@ -1,22 +1,29 @@
-# Documentation
+# Worklogger documentation
 
-## User guides
+## Start here
 
-- [Desktop and MCP guide](user-guide/README.md)
-- [Assistant installation guide](assistant-guide.md)
+- [User guide](user-guide/README.md): choose Desktop or MCP, configure your
+  account, and verify the first connection.
+- [Assistant guide](assistant-guide.md): help someone install MCP without
+  requesting or handling a token in chat.
+- [Supported MCP clients](mcp-client-support.md): registration targets and
+  client-specific limits.
+- [Permissions and privacy](security/permission-model.md): provider scope,
+  confirmations, credentials, and data shared with an assistant.
 
-## Architecture
+## Teams and distribution
+
+- [Custom distributions](architecture/custom-distributions.md): Community and
+  Managed editions, profiles, and portable builds.
+- [Versioning and releases](architecture/versioning-and-releases.md): how a
+  version becomes an npm package and downloadable release assets.
+
+## Development reference
 
 - [Modular architecture](architecture/modularity.md)
-- [Custom distributions](architecture/custom-distributions.md)
-- [Versioning and releases](architecture/versioning-and-releases.md)
-- [Distribution ADR](adr/0001-single-codebase-distributions.md)
-- [Vertical-slice neutrality ADR](adr/0002-provider-neutral-vertical-slices.md)
-- [Provider-native MCP mutations ADR](adr/0003-provider-native-mcp-mutations.md)
+- [MCP provider tools](architecture/mcp-provider-tools.md)
+- [Architecture decisions](adr/README.md)
+- [Contributing](../CONTRIBUTING.md)
 
-## Security
-
-- [Permissions and trust boundaries](security/permission-model.md)
-
-Public documentation describes only the distributed product and its current
-contracts.
+The user-facing guides explain the current product. Architecture documents and
+ADRs provide implementation context and may describe historical decisions.

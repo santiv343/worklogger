@@ -1,23 +1,23 @@
-# Arquitectura modular
+# Modular architecture
 
-## Objetivo
+## Purpose
 
-Permitir distribuciones pequeñas y configurables sin duplicar negocio entre
-Desktop, CLI, MCP o una futura web. Los addons son estáticos y conocidos al
-compilar; su disponibilidad y exposición se deciden en runtime.
+Support small, configurable distributions without duplicating business logic
+across Desktop, CLI, MCP, or a future web interface. Add-ons are static and known
+at build time; availability and exposure are decided at runtime.
 
-## Mapa de dependencias
+## Dependency map
 
 ```text
-Desktop · CLI · MCP · futura API web
+Desktop · CLI · MCP · future web API
                  │
                  ▼
-          casos de uso tipados
+           typed use cases
       ┌──────────┼───────────┐
       ▼          ▼           ▼
- módulo Jira   Reportes   módulo Bitbucket
+ Jira module   Reports   Bitbucket module
   ├─ Issues
-  └─ Horas
+  └─ Time Tracking
       │          │           │
       └──────────┴── ports ──┘
                          │
@@ -25,107 +25,108 @@ Desktop · CLI · MCP · futura API web
        Jira Cloud · Bitbucket Cloud · keyring · filesystem
 ```
 
-`Jira` es un solo módulo instalable. `Issues` y `Horas` son grupos de
-capacidades internos: comparten conexión, identidad autenticada, tablero y
-política, aunque sus casos de uso permanezcan separados. `Bitbucket` es un
-módulo independiente. `Reportes` consume lecturas habilitadas y nunca amplía
-permisos de un proveedor.
+`Jira` is one installable module. `Issues` and `Time Tracking` are internal
+capability groups: they share a connection, authenticated identity, board, and
+policy, while their use cases remain separate. `Bitbucket` is independent.
+`Reports` consumes enabled reads and never expands provider permissions.
 
-Las superficies nunca llaman directamente a clientes REST. Cada caso de uso
-define el port mínimo que necesita y recibe un adaptador en el composition root.
+Interfaces never call REST clients directly. Each use case defines the smallest
+port it needs and receives an adapter at the composition root.
 
-## MCP standalone
+## Standalone MCP
 
-MCP se distribuye como un binario propio, sin WebView2 ni dependencia de la
-aplicación Desktop. `worklogger-mcp` reutiliza los crates de dominio, casos de
-uso y adaptadores; agrega el transporte MCP por `stdio` y su composition root.
+MCP ships as its own binary, without WebView2 or a dependency on Desktop.
+`worklogger-mcp` reuses domain, use-case, and adapter crates and adds the MCP
+`stdio` transport and its own composition root.
 
-La configuración inicial pertenece al mismo ejecutable y guarda el token en
-el almacén seguro del sistema. La lista efectiva de tools deriva de las
-features compiladas, el perfil de organización, la configuración del usuario y
-los permisos otorgados por el proveedor. Instalar Desktop nunca es un requisito
-para usar MCP.
+The same executable handles initial configuration and stores tokens separately
+from settings, using Windows Credential Manager or a protected Linux store.
+The effective tool list follows compiled features, the organization profile,
+user configuration, and provider permissions. Desktop is never required to use
+MCP.
 
-Horas consulta exclusivamente las cargas de la identidad autenticada. Las
-mutaciones de Issues y pull requests requieren preview y confirmación explícita;
-las horas de otra persona siguen siendo de sólo lectura cuando existe
-autorización para reportes.
+Time Tracking queries the authenticated account's worklogs. Issue and
+pull-request mutations require a preview and explicit confirmation. Other
+people's worklogs remain read-only when reporting access is authorized.
 
-### Instalación y configuración
+### Installation and configuration
 
-Sin argumentos, el binario abre la TUI principal con el estado, las rutas, los
-módulos y los clientes detectados. Los comandos `serve`, `setup`, `clients`,
-`status` y `uninstall` conservan los mismos casos de uso para automatización. El
-asistente de `setup` acepta `--profile <organization.json>`, instala ese perfil
-compartido, muestra el archivo que va a modificar y pide confirmación antes de
-registrar el servidor.
+With no arguments, the binary opens the main TUI with status, paths, modules,
+and detected clients. Commands such as `serve`, `setup`, `clients`, `status`,
+and `uninstall` use the same underlying use cases. `setup` accepts
+`--profile <organization.json>` to install a shared profile. Client registration
+shows its target and asks for confirmation before making changes.
 
-Hay dos entradas al mismo caso de uso:
+There are two entry points to the same use case:
 
-1. Desktop lo presentará en Configuración → MCP y permitirá instalar, quitar y
-   elegir módulos y capacidades disponibles.
-2. `npx @santiv343/worklogger` ejecuta el binario incluido, que se instala
-   en una ruta estable del usuario y abre su TUI. Node es sólo el bootstrap; el
-   servidor no depende de Node.
+1. Desktop exposes installation, removal, and available modules and capabilities
+   through **Configuration → MCP**.
+2. `npx @santiv343/worklogger` runs the bundled binary, which is installed in a
+   stable user location and opens the TUI. Node is only the bootstrap; the
+   server does not depend on it.
 
-La instalación es idempotente: una segunda ejecución actualiza o repara
-el registro existente sin duplicarlo. Un registro versionado anterior sigue
-siendo propiedad de Worklogger aunque falte su binario y puede repararse o
-quitarse; una entrada homónima de otro origen continúa tratándose como conflicto.
-La ubicación del binario dependerá del
-usuario y del sistema operativo; nunca se escribirá un token dentro de la
-configuración del cliente MCP. Desktop y la TUI convergen en una ruta versionada
-por usuario; mover un portable no rompe los registros ya creados.
+Installation is idempotent: running it again updates or repairs the existing
+registration instead of duplicating it. A prior version's registration remains
+owned by Worklogger even if its binary is missing, and can be repaired or
+removed. An entry with the same name from another source remains a conflict.
+The binary location depends on the user and operating system. Tokens are never
+written to MCP client configuration. Desktop and the TUI use a versioned
+per-user location, so moving a portable app does not break existing registrations.
 
-El catálogo inicial contiene Codex, Claude Code, Claude Desktop, Cursor y
-Windsurf. Codex se modifica mediante su CLI oficial. En Windows, la instalación
-npm habitual se resuelve desde `codex.cmd` hacia Node y `codex.js` sin ejecutar
-el shim mediante un shell. Los clientes JSON reciben
-únicamente la entrada `mcpServers.worklogger`, conservando las demás claves. Las
-escrituras son atómicas, rechazan enlaces simbólicos y comprueban que el
-documento no haya cambiado antes de escribir. Una configuración inválida falla
-cerrada sin ser reemplazada. Los procesos de clientes tienen timeout configurable
-y Desktop los consulta fuera del hilo de UI.
+The original client catalog included Codex, Claude Code, Claude Desktop, Cursor,
+and Windsurf. See the [client support guide](../mcp-client-support.md) for the
+current catalog and configuration targets. Codex registration uses its official
+CLI. On Windows, the standard npm installation is resolved from `codex.cmd` to
+Node and `codex.js` without executing the shim through a shell. JSON clients
+receive only the `mcpServers.worklogger` entry; other keys are preserved. Writes
+are atomic, reject symbolic links, and check that the document has not changed
+before writing. Invalid configuration fails closed without being replaced.
+Client processes have a configurable timeout, and Desktop queries them outside
+the UI thread.
 
-La selección visual comienza por módulos y permite reducir capacidades dentro
-de cada uno. Dentro de Jira, Horas e Issues se presentan como grupos, nunca como
-addons independientes. La configuración nunca puede ampliar lo compilado ni
-los permisos efectivos. Por ejemplo, habilitar Jira/Horas no concede acceso a
-horas ajenas ni convierte un reporte de equipo en una mutación.
+Module settings allow users to reduce capabilities within each module. Jira's
+Time Tracking and Issues appear as groups, never independent add-ons.
+Configuration cannot expand compiled functionality or effective permissions.
+For example, enabling Jira Time Tracking does not grant access to other
+people's hours or make a team report writable.
 
-## Contextos
+## Contexts
 
-| Contexto | Responsabilidad | No conoce |
-|---|---|---|
-| Platform Core | addons, capacidades, configuración y ámbitos | Jira, HTTP, Dioxus |
-| Jira / conexión | cuenta, tableros, ámbito y permisos compartidos | reglas de Horas, UI |
-| Jira / Issues | issues, campos, comentarios y transiciones | reglas de Horas, UI |
-| Jira / Horas | rangos, duraciones, worklogs propios y resúmenes | Dioxus |
-| Reportes | filtros, agregaciones y read models personal/equipo | mutaciones, tokens |
-| Bitbucket | repositorios, PRs, reviews, tareas y pipelines | Jira, Horas |
-| Work Hub | consultas cruzadas y señales explicables | clientes HTTP concretos |
-| Superficies | interacción, presentación y confirmación | reglas de negocio |
+The boundaries below describe architectural responsibilities; they are not a
+catalog of every tool currently exposed by MCP.
 
-No se crea un proveedor universal de project management. Sólo se comparten
-conceptos estables: identidad, rango, duración y referencias externas.
+| Context | Responsibility | Does not know about |
+| --- | --- | --- |
+| Platform Core | Add-ons, capabilities, configuration, scopes | Jira, HTTP, Dioxus |
+| Jira / connection | Account, boards, shared scope and permissions | Time Tracking rules, UI |
+| Jira / Issues | Issues, fields, comments, transitions | Time Tracking rules, UI |
+| Jira / Time Tracking | Ranges, durations, personal worklogs, summaries | Dioxus |
+| Reports | Filters, aggregates, personal and team read models | Mutations, tokens |
+| Bitbucket | Repositories, PRs, reviews, tasks, pipelines | Jira, Time Tracking |
+| Work Hub | Cross-provider queries and explainable signals | Concrete HTTP clients |
+| Interfaces | Interaction, presentation, confirmation | Business rules |
 
-## Descriptor estático de addon
+There is no universal project-management provider. Only stable concepts are
+shared: identity, ranges, durations, and external references.
+
+## Static add-on descriptor
 
 ```text
 AddonDescriptor
-- id y versión
-- namespace de traducciones
-- capacidades provistas y requeridas
-- namespace de configuración
-- superficies soportadas
+- ID and version
+- translation namespace
+- provided and required capabilities
+- configuration namespace
+- supported interfaces
 ```
 
-Se registra manualmente bajo un Cargo feature. No hay ABI de plugins, DLLs,
-descarga de código ni marketplace.
+Descriptors are registered manually under Cargo features. There is no plugin
+ABI, DLL loading, code download, or marketplace.
 
-## Capacidades
+## Capabilities
 
-Las capacidades son más precisas que `read/write` por módulo:
+Capabilities are more specific than module-level `read/write`. The architecture
+uses names such as these; availability depends on the implemented catalog:
 
 ```text
 jira.identity.read
@@ -142,38 +143,38 @@ bitbucket.pr.review
 bitbucket.pipeline.read
 ```
 
-La disponibilidad efectiva es la intersección de:
+Effective availability is the intersection of:
 
 ```text
-compilado
-∩ permitido por la organización
-∩ habilitado por el usuario
-∩ autorizado por el proveedor
-∩ válido para el ámbito
-∩ expuesto en la superficie actual
+compiled
+∩ allowed by the organization
+∩ enabled by the user
+∩ authorized by the provider
+∩ valid for the scope
+∩ exposed through the current interface
 ```
 
-## Capas de configuración
+## Configuration layers
 
-1. `BuiltInDefaults`: valores seguros y branding neutral.
-2. `OrganizationProfile`: branding, sitios, addons permitidos, límites y políticas.
-3. `UserPreferences`: conexión, ámbito, objetivos y preferencias visuales.
-4. `SecretStore`: tokens por proveedor; el JSON sólo conserva referencias.
-5. `SessionState`: identidad, permisos y caché; nunca es autoridad persistente.
+1. `BuiltInDefaults`: safe defaults and neutral branding.
+2. `OrganizationProfile`: branding, sites, allowed add-ons, limits, policies.
+3. `UserPreferences`: connection, scope, targets, display preferences.
+4. `SecretStore`: provider tokens; JSON contains only references.
+5. `SessionState`: identity, permissions, cache; never a persistent authority.
 
 `OrganizationProfile` is serialized as one `organization.json` with an
 optional section per module. Desktop, TUI, and MCP share the type and file.
 User preferences are stored only in the shared `settings.json`; isolated
 headless overrides remain separate and do not modify it. A JSON file cannot
-install addons: it only configures or narrows what the binary already includes.
+install add-ons: it only configures or narrows what the binary already includes.
 
-Un JSON editable localmente no puede conceder acceso sensible. Una política
-empresarial fuerte requerirá firma o un servicio de autorización; mientras
-tanto, los permisos efectivos del proveedor y el fail-closed son obligatorios.
+A locally editable JSON file cannot grant sensitive access. Strong central
+policy would require a signature or an authorization service. Effective provider
+permissions and fail-closed behavior remain mandatory.
 
-## Compile-time y runtime
+## Compile time and runtime
 
-Compile-time elimina código y dependencias:
+Compile-time features remove code and dependencies:
 
 ```text
 hours
@@ -185,16 +186,20 @@ worklogger-mcp/jira
 worklogger-mcp/bitbucket
 ```
 
-Runtime sólo puede reducir lo compilado. Se publicarán pocas combinaciones
-probadas —Community, Managed/PM y Developer cuando corresponda— para evitar una
-matriz de `2^N` variantes.
+Runtime configuration can only reduce compiled functionality. The distribution
+plan calls for a small number of tested combinations, such as Community,
+Managed/PM, and Developer where needed, rather than a `2^N` variant matrix.
 
-## Evolución incremental
+## Incremental evolution
 
-1. Registrar los addons actuales sin cambiar comportamiento. ✓
-2. Extraer la orquestación de la UI a casos de uso. En curso.
-3. Agregar ports a Horas. ✓
-4. Separar el transporte Jira al incorporar CRUD general. ✓ en MCP.
-5. Extraer analítica y renderers reutilizables de Reportes.
-6. Incorporar Bitbucket como módulo independiente. ✓ en MCP.
-7. Exponer los mismos casos de uso mediante MCP, CLI o web. En curso.
+The original migration sequence and recorded milestones are preserved below.
+These describe architectural progress, not release availability; see the
+[changelog](../../CHANGELOG.md) for shipped behavior.
+
+1. Register existing add-ons without changing behavior. Completed.
+2. Extract UI orchestration into use cases. In progress in the migration plan.
+3. Add ports to Time Tracking. Completed.
+4. Separate Jira transport while adding general CRUD. Completed in MCP.
+5. Extract reusable Reports analytics and renderers. Planned.
+6. Introduce Bitbucket as an independent module. Completed in MCP.
+7. Expose the same use cases through MCP, CLI, or web. In progress in the plan.

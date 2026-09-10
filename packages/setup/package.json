@@ -1,7 +1,7 @@
 {
   "name": "@santiv343/worklogger",
   "version": "0.0.0",
-  "description": "Interactive installer for the standalone Worklogger MCP server",
+  "description": "Local MCP server for Jira worklogs, issue updates, and Bitbucket pull requests, with previews and configurable permissions.",
   "type": "module",
   "bin": {
     "worklogger": "index.mjs"
@@ -30,5 +30,18 @@
     "url": "git+https://github.com/santiv343/worklogger.git",
     "directory": "packages/setup"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "jira",
+    "bitbucket",
+    "ai-agents",
+    "codex",
+    "claude",
+    "developer-tools",
+    "time-tracking",
+    "worklog",
+    "pull-requests"
+  ]
 }
