@@ -1,16 +1,30 @@
-# Worklogger MCP setup
+# Worklogger MCP
 
-Public CLI for configuring and managing the standalone MCP server on Windows x64
-or Linux x64 with glibc 2.35 or newer, including Ubuntu 22.04+ and WSL2. It
-contains both Rust binaries and runs the native binary for the current system.
-The server is installed in a versioned user location:
+Use Jira worklogs, issue updates, and Bitbucket pull requests from an AI
+assistant. Worklogger runs a local MCP server and lets you decide which provider
+tools the assistant can call.
+
+It is useful for three everyday jobs:
+
+- check this week's worklogs and find assigned issues without time;
+- read an issue, prepare a comment or field update, then review the change; and
+- prepare a pull request with its reviewers and branch settings before creating it.
+
+Every provider write returns a preview and requires a matching confirmation
+request. Worklogger stores credentials locally: Windows uses Credential Manager
+and Linux uses a private, permission-restricted user store. Tokens are never
+written to generated JSON or client configuration.
+
+The public installer supports Windows x64 and Linux x64 with glibc 2.35 or
+newer, including Ubuntu 22.04+ and WSL2. It contains the native server for the
+current system and installs it in a versioned user location:
 
 - Windows: `%LOCALAPPDATA%\Worklogger\MCP\<version>`;
 - Linux/WSL: `$XDG_DATA_HOME/worklogger/MCP/<version>` or
   `~/.local/share/worklogger/MCP/<version>`.
 
-Node is used only to launch the installer; it is not required while the server
-is running. Node.js 18 or newer is required to run `npx`.
+Node.js 18 or newer is required only to launch the public installer; Node is not
+needed while the server is running.
 
 ## Guided setup
 
@@ -28,9 +42,13 @@ public npm registry once:
 npm config delete @santiv343:registry
 ```
 
-Without arguments, Worklogger opens its TUI. It shows configuration, local
-server availability, active modules, and detected clients, and provides guided
-setup, registration, removal, and skill installation.
+Without arguments, Worklogger opens a guided terminal interface. It shows what
+is configured and missing, validates each provider as you connect it, and lets
+you install the server, clients, and optional assistant skills separately.
+
+After setup, restart the registered client and try a read-only request such as:
+
+> Show my worklogs for this week.
 
 To use a shared team profile:
 
@@ -86,4 +104,9 @@ configuration, and its MCP credential. It does not touch Desktop credentials,
 unrelated integrations, Jira worklogs, pull requests, or versioned binaries that
 may still be running.
 
-For the complete product guide, see the [repository user guide](https://github.com/santiv343/worklogger/blob/main/docs/user-guide/README.md). Assistants should follow the [assistant guide](https://github.com/santiv343/worklogger/blob/main/docs/assistant-guide.md).
+## Learn more
+
+- [Install and use Worklogger](https://github.com/santiv343/worklogger/blob/main/docs/user-guide/README.md)
+- [Supported MCP clients](https://github.com/santiv343/worklogger/blob/main/docs/mcp-client-support.md)
+- [Guide for assistants](https://github.com/santiv343/worklogger/blob/main/docs/assistant-guide.md)
+- [Permissions and privacy](https://github.com/santiv343/worklogger/blob/main/docs/security/permission-model.md)

@@ -1,34 +1,50 @@
-# Versionado y releases
+# Versioning and releases
 
-## Fuente de verdad
+## Source of truth
 
-Worklogger usa Semantic Versioning. La versión canónica está en
-`workspace.package.version` de `Cargo.toml`; los crates, el binario y los nombres
-de instalador la heredan. El workflow copia esa versión al paquete npm antes de
-publicarlo; `packages/setup/package.json` no mantiene una segunda versión
-canónica. Cada versión publicada debe tener un tag `v<major>.<minor>.<patch>`
-sobre el commit exacto validado.
+Worklogger uses Semantic Versioning. The canonical version is
+`workspace.package.version` in `Cargo.toml`; crates, binaries, and installer
+names inherit it. The workflow copies that version into the npm package before
+publishing. `packages/setup/package.json` does not maintain a second canonical
+version. Every published version must have a `v<major>.<minor>.<patch>` tag on
+the exact validated commit.
 
-## Qué representa una versión
+## What a version means
 
-- `major`: contratos o datos persistidos incompatibles.
-- `minor`: capacidades compatibles nuevas.
-- `patch`: correcciones compatibles sin capacidades nuevas.
+- `major`: incompatible contracts or persisted data.
+- `minor`: new, compatible capabilities.
+- `patch`: compatible fixes without new capabilities.
 
-Community y Managed comparten versión y código fuente. Una distribución Managed
-no es un fork: es el resultado reproducible de combinar un tag de Worklogger con
-un perfil externo validado. El artefacto debe registrar nombre de distribución,
-versión y SHA-256 del perfil; nunca el token Jira.
+Community and Managed share a version and source code. A Managed distribution
+is the reproducible combination of a Worklogger tag and a validated external
+profile, not a fork. The artifact must record the distribution name, version,
+and profile SHA-256, never a Jira token.
 
-## Checklist de release
+## Published downloads
 
-1. Actualizar `Cargo.toml` y `Cargo.lock`.
-2. Actualizar `CHANGELOG.md`.
-3. Ejecutar formato, Clippy, tests y build para Community y Managed.
-4. Commitear sin credenciales ni perfiles privados accidentales.
-5. Crear el tag `v<versión>` y pushearlo.
-6. Generar los instaladores y binarios MCP Windows/Linux desde ese tag y
-   conservar sus SHA-256.
+The tag workflow publishes the public MCP installer package to npm. It also
+creates a [GitHub Release](https://github.com/santiv343/worklogger/releases)
+with the Community Windows Desktop installer and portable ZIP, Windows and
+Linux MCP binaries, and their checksums. GitHub Releases are the durable download
+location; Actions artifacts are build outputs with limited retention.
 
-Un binario ya distribuido es inmutable. Cualquier rebuild con cambios requiere
-una versión nueva, aunque use el mismo perfil corporativo.
+This release-upload path takes effect with the next successful `v*` tag after
+its introduction. Until that tag has run, the releases page may have no assets.
+Do not advertise a Desktop download as available until the release contains it.
+Managed profiles and binaries are built and distributed separately through the
+organization's private process.
+
+## Release checklist
+
+1. Update `Cargo.toml` and `Cargo.lock`.
+2. Update `CHANGELOG.md`.
+3. Run formatting checks, Clippy, tests, and builds for Community and Managed.
+4. Commit without credentials or accidentally included private profiles.
+5. Create and push the `v<version>` tag.
+6. Build Windows installers and Windows/Linux MCP binaries from that tag, and
+   retain their SHA-256 checksums.
+7. Verify that npm and the GitHub Release contain the expected version and that
+   release download links resolve to the intended assets.
+
+A distributed binary is immutable. Any rebuild with changes requires a new
+version, even when it uses the same organization profile.

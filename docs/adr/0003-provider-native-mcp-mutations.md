@@ -1,40 +1,40 @@
-# ADR 0003: mutaciones MCP con semántica de proveedor
+# ADR 0003: MCP mutations that preserve provider semantics
 
-Fecha: 2026-09-03
-Estado: aceptada
+Date: 2026-09-03
+Status: accepted
 
-## Contexto
+## Context
 
-El primer corte de Bitbucket previsto por ADR 0002 era read-only. El servidor
-MCP ahora necesita cubrir también el trabajo diario sobre Jira Issues y pull
-requests sin inventar una API universal ni acoplar ambos proveedores.
+ADR 0002 initially limited Bitbucket to read-only access. The MCP server also
+needs to support everyday Jira issue and pull-request changes without inventing
+a universal API or coupling the two providers.
 
-## Decisión
+## Decision
 
-- Jira continúa como un único módulo con grupos internos de Issues y Horas.
-- Bitbucket es un módulo independiente y desbundlable.
-- Cada mutación conserva el modelo del proveedor y una capacidad específica.
-- Ningún input elige actor; siempre se usa la cuenta autenticada.
-- Toda mutación exige preview y token de confirmación de un solo uso.
-- Las mutaciones sobre un PR ligan la confirmación a los commits, ramas,
-  participantes y revisión exactos observados, y vuelven a compararlos
-  inmediatamente antes de escribir.
-- La edición de campos Jira liga la confirmación a los valores actuales de esos
-  campos y los vuelve a leer antes de escribir.
-- Tablero Jira y repositorios Bitbucket forman límites explícitos que fallan
-  cerrados.
-- Las capacidades de escritura dependen de su lectura correspondiente; no se
-  puede usar una vista previa como canal lateral de lectura.
+- Jira remains one module with internal Issues and Time Tracking groups.
+- Bitbucket is an independent module that can be excluded from a build.
+- Each mutation retains the provider's model and requires a specific capability.
+- Inputs never choose the actor; operations use the authenticated account.
+- Every mutation requires a preview and a single-use confirmation token.
+- Pull-request confirmation is bound to the exact commits, branches,
+  participants, and revision observed. These are compared again immediately
+  before writing.
+- Jira field-edit confirmation is bound to the current values of the affected
+  fields. Those fields are read again before writing.
+- The Jira board and allowed Bitbucket repositories form explicit boundaries
+  that fail closed.
+- Write capabilities depend on their corresponding read capabilities, so a
+  preview cannot become a way to bypass read permissions.
 
-## Consecuencias
+## Consequences
 
-Bitbucket deja de estar limitado a lectura dentro del MCP, pero no se convierte
-en dependencia de Horas ni de Jira. El Work Hub puede seguir tratándolo como
-evidencia read-only. Cada distribución decide por Cargo features qué módulos
-incluye y la configuración runtime sólo puede reducir capacidades.
+Bitbucket is no longer read-only within MCP, but does not become a dependency of
+Time Tracking or Jira. Work Hub can still use it as read-only evidence. Each
+distribution selects its modules through Cargo features; runtime configuration
+can only reduce the available capabilities.
 
-Bitbucket Cloud y Jira Cloud no documentan una precondición de versión uniforme
-para estas escrituras. Worklogger compara el snapshot confirmado justo antes de
-enviar la mutación; el proveedor conserva la última validación atómica y puede
-responder con conflicto. Este límite residual se acepta porque no existe una
-operación compare-and-swap pública que Worklogger pueda aplicar.
+Bitbucket Cloud and Jira Cloud do not document a uniform version precondition
+for these writes. Worklogger compares the confirmed snapshot immediately before
+sending a mutation; the provider performs the final atomic validation and may
+return a conflict. This remaining limitation is accepted because there is no
+public compare-and-swap operation that Worklogger can apply uniformly.

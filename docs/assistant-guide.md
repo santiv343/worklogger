@@ -5,7 +5,7 @@ Use this guide when helping a person install or use Worklogger MCP from this pub
 ## Safety rules
 
 - Never ask for, repeat, store, or commit API tokens in chat, source code, logs, pull requests, or shared files.
-- A token may be supplied only locally through the interactive installer, an existing operating-system secure store, or a temporary environment variable in the same shell that runs Worklogger.
+- A token may be supplied only locally through the interactive installer, an existing credential store, or a temporary environment variable in the same shell that runs Worklogger.
 - Do not add `--yes` until the person has reviewed the configuration and selected clients. It changes local configuration and MCP registrations.
 - Do not suggest overwriting unrelated or invalid MCP registrations. Worklogger rejects them by design.
 
@@ -24,7 +24,10 @@ or MCP client configuration to teammates.
 
 Use the manual path only when a reviewed `mcp.json` already exists and the person has selected exact MCP clients. The installer must run in the same environment as the client: PowerShell for Windows applications, or the relevant WSL terminal for Codex or Claude Code inside WSL.
 
-Before any setup, confirm that Node is available with `node --version`. If `npx` still points the `@santiv343` scope at GitHub Packages, ask the person to run `npm config delete @santiv343:registry` once.
+Before any setup, confirm that Node 18 or newer is available with `node --version`.
+The public installer supports Windows x64 and Linux x64. If `npx` still points
+the `@santiv343` scope at GitHub Packages, ask the person to run `npm config
+delete @santiv343:registry` once.
 
 ## Guide interactive settings
 
@@ -40,7 +43,9 @@ Start from [`config/example.jira-readonly.mcp.json`](../config/example.jira-read
 
 The full example enables both providers and write capabilities. Remove every unused provider from both its connection section and `modules`, and retain only the minimum capabilities needed. `mcp.json` never contains a token.
 
-If a secure credential was already saved by the interactive installer, it can be reused. Otherwise, have the person enter a token in the same shell without placing it in shell history. On Bash, Linux, macOS, or WSL:
+If a credential was already saved by the interactive installer, it can be
+reused. Otherwise, have the person enter a token in the same shell without
+placing it in shell history. On Linux or WSL:
 
 ```shell
 read -rsp "Jira API token: " WORKLOGGER_JIRA_API_TOKEN; echo

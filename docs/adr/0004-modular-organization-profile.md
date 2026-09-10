@@ -1,27 +1,29 @@
-# ADR 0004: perfil organizacional modular compartido
+# ADR 0004: a shared modular organization profile
 
-## Estado
+## Status
 
-Aceptado para implementación incremental.
+Accepted for incremental implementation. The context and compatibility plan
+below record the original migration decision; current user preferences live in
+the shared `settings.json`, as described in the
+[modular architecture](../architecture/modularity.md).
 
-## Contexto
+## Context
 
-Desktop y MCP conservan hoy configuraciones separadas. El perfil de Desktop
-define branding y defaults de Jira, Horas y Reportes, mientras `mcp.json`
-repite ámbitos, límites y capacidades junto con datos propios del usuario.
-Esto dificulta entregar la misma experiencia a un equipo sin copiar cuentas ni
-tokens.
+When this decision was made, Desktop and MCP maintained separate configuration.
+The Desktop profile defined branding and defaults for Jira, Time Tracking, and
+Reports, while `mcp.json` repeated scopes, limits, and capabilities alongside
+personal account data. This made it difficult to give a team the same setup
+without copying accounts or tokens.
 
-Worklogger también permite excluir addons al compilar. Un JSON no puede afirmar
-que una función está instalada ni incorporar código ausente.
+Worklogger can also exclude add-ons at build time. A JSON file cannot establish
+that a feature is installed or supply code missing from a binary.
 
-## Decisión
+## Decision
 
-`organization.json` será la única fuente compartible de configuración de
-Worklogger. Tendrá un bloque `modules` con una sección tipada y opcional por
-módulo conocido. La siguiente figura es estructura abreviada, no un perfil
-ejecutable; el ejemplo completo y validable vive en
-`config/example.organization.json`:
+`organization.json` is the only shareable source of Worklogger configuration.
+Its `modules` object contains an optional typed section for each known module.
+The following is an abbreviated structure, not a usable profile. The complete,
+validatable example is in `config/example.organization.json`:
 
 ```json
 {
@@ -43,80 +45,80 @@ ejecutable; el ejemplo completo y validable vive en
 }
 ```
 
-El catálogo compilado determina qué módulos están instalados. El perfil sólo
-permite y configura módulos. Las preferencias locales pueden desactivarlos o
-reducir capacidades, pero nunca ampliar el perfil. Los permisos reales del
-proveedor siguen siendo la autoridad final.
+The compiled catalog determines which modules are installed. The profile only
+permits and configures them. Local preferences can disable modules or reduce
+capabilities, but cannot expand the profile. Actual provider permissions remain
+the final authority.
 
-La disponibilidad efectiva es la intersección de:
+Effective availability is the intersection of:
 
 ```text
-módulo compilado
-∩ sección presente en organization.json
-∩ preferencia local habilitada
-∩ permiso de la cuenta autenticada
-∩ ámbito permitido
+compiled module
+∩ section present in organization.json
+∩ enabled local preference
+∩ authenticated account permission
+∩ allowed scope
 ```
 
-El perfil no contiene correo, identidad descubierta, token ni estado de sesión.
-Desktop y la TUI standalone pueden importar el mismo archivo. Ambos generan o
-actualizan estado local con las selecciones personales; los secretos se guardan
-exclusivamente en el almacén seguro del sistema.
+The profile contains no email, discovered identity, token, or session state.
+Desktop and the standalone TUI can import the same file. Both create or update
+local state with personal selections; secrets are stored separately in the
+platform's credential store.
 
-`mcp.json` continúa como estado local del servidor y no se distribuye. Durante
-la migración puede conservar valores resueltos para compatibilidad, pero no es
-la fuente que se comparte entre usuarios.
+The original migration plan retained `mcp.json` as private local server state
+and allowed it to hold resolved values temporarily for compatibility. It was
+never the source to share between users. That migration context does not
+describe the current persisted settings contract.
 
-## Semántica de módulos
+## Module semantics
 
-- Sección ausente: la organización no configura ni ofrece ese módulo.
-- Sección presente y addon compilado: el módulo puede activarse.
-- Sección presente y addon no compilado: se informa como no instalado y no se
-  ejecuta.
-- Addon compilado y sección ausente: permanece oculto o pendiente de
-  configuración según la edición.
-- Un módulo desconocido para la versión instalada se rechaza; no se ejecuta ni
-  se interpreta de forma parcial.
+- Missing section: the organization does not configure or offer that module.
+- Present section and compiled add-on: the module can be enabled.
+- Present section without the compiled add-on: the module is reported as not
+  installed and does not run.
+- Compiled add-on without a section: it stays hidden or awaits configuration,
+  depending on the edition.
+- A module unknown to the installed version is rejected; it is not run or
+  partially interpreted.
 
-El ámbito siempre es explícito. `scopeMode: "restricted"` requiere al menos un
-sitio Jira o workspace Bitbucket permitido. `scopeMode: "unrestricted"` exige
-que esa lista esté vacía y declara deliberadamente que cualquier recurso
-visible para la cuenta del proveedor puede seleccionarse. Un ámbito vacío no
-se interpreta por inferencia.
+Scope is always explicit. `scopeMode: "restricted"` requires at least one
+allowed Jira site or Bitbucket workspace. `scopeMode: "unrestricted"` requires
+an empty list and deliberately allows selection of any resource visible to the
+provider account. An empty scope is never interpreted by inference.
 
-`mcpCapabilities` y los campos `maximumAllowed*` del perfil son máximos
-organizacionales; los límites restantes son defaults. El
-asistente presenta ese subconjunto y cada usuario decide cuáles habilitar
-localmente; nunca activa automáticamente todas las escrituras permitidas.
+The profile's `mcpCapabilities` and `maximumAllowed*` fields are organization
+maximums; other limits are defaults. Setup presents that permitted subset and
+each user chooses which capabilities to enable locally. It does not
+automatically enable every permitted write.
 
-Jira es un módulo. Issues y Horas son grupos internos de capacidades y Horas
-queda anidado en `modules.jira`. Reportes es un módulo consumidor de lecturas;
-no concede permisos de Jira. Bitbucket es un módulo independiente.
+Jira is one module. Issues and Time Tracking are internal capability groups,
+with Time Tracking nested under `modules.jira`. Reports consumes reads and
+does not grant Jira permissions. Bitbucket is an independent module.
 
-## Distribuciones
+## Distributions
 
-Community permite importar, editar y exportar el perfil sin secretos. Managed
-embebe exactamente el mismo schema tanto en Desktop como en su sidecar MCP y no
-ofrece reemplazo en runtime. Los binarios personalizados se construyen desde un
-perfil externo; el repositorio genérico no contiene datos de ninguna empresa.
+Community allows users to import, edit, and export the secret-free profile.
+Managed embeds the same schema in both Desktop and its MCP sidecar and does not
+allow replacement at runtime. Custom binaries are built from an external
+profile; the generic repository contains no organization-specific data.
 
-Otros productos, como Devstation, mantienen su propio perfil y contexto. Si en
-el futuro se necesita entregar varios productos con un solo archivo, se agrega
-un sobre de distribución que referencie sus perfiles; no se mezclan schemas,
-credenciales ni dominios dentro de Worklogger.
+Other products maintain their own profiles and contexts. If a future
+distribution needs to deliver several products through one file, a distribution
+envelope can reference their profiles. Schemas, credentials, and domains must
+not be mixed into Worklogger.
 
-## Compatibilidad
+## Compatibility
 
-El lector acepta el schema plano `1` y lo migra en memoria. Toda nueva
-exportación usa schema `2`. Los errores de schema, módulo o límite fallan antes
-de modificar configuración o credenciales existentes.
+The original compatibility plan accepted flat schema `1` and migrated it in
+memory, with new exports using schema `2`. Schema, module, or limit errors must
+fail before modifying existing configuration or credentials. This historical
+plan does not imply that current releases import old per-frontend settings.
 
-## Consecuencias
+## Consequences
 
-- Un archivo sin datos personales puede reproducir branding, módulos, ámbitos,
-  límites y capacidades en Desktop y MCP.
-- Agregar un módulo requiere agregar su tipo, validación, feature de build y
-  adaptador de superficie; una clave JSON por sí sola no habilita código.
-- La política local sigue sin ser una frontera criptográfica. Para enforcement
-  centralizado futuro se necesitará un perfil firmado o un servicio de
-  autorización.
+- A file without personal data can reproduce branding, modules, scopes,
+  limits, and capabilities across Desktop and MCP.
+- Adding a module requires its type, validation, build feature, and interface
+  adapter. A JSON key alone does not enable code.
+- Local policy is not a cryptographic boundary. Future centralized enforcement
+  will require a signed profile or an authorization service.
