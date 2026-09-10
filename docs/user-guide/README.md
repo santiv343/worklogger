@@ -38,6 +38,11 @@ Open **Jira** and choose **+ Log time**. Select an issue, enter a date and durat
 
 If your edition includes **Reports**, choose a period from the sidebar. Personal reports contain only your worklogs. Team reports appear only when enabled and authorized, and are always read-only. Both can be exported to XLSX or PDF.
 
+Under **Configuration → Jira → Hours**, set the **Report period limit** for
+assistant-generated personal reports. It defaults to seven days and can be set
+up to the limit allowed by the selected organization profile (31 days by
+default).
+
 ### Enable MCP from Desktop
 
 1. Open **Configuration → MCP**.
@@ -76,6 +81,10 @@ the MCP permissions you need, then use **MCP clients** and **Assistant skills**
 from that same menu. Each section shows whether it still needs configuration,
 saves only its own values, and preserves the rest. Restart the client when it
 finishes.
+
+For Jira time tools, use **Settings → Jira → Hours** to change the **Report
+period limit**. It applies to both `jira_get_my_hours` and
+`jira_get_my_unlogged_issues`; an assistant cannot increase it in a request.
 
 For a shared profile:
 

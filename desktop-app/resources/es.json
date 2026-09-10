@@ -234,6 +234,8 @@
   "preferences.hoursDescription": "Objetivos y comportamiento de tu seguimiento personal.",
   "preferences.dailyLimitLabel": "Máximo diario por carga",
   "preferences.dailyLimitHelp": "Evitá cargar por error más horas que este límite.",
+  "preferences.reportPeriodLimitLabel": "Límite del período de reporte",
+  "preferences.reportPeriodLimitHelp": "Máxima cantidad de días que un asistente puede pedir en un reporte personal.",
   "preferences.startHourLabel": "Hora inicial predeterminada",
   "preferences.startHourHelp": "Hora local usada al crear una carga.",
   "preferences.startMinuteLabel": "Minuto inicial predeterminado",

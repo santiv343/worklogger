@@ -14,7 +14,6 @@ use crate::{JiraConfiguration, ToolFailure};
 const DATE_FORMAT: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]");
 const MINUTES_PER_HOUR: u32 = 60;
-const MAXIMUM_REPORT_DAYS: u64 = 7;
 
 pub type OwnHoursFuture<'backend> =
     Pin<Box<dyn Future<Output = Result<WeeklyReport, OwnHoursBackendError>> + Send + 'backend>>;
@@ -272,12 +271,15 @@ fn own_hours_error(error: &jira_adapter::JiraError) -> OwnHoursBackendError {
 pub fn resolve_period(
     request: &OwnHoursRequest,
     utc_offset_minutes: i16,
+    maximum_report_period_days: u16,
     now: OffsetDateTime,
 ) -> Result<DateRange, ToolFailure> {
     let today = local_today(now, utc_offset_minutes)?;
     match (&request.date_from, &request.date_to) {
         (None, None) => current_partial_week(today),
-        (Some(date_from), Some(date_to)) => explicit_period(date_from, date_to, today),
+        (Some(date_from), Some(date_to)) => {
+            explicit_period(date_from, date_to, today, maximum_report_period_days)
+        }
         _ => Err(invalid_period("dateFrom y dateTo deben enviarse juntos")),
     }
 }
@@ -382,7 +384,12 @@ fn current_partial_week(today: Date) -> Result<DateRange, ToolFailure> {
     DateRange::new(week.start(), today).map_err(|_| invalid_period("the period is invalid"))
 }
 
-fn explicit_period(date_from: &str, date_to: &str, today: Date) -> Result<DateRange, ToolFailure> {
+fn explicit_period(
+    date_from: &str,
+    date_to: &str,
+    today: Date,
+    maximum_report_period_days: u16,
+) -> Result<DateRange, ToolFailure> {
     let start = parse_date(date_from)?;
     let end = parse_date(date_to)?;
     if end > today {
@@ -390,8 +397,10 @@ fn explicit_period(date_from: &str, date_to: &str, today: Date) -> Result<DateRa
     }
     let period =
         DateRange::new(start, end).map_err(|_| invalid_period("dateFrom supera dateTo"))?;
-    if period.day_count() > MAXIMUM_REPORT_DAYS {
-        return Err(invalid_period("the period cannot exceed 7 days"));
+    if period.day_count() > u64::from(maximum_report_period_days) {
+        return Err(invalid_period(format!(
+            "the period cannot exceed {maximum_report_period_days} days"
+        )));
     }
     Ok(period)
 }
@@ -400,10 +409,10 @@ fn parse_date(value: &str) -> Result<Date, ToolFailure> {
     Date::parse(value, DATE_FORMAT).map_err(|_| invalid_period("las fechas deben usar YYYY-MM-DD"))
 }
 
-fn invalid_period(message: &str) -> ToolFailure {
+fn invalid_period(message: impl Into<String>) -> ToolFailure {
     ToolFailure {
         code: ERROR_INVALID_PERIOD.to_owned(),
-        message: message.to_owned(),
+        message: message.into(),
         retryable: false,
     }
 }

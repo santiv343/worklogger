@@ -476,6 +476,7 @@ fn jira_hours_configuration(application: &ConnectionConfiguration) -> JiraHoursC
         weekly_target_hours: application.hours.weekly_target_hours,
         utc_offset_minutes: application.hours.utc_offset_minutes,
         maximum_daily_hours: application.hours.maximum_daily_hours,
+        maximum_report_period_days: application.hours.maximum_report_period_days,
         maximum_concurrent_worklog_requests: application.jira.maximum_concurrent_worklog_requests,
     }
 }
@@ -498,6 +499,7 @@ fn jira_configuration_from_request(
             weekly_target_hours,
             utc_offset_minutes: request.utc_offset_minutes,
             maximum_daily_hours: request.maximum_daily_hours,
+            maximum_report_period_days: request.maximum_report_period_days,
             maximum_concurrent_worklog_requests: request.maximum_concurrent_worklog_requests,
         }),
     })
@@ -861,6 +863,7 @@ mod tests {
             weekly_target_hours: 40,
             utc_offset_minutes: request.utc_offset_minutes,
             maximum_daily_hours: request.maximum_daily_hours,
+            maximum_report_period_days: request.maximum_report_period_days,
             default_worklog_start_hour: request.default_worklog_start_hour,
             default_worklog_start_minute: request.default_worklog_start_minute,
         }
@@ -880,6 +883,7 @@ mod tests {
             maximum_issue_search_results: 20,
             maximum_concurrent_worklog_requests: 8,
             maximum_daily_hours: 24,
+            maximum_report_period_days: worklogger_settings::DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
             default_worklog_start_hour: 9,
             default_worklog_start_minute: 0,
             enable_team_reports: false,

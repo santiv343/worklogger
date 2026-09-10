@@ -11,6 +11,7 @@ use serde_json::Value;
 use thiserror::Error;
 pub use worklogger_profile::{Capability, IntegrationModuleId as ModuleId};
 use worklogger_profile::{OrganizationProfile, ProviderScopeMode};
+pub use worklogger_settings::{DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, MAXIMUM_REPORT_PERIOD_DAYS};
 
 const CONFIGURATION_SCHEMA_VERSION: u16 = 2;
 const MAXIMUM_EMAIL_LENGTH: usize = 254;
@@ -49,6 +50,8 @@ pub struct JiraHoursConfiguration {
     pub utc_offset_minutes: i16,
     #[serde(default = "default_maximum_daily_hours")]
     pub maximum_daily_hours: u8,
+    #[serde(default = "default_maximum_report_period_days")]
+    pub maximum_report_period_days: u16,
     pub maximum_concurrent_worklog_requests: usize,
 }
 
@@ -396,6 +399,7 @@ fn jira_hours_allowed(
             .any(|option| option.minutes == hours.utc_offset_minutes)
         && hours.maximum_concurrent_worklog_requests
             <= policy.maximum_allowed_concurrent_worklog_requests
+        && hours.maximum_report_period_days <= policy.hours.maximum_custom_range_days
 }
 
 fn validate_organization_bitbucket_limits(
@@ -713,6 +717,9 @@ fn validate_jira_hours(hours: &JiraHoursConfiguration) -> Result<(), Configurati
     if hours.maximum_daily_hours > 24 {
         return Err(invalid_jira("maximumDailyHours"));
     }
+    if !(1..=MAXIMUM_REPORT_PERIOD_DAYS).contains(&hours.maximum_report_period_days) {
+        return Err(invalid_jira("maximumReportPeriodDays"));
+    }
     if hours.utc_offset_minutes.abs() > MAXIMUM_UTC_OFFSET_MINUTES {
         return Err(invalid_jira("utcOffsetMinutes"));
     }
@@ -721,6 +728,10 @@ fn validate_jira_hours(hours: &JiraHoursConfiguration) -> Result<(), Configurati
 
 const fn default_maximum_daily_hours() -> u8 {
     24
+}
+
+const fn default_maximum_report_period_days() -> u16 {
+    DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
 }
 
 fn validate_bitbucket(

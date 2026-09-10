@@ -37,6 +37,23 @@ Desktop and MCP share local preferences such as language and provider choices.
 They do not share credentials or automatically grant one surface access because
 the other was configured.
 
+## Why Worklogger
+
+Worklogger is a local companion for teams that want to use Jira and Bitbucket
+from an assistant without introducing another hosted workspace. It connects
+directly to the provider accounts you choose and keeps credentials on your
+computer.
+
+Its focus is the work an individual repeats every week: a bounded personal time
+report, assigned issues that still need a worklog, and deliberate Jira or
+Bitbucket changes with a visible, single-use preview before any write.
+
+[Atlassian Rovo MCP](https://developer.atlassian.com/cloud/rovo-mcp/) can be a
+good complement for Atlassian's broader agent experience. Worklogger is useful
+when a local API-token setup, focused time-reporting tools, shareable
+organization limits, or reviewable provider writes fit the team better. The
+two servers can coexist in the same assistant.
+
 ## Install MCP
 
 Worklogger MCP supports Windows x64 and Linux x64, including WSL on a supported

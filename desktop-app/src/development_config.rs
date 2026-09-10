@@ -8,6 +8,7 @@ use serde::Deserialize;
 use crate::connection_model::ConnectionRequest;
 use crate::copy::text;
 use crate::defaults::{ProductDefaultsGuard, product_defaults};
+use worklogger_settings::DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS;
 
 const CONFIGURATION_DIRECTORY_ENVIRONMENT_VARIABLE: &str =
     "WORKLOGGER_DEVELOPMENT_CONFIG_DIRECTORY";
@@ -138,6 +139,7 @@ fn request_from(
         maximum_issue_search_results: defaults.jira().maximum_issue_search_results,
         maximum_concurrent_worklog_requests: defaults.jira().maximum_concurrent_worklog_requests,
         maximum_daily_hours: defaults.hours().maximum_daily_hours,
+        maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
         default_worklog_start_hour: defaults.hours().default_worklog_start_hour,
         default_worklog_start_minute: defaults.hours().default_worklog_start_minute,
         enable_team_reports: team_reports_enabled(config),

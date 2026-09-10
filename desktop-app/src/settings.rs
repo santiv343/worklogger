@@ -12,6 +12,7 @@ use thiserror::Error;
 
 use crate::copy::text;
 use crate::defaults::product_defaults;
+use worklogger_settings::{DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, MAXIMUM_REPORT_PERIOD_DAYS};
 
 #[path = "shared_settings.rs"]
 mod shared;
@@ -26,6 +27,10 @@ const MAX_EMAIL_LENGTH: usize = 254;
 const MAX_UTC_OFFSET_MINUTES: i16 = 14 * MINUTES_PER_HOUR;
 const MAX_WEEKLY_HOURS: u16 = HOURS_PER_DAY * DAYS_PER_WEEK;
 pub(crate) const SETTINGS_SCHEMA_VERSION: u16 = 1;
+
+const fn default_maximum_report_period_days() -> u16 {
+    DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +64,8 @@ pub(crate) struct HoursSettings {
     pub weekly_target: u16,
     pub utc_offset_minutes: i16,
     pub maximum_daily_hours: u8,
+    #[serde(default = "default_maximum_report_period_days")]
+    pub maximum_report_period_days: u16,
     pub default_worklog_start_hour: u8,
     pub default_worklog_start_minute: u8,
     #[serde(default, rename = "enableTeamReports", skip_serializing)]
@@ -311,6 +318,11 @@ fn validate_hours(settings: &HoursSettings) -> Result<(), SettingsError> {
             "hours.maximumDailyHours debe estar entre {MINIMUM_POSITIVE_HOURS} y {HOURS_PER_DAY}"
         )));
     }
+    if !(1..=MAXIMUM_REPORT_PERIOD_DAYS).contains(&settings.maximum_report_period_days) {
+        return Err(invalid(
+            "hours.maximumReportPeriodDays is outside the supported range",
+        ));
+    }
     if u16::from(settings.default_worklog_start_hour) >= HOURS_PER_DAY
         || i16::from(settings.default_worklog_start_minute) >= MINUTES_PER_HOUR
     {
@@ -330,6 +342,7 @@ fn validate_hours_profile(settings: &HoursSettings) -> Result<(), SettingsError>
     let hours = profile.hours();
     let valid = hours.allows_weekly_target(u32::from(settings.weekly_target))
         && settings.maximum_daily_hours <= hours.maximum_daily_hours
+        && settings.maximum_report_period_days <= hours.maximum_custom_range_days
         && hours.allows_utc_offset(settings.utc_offset_minutes);
     if !valid {
         return Err(invalid(text("settings.error.hoursOutsideProfile")));
@@ -512,6 +525,24 @@ mod tests {
     }
 
     #[test]
+    fn defaults_the_report_period_for_existing_settings() {
+        let mut value = serde_json::to_value(valid_settings()).expect("fixture serializes");
+        value
+            .get_mut("hours")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("hours object")
+            .remove("maximumReportPeriodDays");
+
+        let bytes = serde_json::to_vec(&value).expect("legacy fixture serializes");
+        let loaded = decode_settings(bytes.as_slice(), Path::new(CONFIG_FILE)).expect("migration");
+
+        assert_eq!(
+            loaded.hours.maximum_report_period_days,
+            DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
+        );
+    }
+
+    #[test]
     fn clear_removes_saved_settings_and_is_idempotent() {
         let fixture = TestDirectory::new();
         let store = SettingsStore::at(fixture.path.join(CONFIG_FILE));
@@ -588,6 +619,7 @@ mod tests {
                     .expect("el objetivo predeterminado entra en u16"),
                 utc_offset_minutes: defaults.hours().suggested_utc_offset_minutes,
                 maximum_daily_hours: defaults.hours().maximum_daily_hours,
+                maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
                 default_worklog_start_hour: defaults.hours().default_worklog_start_hour,
                 default_worklog_start_minute: defaults.hours().default_worklog_start_minute,
                 legacy_enable_team_reports: None,

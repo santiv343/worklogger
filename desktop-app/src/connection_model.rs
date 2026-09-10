@@ -15,6 +15,7 @@ pub(crate) struct ConnectionRequest {
     pub maximum_issue_search_results: usize,
     pub maximum_concurrent_worklog_requests: usize,
     pub maximum_daily_hours: u8,
+    pub maximum_report_period_days: u16,
     pub default_worklog_start_hour: u8,
     pub default_worklog_start_minute: u8,
     pub enable_team_reports: bool,
@@ -44,6 +45,7 @@ pub(crate) struct HoursConfiguration {
     pub weekly_target_hours: u16,
     pub utc_offset_minutes: i16,
     pub maximum_daily_hours: u8,
+    pub maximum_report_period_days: u16,
     pub default_worklog_start_hour: u8,
     pub default_worklog_start_minute: u8,
 }

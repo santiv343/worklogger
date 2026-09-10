@@ -25,6 +25,7 @@
   "pageSize": "Page size",
   "collectionLimit": "Collection item limit",
   "concurrency": "Concurrent worklog requests",
+  "reportPeriodLimit": "Report period limit (days)",
   "back": "Back",
   "verified": "Verified this session",
   "saved": "Saved, not checked",

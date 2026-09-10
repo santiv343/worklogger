@@ -7,6 +7,7 @@ use crate::copy::{preferred_language, save_language, text};
 use crate::defaults::product_defaults;
 #[cfg(organization_configuration_mutable)]
 use crate::organization_config::OrganizationConfigurationPicker;
+use worklogger_settings::DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS;
 
 #[derive(Clone, PartialEq)]
 struct ConnectionDraft {
@@ -380,6 +381,8 @@ fn build_request(draft: &ConnectionDraft) -> Result<ConnectionRequest, String> {
         maximum_issue_search_results: defaults.jira().maximum_issue_search_results,
         maximum_concurrent_worklog_requests: defaults.jira().maximum_concurrent_worklog_requests,
         maximum_daily_hours: defaults.hours().maximum_daily_hours,
+        maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS
+            .min(defaults.hours().maximum_custom_range_days),
         default_worklog_start_hour: defaults.hours().default_worklog_start_hour,
         default_worklog_start_minute: defaults.hours().default_worklog_start_minute,
         enable_team_reports: false,

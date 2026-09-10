@@ -25,6 +25,16 @@ the checks documented in the workflow before requesting review. The public npm
 package is assembled by the release workflow; do not publish a package from a
 workstation.
 
+## Jira contract checks
+
+The scheduled Jira contract workflow is read-only and skips until all of these
+repository secrets point to a dedicated sandbox: `WORKLOGGER_TEST_JIRA_URL`,
+`WORKLOGGER_TEST_JIRA_EMAIL`, `WORKLOGGER_TEST_JIRA_TOKEN`,
+`WORKLOGGER_TEST_JIRA_BOARD_ID`, `WORKLOGGER_TEST_JIRA_ISSUE_KEY`, and
+`WORKLOGGER_TEST_JIRA_UTC_OFFSET_MINUTES`. Give that account only the access
+needed to read the selected board and issue. Do not use a personal or
+production token.
+
 ## Pull-request expectations
 
 Keep each pull request focused. Explain what changed, why it is safe, and how it

@@ -3,7 +3,7 @@ use super::{
     SettingsError,
 };
 use crate::defaults::product_defaults;
-use worklogger_settings::SettingsDocument;
+use worklogger_settings::{DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS, SettingsDocument};
 
 impl AppSettings {
     pub(super) fn from_shared(document: &SettingsDocument) -> Result<Option<Self>, SettingsError> {
@@ -46,6 +46,7 @@ impl AppSettings {
             weekly_target_hours: Some(self.hours.weekly_target),
             utc_offset_minutes: Some(self.hours.utc_offset_minutes),
             maximum_daily_hours: Some(self.hours.maximum_daily_hours),
+            maximum_report_period_days: Some(self.hours.maximum_report_period_days),
             default_worklog_start_hour: Some(self.hours.default_worklog_start_hour),
             default_worklog_start_minute: Some(self.hours.default_worklog_start_minute),
         });
@@ -97,6 +98,9 @@ fn project_hours(
         maximum_daily_hours: hours
             .maximum_daily_hours
             .unwrap_or(limits.maximum_daily_hours),
+        maximum_report_period_days: hours
+            .maximum_report_period_days
+            .unwrap_or(DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS),
         default_worklog_start_hour: hours
             .default_worklog_start_hour
             .unwrap_or(limits.default_worklog_start_hour),

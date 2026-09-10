@@ -491,6 +491,7 @@ fn hours_configuration(request: &ConnectionRequest) -> Result<HoursConfiguration
             .map_err(|_| text("connection.targetDoesNotFit").to_owned())?,
         utc_offset_minutes: request.utc_offset_minutes,
         maximum_daily_hours: request.maximum_daily_hours,
+        maximum_report_period_days: request.maximum_report_period_days,
         default_worklog_start_hour: request.default_worklog_start_hour,
         default_worklog_start_minute: request.default_worklog_start_minute,
     })
@@ -657,6 +658,7 @@ fn settings_from(request: &ConnectionRequest) -> Result<AppSettings, String> {
             weekly_target,
             utc_offset_minutes: request.utc_offset_minutes,
             maximum_daily_hours: request.maximum_daily_hours,
+            maximum_report_period_days: request.maximum_report_period_days,
             default_worklog_start_hour: request.default_worklog_start_hour,
             default_worklog_start_minute: request.default_worklog_start_minute,
             legacy_enable_team_reports: None,
@@ -681,6 +683,7 @@ fn request_from(settings: AppSettings, token: String) -> ConnectionRequest {
         weekly_target_hours: u32::from(settings.hours.weekly_target),
         utc_offset_minutes: settings.hours.utc_offset_minutes,
         maximum_daily_hours: settings.hours.maximum_daily_hours,
+        maximum_report_period_days: settings.hours.maximum_report_period_days,
         default_worklog_start_hour: settings.hours.default_worklog_start_hour,
         default_worklog_start_minute: settings.hours.default_worklog_start_minute,
         enable_team_reports: settings.reports.enable_team_reports,
@@ -790,6 +793,7 @@ fn copy(key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use time::{Date, Month, Time, UtcOffset};
+    use worklogger_settings::DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS;
 
     use super::{
         ConnectionRequest, committed_refresh_result, ensure_not_future, update_input,
@@ -867,6 +871,7 @@ mod tests {
             maximum_issue_search_results: 100,
             maximum_concurrent_worklog_requests: 4,
             maximum_daily_hours: 12,
+            maximum_report_period_days: DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
             default_worklog_start_hour: 9,
             default_worklog_start_minute: 0,
             enable_team_reports: false,
