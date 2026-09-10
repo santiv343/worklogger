@@ -17,6 +17,11 @@ Use interactive settings when the person still needs to choose a provider, Jira 
 npx @santiv343/worklogger
 ```
 
+For a team-wide baseline, use a reviewed `organization.json`. It contains
+organization policy, scopes, limits, and allowed capabilities, but never tokens
+or personal account data. Do not copy one person's `settings.json`, `mcp.json`,
+or MCP client configuration to teammates.
+
 Use the manual path only when a reviewed `mcp.json` already exists and the person has selected exact MCP clients. The installer must run in the same environment as the client: PowerShell for Windows applications, or the relevant WSL terminal for Codex or Claude Code inside WSL.
 
 Before any setup, confirm that Node is available with `node --version`. If `npx` still points the `@santiv343` scope at GitHub Packages, ask the person to run `npm config delete @santiv343:registry` once.

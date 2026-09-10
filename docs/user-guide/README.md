@@ -22,7 +22,7 @@ MCP uses your own Jira or Bitbucket account and permissions. Never share API tok
 ### Connect Jira
 
 1. Open Worklogger and choose **Connect Jira**.
-2. Choose **Import JSON** if your team gave you an `organization.json`; otherwise configure the connection manually.
+2. Choose **Import JSON** if your team gave you an `organization.json`; otherwise configure the connection manually. Community Desktop creates this safe team file through **Export JSON**.
 3. Enter your Jira site, Atlassian email address, and API token.
 4. Choose **Verify and find boards**, then select a board, weekly target, and time zone.
 5. Choose **Save and continue**.
@@ -48,12 +48,15 @@ Installation changes only the selected client's `worklogger` entry. It does not 
 ### Choose a language
 
 Open **Configuration → General** and choose **English** or **Spanish**. The
-choice is saved in the shared preferences, so the MCP TUI uses it too. Restart
-Desktop or the MCP client after changing it.
+choice is saved in the shared preferences, so the MCP TUI uses it too. The TUI
+updates immediately; restart Desktop after changing its language.
 
 ## Use MCP
 
-MCP connects Worklogger to Codex, Claude Code, Claude Desktop, Cursor, and Windsurf. The server runs locally and exposes only the capabilities you enable.
+MCP connects Worklogger to supported clients including Codex, Claude Code,
+Claude Desktop, Cursor, Windsurf, Qwen Code, Gemini CLI, Kiro, GitHub Copilot,
+and Trae Code CLI. The server runs locally and exposes only the capabilities
+you enable.
 
 ![MCP setup and confirmation walkthrough](assets/mcp-flow.svg)
 
@@ -91,7 +94,7 @@ npx --yes @santiv343/worklogger install \
   --yes
 ```
 
-In PowerShell, define `$env:WORKLOGGER_JIRA_API_TOKEN = "<jira-token>"` before the command. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`, `cursor`, and `windsurf`; `--skills` is optional.
+In PowerShell, define `$env:WORKLOGGER_JIRA_API_TOKEN = "<jira-token>"` before the command. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`, `github-copilot`, and `trae-code`; `--skills` is optional.
 
 The first `--yes` accepts npm's first-install prompt; the final `--yes` confirms Worklogger. The command saves local configuration, installs the local server, and registers the selected clients. It stops rather than replacing an unrelated or invalid MCP registration. `--skills` installs skills for every compatible assistant destination detected on that account, independently of `--clients`. Restart registered clients, then verify:
 
@@ -124,7 +127,9 @@ For pull requests, Worklogger merges effective Bitbucket default reviewers with 
 ## Security and troubleshooting
 
 - Never paste tokens into chat, tickets, `organization.json`, or MCP client configuration files.
-- `organization.json` is shareable. `settings.json`, `mcp.json`, and `config.json` are private and must not be shared.
+- Share a reviewed `organization.json` with a team. `settings.json` is
+  secret-free but contains personal choices and consent, so keep it private.
+  `mcp.json` and client configuration files are also local-only.
 - A profile can restrict scopes but cannot grant provider permissions.
 - Restart the MCP client after updating Worklogger.
 

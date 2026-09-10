@@ -39,8 +39,9 @@ MCP, and troubleshooting instructions, see the [user guide](docs/user-guide/READ
 
 Desktop and MCP share `settings.json` for provider preferences. API tokens and
 MCP grants are deliberately separate: configuring Desktop never enables tools
-for an assistant. The interface language is also shared: choose English or
-Spanish in either Settings surface, then restart the affected app or MCP client.
+for an assistant. The interface language is also shared: a change in the MCP
+TUI applies immediately and persists for future launches. Restart Desktop after
+changing the language there.
 Worklogger uses this one settings document and does not import or modify older
 per-frontend configuration files.
 
@@ -73,11 +74,13 @@ permissions; Worklogger never manages another person's worklogs.
 
 ## Shared modular configuration
 
-`organization.json` is Worklogger's only shareable file. It contains branding
-and an optional section for every module under `modules`; when a section is
-absent, that organization does not offer the module. The file can include
-scopes, limits, and capabilities, but never identity, email addresses, tokens,
-or session state.
+`organization.json` is Worklogger's only shareable file. Community Desktop can
+export it with **Export JSON** and teammates can import it with **Import JSON**
+or use it in `npx @santiv343/worklogger setup --profile <file>`. It contains
+branding and an optional section for every module under `modules`; when a
+section is absent, that organization does not offer the module. The file can
+include scopes, limits, and capabilities, but never identity, email addresses,
+tokens, or session state.
 
 A feature is available only when its add-on is compiled, its section is present
 in the profile, the user enables it, and the authenticated account has access
@@ -87,10 +90,11 @@ permissions.
 Community Desktop and the MCP TUI use the same installed profile and a shared,
 secret-free `settings.json` document in the user's
 configuration directory (`%APPDATA%\Worklogger` on Windows or
-`$XDG_CONFIG_HOME/worklogger`/`~/.config/worklogger` on Linux). It is private
-to that user and computer: only `organization.json` is shareable with a team. A Managed
-edition embeds the same schema at build time and keeps it immutable for both
-Desktop and the MCP sidecar.
+`$XDG_CONFIG_HOME/worklogger`/`~/.config/worklogger` on Linux). It is
+secret-free, but contains personal choices such as an account email, selected
+board, and MCP consent. Do not use it as a team template: share only a reviewed
+`organization.json`. A Managed edition embeds the same schema at build time and
+keeps it immutable for both Desktop and the MCP sidecar.
 
 Each provider scope is explicit: `restricted` requires allowed sites or
 workspaces, while `unrestricted` deliberately requires an empty list. Profile
@@ -225,8 +229,9 @@ after changing its settings.
 
 `organization.json` is the shareable source of modules, maximum scopes, limits,
 and allowed capabilities. `settings.json` contains local shared preferences and
-MCP consent but never tokens, and is never shared. Worklogger does not import
-or modify earlier `mcp.json` and `config.json` files. Tokens remain outside JSON:
+MCP consent but never tokens; it should stay private because it may include
+personal choices. Worklogger does not import or modify earlier `mcp.json` and
+`config.json` files. Tokens remain outside JSON:
 Windows uses Credential Manager and Linux uses an atomic per-user store protected
 by `0700/0600` permissions. Desktop and MCP credentials stay separate.
 
