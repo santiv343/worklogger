@@ -360,6 +360,11 @@ fn parse_client_name(value: &str) -> Result<McpClientId, CliError> {
         "claude-desktop" => Ok(McpClientId::ClaudeDesktop),
         "cursor" => Ok(McpClientId::Cursor),
         "windsurf" => Ok(McpClientId::Windsurf),
+        "qwen-code" => Ok(McpClientId::QwenCode),
+        "gemini-cli" => Ok(McpClientId::GeminiCli),
+        "kiro" => Ok(McpClientId::Kiro),
+        "github-copilot" => Ok(McpClientId::GitHubCopilot),
+        "trae-code" => Ok(McpClientId::TraeCode),
         _ => Err(message(&tui_copy().invalid_install_clients)),
     }
 }
@@ -3243,6 +3248,23 @@ mod command_tests {
     fn install_rejects_unknown_or_duplicated_clients() {
         assert!(parse_client_selection("unknown").is_err());
         assert!(parse_client_selection("codex,codex").is_err());
+    }
+
+    #[test]
+    fn install_accepts_common_and_special_client_adapters() {
+        let clients = parse_client_selection("qwen-code,gemini-cli,kiro,github-copilot,trae-code")
+            .expect("supported clients are accepted");
+
+        assert_eq!(
+            clients,
+            ClientSelection::Named(vec![
+                McpClientId::QwenCode,
+                McpClientId::GeminiCli,
+                McpClientId::Kiro,
+                McpClientId::GitHubCopilot,
+                McpClientId::TraeCode,
+            ])
+        );
     }
 
     #[test]

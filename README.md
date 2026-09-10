@@ -251,8 +251,12 @@ official Bitbucket Cloud endpoint. Its endpoint cannot be replaced by an URL
 that could receive credentials. Jira Data Center and Bitbucket Data Center need
 different add-ons.
 
-Worklogger currently detects Codex, Claude Code, Claude Desktop, Cursor, and
-Windsurf. The executable is installed in a versioned location:
+Worklogger currently detects Codex, Claude Code, Claude Desktop, Cursor,
+Windsurf, Qwen Code, Gemini CLI, Kiro, GitHub Copilot, and Trae Code CLI. Most
+use the common JSON `mcpServers` format; Codex and Trae Code CLI use native CLI
+and TOML adapters respectively. See the [MCP client support guide](docs/mcp-client-support.md)
+for the exact targets, project-scoped Trae IDE setup, and skill compatibility.
+The executable is installed in a versioned location:
 `%LOCALAPPDATA%\Worklogger\MCP` on Windows and
 `$XDG_DATA_HOME/worklogger/MCP` or `~/.local/share/worklogger/MCP` on Linux/WSL.
 Desktop and the TUI register the corresponding native path. Each version is

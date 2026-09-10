@@ -48,7 +48,12 @@ npx --yes @santiv343/worklogger install \
 unset WORKLOGGER_JIRA_API_TOKEN
 ```
 
-`npx --yes` accepts npm's first-install prompt. The final `--yes` is Worklogger's explicit confirmation. `--clients all` targets detected clients; otherwise use one or more of `codex`, `claude-code`, `claude-desktop`, `cursor`, and `windsurf`.
+`npx --yes` accepts npm's first-install prompt. The final `--yes` is
+Worklogger's explicit confirmation. `--clients all` targets detected clients;
+otherwise use one or more of `codex`, `claude-code`, `claude-desktop`,
+`cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`, `github-copilot`, and
+`trae-code`. Consult the [MCP client support guide](mcp-client-support.md)
+before selecting a project-scoped client such as Trae IDE.
 
 `--skills` is independent from `--clients`: it installs Worklogger's three workflow skills in every compatible assistant destination detected on that user account. Omit it when that wider change is not wanted.
 

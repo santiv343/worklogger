@@ -11,6 +11,7 @@ use atomic_write_file::AtomicWriteFile;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
+use toml_edit::{Array, DocumentMut, Item, Table, Value as TomlValue, value};
 
 use crate::runtime_installation::is_owned_versioned_executable;
 
@@ -39,6 +40,16 @@ const WINDSURF_CONFIGURATION_DIRECTORY: &str = "windsurf";
 const WINDSURF_CONFIGURATION_FILE: &str = "mcp_config.json";
 const CLAUDE_DESKTOP_CONFIGURATION_DIRECTORY: &str = "Claude";
 const CLAUDE_DESKTOP_CONFIGURATION_FILE: &str = "claude_desktop_config.json";
+const QWEN_CONFIGURATION_DIRECTORY: &str = ".qwen";
+const QWEN_CONFIGURATION_FILE: &str = "settings.json";
+const GEMINI_CONFIGURATION_DIRECTORY: &str = ".gemini";
+const GEMINI_CONFIGURATION_FILE: &str = "settings.json";
+const KIRO_CONFIGURATION_DIRECTORY: &str = ".kiro/settings";
+const KIRO_CONFIGURATION_FILE: &str = "mcp.json";
+const COPILOT_CONFIGURATION_DIRECTORY: &str = ".copilot";
+const COPILOT_CONFIGURATION_FILE: &str = "mcp-config.json";
+const TRAE_CODE_CONFIGURATION_DIRECTORY: &str = ".trae";
+const TRAE_CODE_CONFIGURATION_FILE: &str = "traecli.toml";
 const MACOS_APPLICATION_SUPPORT_DIRECTORY: &str = "Library/Application Support";
 const HOME_ENVIRONMENT_VARIABLE: &str = "HOME";
 const USER_PROFILE_ENVIRONMENT_VARIABLE: &str = "USERPROFILE";
@@ -83,6 +94,11 @@ const SUPPORTED_CLIENTS: &[McpClientId] = &[
     McpClientId::ClaudeDesktop,
     McpClientId::Cursor,
     McpClientId::Windsurf,
+    McpClientId::QwenCode,
+    McpClientId::GeminiCli,
+    McpClientId::Kiro,
+    McpClientId::GitHubCopilot,
+    McpClientId::TraeCode,
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -92,6 +108,11 @@ pub enum McpClientId {
     ClaudeDesktop,
     Cursor,
     Windsurf,
+    QwenCode,
+    GeminiCli,
+    Kiro,
+    GitHubCopilot,
+    TraeCode,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -152,6 +173,7 @@ pub enum ClientRegistrationError {
 enum ClientIntegration {
     CommandLine,
     JsonFile,
+    TomlFile,
 }
 
 #[derive(Clone, Debug)]
@@ -186,15 +208,26 @@ impl McpClientId {
             Self::ClaudeDesktop => "Claude Desktop",
             Self::Cursor => "Cursor",
             Self::Windsurf => "Windsurf",
+            Self::QwenCode => "Qwen Code",
+            Self::GeminiCli => "Gemini CLI",
+            Self::Kiro => "Kiro",
+            Self::GitHubCopilot => "GitHub Copilot",
+            Self::TraeCode => "Trae Code",
         }
     }
 
     const fn integration(self) -> ClientIntegration {
         match self {
             Self::Codex => ClientIntegration::CommandLine,
-            Self::ClaudeCode | Self::ClaudeDesktop | Self::Cursor | Self::Windsurf => {
-                ClientIntegration::JsonFile
-            }
+            Self::ClaudeCode
+            | Self::ClaudeDesktop
+            | Self::Cursor
+            | Self::Windsurf
+            | Self::QwenCode
+            | Self::GeminiCli
+            | Self::Kiro
+            | Self::GitHubCopilot => ClientIntegration::JsonFile,
+            Self::TraeCode => ClientIntegration::TomlFile,
         }
     }
 }
@@ -276,6 +309,7 @@ impl ClientRegistrationService {
         match client.integration() {
             ClientIntegration::CommandLine => self.register_with_cli(client, server),
             ClientIntegration::JsonFile => register_in_json(client, &target, server),
+            ClientIntegration::TomlFile => register_in_toml(client, &target, server),
         }
     }
 
@@ -297,6 +331,7 @@ impl ClientRegistrationService {
         match client.integration() {
             ClientIntegration::CommandLine => self.unregister_with_cli(client),
             ClientIntegration::JsonFile => unregister_from_json(client, &target, server),
+            ClientIntegration::TomlFile => unregister_from_toml(client, &target, server),
         }
     }
 
@@ -316,6 +351,7 @@ impl ClientRegistrationService {
         match client.integration() {
             ClientIntegration::CommandLine => self.cli_registration_state(client, server),
             ClientIntegration::JsonFile => json_registration_state(client, target, server),
+            ClientIntegration::TomlFile => toml_registration_state(client, target, server),
         }
     }
 
@@ -356,7 +392,9 @@ impl ClientRegistrationService {
         }
         match client.integration() {
             ClientIntegration::CommandLine => self.client_command(client).is_some(),
-            ClientIntegration::JsonFile => target.parent().is_some_and(Path::is_dir),
+            ClientIntegration::JsonFile | ClientIntegration::TomlFile => {
+                target.parent().is_some_and(Path::is_dir)
+            }
         }
     }
 
@@ -388,6 +426,26 @@ impl ClientRegistrationService {
                 .join(WINDSURF_CONFIGURATION_ROOT)
                 .join(WINDSURF_CONFIGURATION_DIRECTORY)
                 .join(WINDSURF_CONFIGURATION_FILE),
+            McpClientId::QwenCode => self
+                .home_directory
+                .join(QWEN_CONFIGURATION_DIRECTORY)
+                .join(QWEN_CONFIGURATION_FILE),
+            McpClientId::GeminiCli => self
+                .home_directory
+                .join(GEMINI_CONFIGURATION_DIRECTORY)
+                .join(GEMINI_CONFIGURATION_FILE),
+            McpClientId::Kiro => self
+                .home_directory
+                .join(KIRO_CONFIGURATION_DIRECTORY)
+                .join(KIRO_CONFIGURATION_FILE),
+            McpClientId::GitHubCopilot => self
+                .home_directory
+                .join(COPILOT_CONFIGURATION_DIRECTORY)
+                .join(COPILOT_CONFIGURATION_FILE),
+            McpClientId::TraeCode => self
+                .home_directory
+                .join(TRAE_CODE_CONFIGURATION_DIRECTORY)
+                .join(TRAE_CODE_CONFIGURATION_FILE),
         }
     }
 
@@ -732,6 +790,152 @@ fn unregister_from_json(
     write_json(client, path, &original, &document)
 }
 
+fn toml_registration_state(
+    client: McpClientId,
+    path: &Path,
+    server: &Path,
+) -> Result<RegistrationState, ClientRegistrationError> {
+    let (_, document) = read_toml(client, path)?;
+    let entry = toml_server_item(&document);
+    Ok(registration_state_for_toml_entry(entry, server))
+}
+
+fn register_in_toml(
+    client: McpClientId,
+    path: &Path,
+    server: &Path,
+) -> Result<(), ClientRegistrationError> {
+    let (original, mut document) = read_toml(client, path)?;
+    toml_server_map(client, path, &mut document)?.insert(
+        MCP_SERVER_REGISTRATION_NAME,
+        Item::Table(toml_server_entry(server)),
+    );
+    write_toml(client, path, &original, &document)
+}
+
+fn unregister_from_toml(
+    client: McpClientId,
+    path: &Path,
+    server: &Path,
+) -> Result<(), ClientRegistrationError> {
+    let (original, mut document) = read_toml(client, path)?;
+    let Some(servers) = document
+        .as_table_mut()
+        .get_mut(MCP_SERVERS_PROPERTY)
+        .and_then(Item::as_table_mut)
+    else {
+        return Ok(());
+    };
+    let owned = servers
+        .get(MCP_SERVER_REGISTRATION_NAME)
+        .is_some_and(|entry| is_owned_toml_entry(entry, server));
+    if !owned {
+        return Ok(());
+    }
+    servers.remove(MCP_SERVER_REGISTRATION_NAME);
+    write_toml(client, path, &original, &document)
+}
+
+fn read_toml(
+    client: McpClientId,
+    path: &Path,
+) -> Result<(String, DocumentMut), ClientRegistrationError> {
+    reject_symlink(client, path)?;
+    let bytes = read_client_configuration(path)?;
+    if bytes.len() > maximum_client_configuration_bytes() {
+        return Err(invalid_configuration(client, path));
+    }
+    let contents = String::from_utf8(bytes).map_err(|_| invalid_configuration(client, path))?;
+    let document = contents
+        .parse::<DocumentMut>()
+        .map_err(|_| invalid_configuration(client, path))?;
+    Ok((contents, document))
+}
+
+fn read_client_configuration(path: &Path) -> Result<Vec<u8>, ClientRegistrationError> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(source) => Err(storage_error(path, source)),
+    }
+}
+
+fn toml_server_item(document: &DocumentMut) -> Option<&Item> {
+    document
+        .as_table()
+        .get(MCP_SERVERS_PROPERTY)
+        .and_then(Item::as_table)
+        .and_then(|servers| servers.get(MCP_SERVER_REGISTRATION_NAME))
+}
+
+fn toml_server_map<'document>(
+    client: McpClientId,
+    path: &Path,
+    document: &'document mut DocumentMut,
+) -> Result<&'document mut Table, ClientRegistrationError> {
+    let servers = document
+        .as_table_mut()
+        .entry(MCP_SERVERS_PROPERTY)
+        .or_insert(Item::Table(Table::new()));
+    servers
+        .as_table_mut()
+        .ok_or_else(|| invalid_configuration(client, path))
+}
+
+fn toml_server_entry(server: &Path) -> Table {
+    let mut entry = Table::new();
+    entry.insert(COMMAND_PROPERTY, value(server.display().to_string()));
+    entry.insert(ARGUMENTS_PROPERTY, value(toml_arguments()));
+    entry
+}
+
+fn toml_arguments() -> Array {
+    let mut arguments = Array::new();
+    arguments.push(MCP_SERVER_SERVE_ARGUMENT);
+    arguments
+}
+
+fn registration_state_for_toml_entry(entry: Option<&Item>, server: &Path) -> RegistrationState {
+    let Some(table) = entry.and_then(Item::as_table) else {
+        return if entry.is_some() {
+            RegistrationState::ConflictingRegistration
+        } else {
+            RegistrationState::Available
+        };
+    };
+    if !toml_entry_has_serve_arguments(table) {
+        return RegistrationState::ConflictingRegistration;
+    }
+    let Some(command) = toml_entry_command(table) else {
+        return RegistrationState::ConflictingRegistration;
+    };
+    registration_state_for_command(command, server)
+}
+
+fn toml_entry_has_serve_arguments(entry: &Table) -> bool {
+    entry
+        .get(ARGUMENTS_PROPERTY)
+        .and_then(Item::as_value)
+        .and_then(TomlValue::as_array)
+        .is_some_and(|arguments| {
+            arguments.len() == 1
+                && arguments.iter().next().and_then(TomlValue::as_str)
+                    == Some(MCP_SERVER_SERVE_ARGUMENT)
+        })
+}
+
+fn toml_entry_command(entry: &Table) -> Option<&Path> {
+    entry
+        .get(COMMAND_PROPERTY)
+        .and_then(Item::as_value)
+        .and_then(TomlValue::as_str)
+        .map(Path::new)
+}
+
+fn is_owned_toml_entry(entry: &Item, server: &Path) -> bool {
+    is_owned_registration(registration_state_for_toml_entry(Some(entry), server))
+}
+
 fn read_json(client: McpClientId, path: &Path) -> Result<Value, ClientRegistrationError> {
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
@@ -795,6 +999,10 @@ fn registration_state_for_transport(entry: &Value, server: &Path) -> Registratio
     let Some(command) = entry_command(entry) else {
         return RegistrationState::ConflictingRegistration;
     };
+    registration_state_for_command(command, server)
+}
+
+fn registration_state_for_command(command: &Path, server: &Path) -> RegistrationState {
     if command == server {
         return if server.is_file() {
             RegistrationState::Registered
@@ -853,6 +1061,44 @@ fn write_json(
         .open(path)
         .map_err(|source| storage_error(path, source))?;
     file.write_all(&bytes)
+        .map_err(|source| storage_error(path, source))?;
+    file.commit().map_err(|source| storage_error(path, source))
+}
+
+fn write_toml(
+    client: McpClientId,
+    path: &Path,
+    original: &str,
+    document: &DocumentMut,
+) -> Result<(), ClientRegistrationError> {
+    ensure_toml_unchanged(client, path, original)?;
+    let bytes = document.to_string().into_bytes();
+    if bytes.len() > maximum_client_configuration_bytes() {
+        return Err(invalid_configuration(client, path));
+    }
+    write_configuration(path, &bytes)
+}
+
+fn ensure_toml_unchanged(
+    client: McpClientId,
+    path: &Path,
+    original: &str,
+) -> Result<(), ClientRegistrationError> {
+    let (current, _) = read_toml(client, path)?;
+    if current == original {
+        return Ok(());
+    }
+    Err(ClientRegistrationError::ConcurrentModification {
+        client,
+        path: path.to_path_buf(),
+    })
+}
+
+fn write_configuration(path: &Path, bytes: &[u8]) -> Result<(), ClientRegistrationError> {
+    let mut file = AtomicWriteFile::options()
+        .open(path)
+        .map_err(|source| storage_error(path, source))?;
+    file.write_all(bytes)
         .map_err(|source| storage_error(path, source))?;
     file.commit().map_err(|source| storage_error(path, source))
 }
@@ -954,7 +1200,79 @@ mod tests {
         fs::remove_dir_all(directory).expect("fixture is removed");
     }
 
+    #[test]
+    fn registers_the_common_json_adapter_without_changing_other_servers() {
+        let directory = test_directory("common-json");
+        let home = directory.join("home");
+        let configuration_directory = home.join(QWEN_CONFIGURATION_DIRECTORY);
+        fs::create_dir_all(&configuration_directory).expect("configuration directory is created");
+        let server = test_server(&directory);
+        let configuration = configuration_directory.join(QWEN_CONFIGURATION_FILE);
+        fs::write(
+            &configuration,
+            r#"{"mcpServers":{"other":{"command":"other","args":["serve"]}}}"#,
+        )
+        .expect("configuration is created");
+
+        let service = ClientRegistrationService::at(home, None, Vec::new());
+        service
+            .register(McpClientId::QwenCode, &server)
+            .expect("common JSON registration succeeds");
+
+        assert_eq!(
+            service.status(McpClientId::QwenCode, &server).state,
+            RegistrationState::Registered
+        );
+        let contents = fs::read_to_string(&configuration).expect("configuration is readable");
+        assert!(contents.contains("\"other\""));
+        assert!(contents.contains(MCP_SERVER_REGISTRATION_NAME));
+        fs::remove_dir_all(directory).expect("fixture is removed");
+    }
+
+    #[test]
+    fn registers_and_removes_trae_toml_without_changing_other_servers() {
+        let directory = test_directory("trae-toml");
+        let home = directory.join("home");
+        let configuration_directory = home.join(TRAE_CODE_CONFIGURATION_DIRECTORY);
+        fs::create_dir_all(&configuration_directory).expect("configuration directory is created");
+        let server = test_server(&directory);
+        let configuration = configuration_directory.join(TRAE_CODE_CONFIGURATION_FILE);
+        fs::write(
+            &configuration,
+            "# Keep this comment.\n[mcp_servers.other]\ncommand = \"other\"\nargs = [\"serve\"]\n",
+        )
+        .expect("configuration is created");
+
+        let service = ClientRegistrationService::at(home, None, Vec::new());
+        service
+            .register(McpClientId::TraeCode, &server)
+            .expect("Trae registration succeeds");
+
+        assert_eq!(
+            service.status(McpClientId::TraeCode, &server).state,
+            RegistrationState::Registered
+        );
+        service
+            .unregister(McpClientId::TraeCode, &server)
+            .expect("Trae removal succeeds");
+        let contents = fs::read_to_string(&configuration).expect("configuration is readable");
+        assert!(contents.contains("# Keep this comment."));
+        assert!(contents.contains("[mcp_servers.other]"));
+        assert!(!contents.contains(MCP_SERVER_REGISTRATION_NAME));
+        fs::remove_dir_all(directory).expect("fixture is removed");
+    }
+
     fn npm_test_directory() -> PathBuf {
         env::temp_dir().join(format!("worklogger-codex-npm-test-{}", std::process::id()))
+    }
+
+    fn test_directory(name: &str) -> PathBuf {
+        env::temp_dir().join(format!("worklogger-client-{name}-{}", std::process::id()))
+    }
+
+    fn test_server(directory: &Path) -> PathBuf {
+        let server = directory.join("worklogger-mcp");
+        fs::write(&server, []).expect("server is created");
+        server
     }
 }

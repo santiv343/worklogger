@@ -62,9 +62,11 @@ unset WORKLOGGER_JIRA_API_TOKEN
 
 The first `--yes` accepts npm's install prompt. The final `--yes` confirms
 Worklogger changes. `--clients` accepts `all`, `codex`, `claude-code`,
-`claude-desktop`, `cursor`, and `windsurf`. Add `--skills` only when workflow
-skills should be installed for every compatible assistant destination detected
-on that account.
+`claude-desktop`, `cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`,
+`github-copilot`, and `trae-code`. See the [MCP client support guide](../../docs/mcp-client-support.md)
+for the target configuration used by each client. Add `--skills` only when
+workflow skills should be installed for every compatible assistant destination
+detected on that account.
 
 The command never replaces unrelated or invalid client registrations. Restart
 registered clients, run `npx @santiv343/worklogger status`, and make one

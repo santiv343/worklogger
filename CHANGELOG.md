@@ -3,6 +3,17 @@
 Notable Worklogger changes are documented in this file. The project uses
 Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
+## [0.9.0] - 2026-09-10
+
+### Added
+
+- Automatic MCP registration for Qwen Code, Gemini CLI, Kiro, and GitHub
+  Copilot through their documented JSON `mcpServers` configuration.
+- Automatic MCP registration for Trae Code CLI through its documented TOML
+  configuration, preserving existing comments and unrelated servers.
+- An MCP client compatibility guide that separates common JSON clients from
+  special adapters and documents Trae IDE's project-scoped setup.
+
 ## [0.8.0] - 2026-09-09
 
 ### Added

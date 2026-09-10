@@ -45,7 +45,7 @@
   "profilePathRequired": "--profile requiere la ruta a un archivo JSON",
   "invalidSetupArguments": "setup sólo acepta --profile <archivo>",
   "installConfigPathRequired": "install requiere --config <archivo>",
-  "installClientsRequired": "install requiere --clients <all|codex,claude-code,claude-desktop,cursor,windsurf>",
+  "installClientsRequired": "install requiere --clients <all|codex,claude-code,claude-desktop,cursor,windsurf,qwen-code,gemini-cli,kiro,github-copilot,trae-code>",
   "installConfirmationRequired": "install cambia la configuración local; agregá --yes para confirmar",
   "invalidInstallArguments": "install acepta --config <archivo>, --profile <archivo>, --clients <lista>, --skills y --yes",
   "invalidInstallClients": "la lista de clientes no es válida",

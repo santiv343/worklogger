@@ -29,6 +29,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true
+toml_edit.workspace = true
 worklogger-credentials = { path = "../worklogger-credentials" }
 worklogger-profile = { path = "../worklogger-profile" }
 worklogger-settings = { path = "../worklogger-settings" }
