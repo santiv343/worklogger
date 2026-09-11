@@ -1059,6 +1059,19 @@ async fn setup_jira(profile: Option<&OrganizationProfile>) -> Result<(), CliErro
     terminal_notice(format!("{}: {identity}", copy.account_verified));
     let boards = scoped_jira_boards(jira_profile, &site, boards);
     let board_id = choose_board(&boards)?;
+    if let Some(name) = additional_connection_name()? {
+        let values = JiraSetupValues {
+            site,
+            email,
+            board_id,
+            capabilities: BTreeSet::new(),
+            hours: None,
+            limits,
+        };
+        persist_jira_connection(&name, values, &token, profile)?;
+        terminal_notice(format!("{}: {name}", copy.setup_saved));
+        return Ok(());
+    }
     let capabilities = jira_setup_capabilities(jira_profile)?;
     let hours = configure_jira_hours(&capabilities, jira_profile)?;
     let configuration = persist_jira_setup(
@@ -1076,6 +1089,113 @@ async fn setup_jira(profile: Option<&OrganizationProfile>) -> Result<(), CliErro
     let tools = WorkloggerMcpServer::configured_tool_names(&configuration).join(", ");
     terminal_notice(format!("{}: {tools}", copy.setup_saved));
     print_platform_secret_notice(JIRA_API_TOKEN_ENVIRONMENT_VARIABLE);
+    Ok(())
+}
+
+/// Asks whether a verified connection replaces the primary one or joins it.
+///
+/// Returns `None` when there is nothing to keep, so a first-time setup is not
+/// interrupted by a question that has only one sensible answer.
+#[cfg(feature = "jira")]
+fn additional_connection_name() -> Result<Option<String>, CliError> {
+    let Some(configuration) = ConfigurationStore::for_current_user()?.load()? else {
+        return Ok(None);
+    };
+    if configuration.jira.is_none() {
+        return Ok(None);
+    }
+    let copy = tui_copy();
+    let options = [
+        copy.jira_connection_primary.clone(),
+        copy.jira_connection_additional.clone(),
+    ];
+    let selection = choose(&copy.jira_connection_scope_title, &options)
+        .map_err(|error| message(error.to_string()))?;
+    if selection == 0 {
+        return Ok(None);
+    }
+    let name = prompt(&copy.jira_connection_name_label, None)?;
+    if worklogger_settings::is_valid_connection_name(&name) {
+        Ok(Some(name))
+    } else {
+        Err(message(copy.jira_connection_name_invalid.clone()))
+    }
+}
+
+/// Stores an additional connection beside the primary one.
+///
+/// Running the flow again with the same name replaces that connection, which
+/// mirrors how repeating setup replaces the primary one.
+#[cfg(feature = "jira")]
+fn persist_jira_connection(
+    name: &str,
+    values: JiraSetupValues,
+    token: &str,
+    profile: Option<&OrganizationProfile>,
+) -> Result<(), CliError> {
+    let _transaction_guard = credential_transaction()?;
+    let current = ConfigurationStore::for_current_user()?
+        .load()?
+        .ok_or_else(|| message("the primary Jira connection is not configured"))?;
+    let jira_profile = profile.and_then(|organization| organization.modules.jira.as_ref());
+    let connection = JiraConfiguration {
+        base_url: values.site,
+        email: values.email,
+        board_id: values.board_id,
+        request_timeout_seconds: values.limits.timeout_seconds,
+        page_size: values.limits.page_size,
+        maximum_collection_items: values.limits.maximum_collection_items,
+        maximum_issue_search_results: selected_jira_issue_search_limit(
+            Some(&current),
+            jira_profile,
+        ),
+        hours: None,
+    };
+    let mut configuration = current;
+    configuration.jira_connections.remove(name);
+    let configuration = configuration.with_jira_connection(name, connection.clone())?;
+    save_connection_setup(&configuration, &connection, token)
+}
+
+/// Writes the connection and its token, undoing the token when the write fails.
+///
+/// The primary path cannot be reused here: it assumes the saved connection is
+/// the one being replaced, and an additional connection replaces nothing.
+#[cfg(all(any(windows, target_os = "linux"), feature = "jira"))]
+fn save_connection_setup(
+    configuration: &McpConfiguration,
+    connection: &JiraConfiguration,
+    token: &str,
+) -> Result<(), CliError> {
+    let credentials = CredentialStore::for_purpose(CredentialPurpose::Mcp)
+        .map_err(|error| message(error.to_string()))?;
+    let previous = credentials
+        .load_api_token(&connection.base_url, &connection.email)
+        .map_err(|error| message(error.to_string()))?;
+    credentials
+        .save_api_token(&connection.base_url, &connection.email, token)
+        .map_err(|error| message(error.to_string()))?;
+    if let Err(error) = ConfigurationStore::for_current_user()?.save(configuration) {
+        let rollback = match previous {
+            Some(previous) => credentials
+                .save_api_token(&connection.base_url, &connection.email, &previous)
+                .map_err(|error| message(error.to_string())),
+            None => credentials
+                .delete_api_token(&connection.base_url, &connection.email)
+                .map_err(|error| message(error.to_string())),
+        };
+        return Err(error_with_setup_rollback(error.into(), rollback));
+    }
+    Ok(())
+}
+
+#[cfg(all(not(any(windows, target_os = "linux")), feature = "jira"))]
+fn save_connection_setup(
+    configuration: &McpConfiguration,
+    _connection: &JiraConfiguration,
+    _token: &str,
+) -> Result<(), CliError> {
+    ConfigurationStore::for_current_user()?.save(configuration)?;
     Ok(())
 }
 

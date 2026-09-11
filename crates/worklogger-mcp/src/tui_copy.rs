@@ -91,6 +91,11 @@ pub(crate) struct TuiCopy {
     pub jira_site_example: String,
     #[cfg(feature = "jira")]
     pub jira_email_label: String,
+    pub jira_connection_scope_title: String,
+    pub jira_connection_primary: String,
+    pub jira_connection_additional: String,
+    pub jira_connection_name_label: String,
+    pub jira_connection_name_invalid: String,
     #[cfg(feature = "bitbucket")]
     pub bitbucket_email_label: String,
     #[cfg(feature = "bitbucket")]
