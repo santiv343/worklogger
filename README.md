@@ -2,7 +2,7 @@
 
 > Personal Jira time tracking and reviewed Jira and Bitbucket workflows for AI assistants.
 
-[Install MCP](#install-mcp) · [Use Desktop](docs/user-guide/README.md#use-desktop) · [Documentation](docs/README.md) · [Troubleshooting](docs/user-guide/README.md#security-and-troubleshooting)
+[Download Desktop](https://github.com/santiv343/worklogger/releases/latest) · [Install MCP](#install-mcp) · [Use Desktop](docs/user-guide/README.md#use-desktop) · [Documentation](docs/README.md) · [Troubleshooting](docs/user-guide/README.md#security-and-troubleshooting)
 
 Worklogger brings three kinds of everyday work into one local tool:
 
@@ -30,7 +30,7 @@ merging a pull request.
 
 | Surface | Best for | Start here |
 | --- | --- | --- |
-| Desktop | Logging personal time, browsing work, and reading reports | [Desktop guide](docs/user-guide/README.md#use-desktop) |
+| Desktop | Logging personal time, browsing work, and reading reports | [Download](https://github.com/santiv343/worklogger/releases/latest) · [Desktop guide](docs/user-guide/README.md#use-desktop) |
 | MCP | Using Jira and Bitbucket from Codex, Claude, Cursor, and other supported clients | [Install MCP](#install-mcp) |
 
 Desktop and MCP share local preferences such as language and provider choices.
@@ -39,20 +39,35 @@ the other was configured.
 
 ## Why Worklogger
 
-Worklogger is a local companion for teams that want to use Jira and Bitbucket
-from an assistant without introducing another hosted workspace. It connects
-directly to the provider accounts you choose and keeps credentials on your
-computer.
+Atlassian ships a first-party MCP server for Jira, and it logs work fine. So why
+this one?
 
-Its focus is the work an individual repeats every week: a bounded personal time
-report, assigned issues that still need a worklog, and deliberate Jira or
-Bitbucket changes with a visible, single-use preview before any write.
+Because getting access meant asking my workspace admin to enable a Rovo-scoped
+token, and I didn't want to file a ticket to log a ticket. I already had a
+personal Atlassian API token. I wanted to use that.
 
-[Atlassian Rovo MCP](https://developer.atlassian.com/cloud/rovo-mcp/) can be a
-good complement for Atlassian's broader agent experience. Worklogger is useful
-when a local API-token setup, focused time-reporting tools, shareable
-organization limits, or reviewable provider writes fit the team better. The
-two servers can coexist in the same assistant.
+That's how it started. Two things kept it alive:
+
+- **It tells me what I forgot to log.** Ask for the week and it lists the issues
+  assigned to me with no hours on them. The official server can only answer that
+  by searching, then querying each issue one at a time.
+- **It answers "how much did I log this week" in one call**, not one call per
+  issue.
+
+Then there's the Desktop app, which is half the reason this exists. Most of my
+coworkers don't run a coding agent, and telling someone to install one so they
+can log hours is absurd. So: a window. Navigate periods, watch the week fill up,
+fix Tuesday in a grid, and export a report to XLSX or PDF when somebody asks for
+one. For them the official server isn't an alternative at all. It hands tools to
+an assistant; it isn't an application. With no assistant there's nothing to
+compare.
+
+If your admin has Rovo enabled and you only need to write worklogs, use
+[Atlassian Rovo MCP](https://developer.atlassian.com/cloud/rovo-mcp/); that's one
+less thing to install. Use Worklogger if you can't get that access, if you want
+those two questions answered without a round trip per issue, or if the people
+logging time don't have an assistant at all. The two servers can coexist in the
+same client.
 
 ## Install MCP
 
