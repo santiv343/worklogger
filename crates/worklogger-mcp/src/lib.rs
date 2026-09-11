@@ -6,8 +6,9 @@ mod client_registration;
 mod configuration;
 mod confirmation;
 #[cfg(feature = "jira")]
-mod jira_hours;
+mod jira_connections;
 #[cfg(feature = "jira")]
+mod jira_hours;
 mod jira_issues;
 #[cfg(feature = "jira")]
 mod jira_worklogs;
@@ -48,12 +49,13 @@ pub use confirmation::{
     confirmation_payload_with_context,
 };
 #[cfg(feature = "jira")]
+pub use jira_connections::RoutedJiraIssueBackend;
+#[cfg(feature = "jira")]
 pub use jira_hours::{
     JiraOwnHoursBackend, OwnHoursBackend, OwnHoursBackendError, OwnHoursFuture, OwnHoursReportData,
     OwnHoursRequest, OwnHoursToolResponse, UnloggedIssue, UnloggedIssuesData, UnloggedIssuesFuture,
     UnloggedIssuesToolResponse, resolve_period,
 };
-#[cfg(feature = "jira")]
 pub use jira_issues::{
     JiraActorData, JiraAddCommentRequest, JiraEditMetadataData, JiraGetIssueRequest,
     JiraIssueBackend, JiraIssueBackendError, JiraIssueData, JiraIssueFuture, JiraIssueKeyRequest,

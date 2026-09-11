@@ -35,7 +35,8 @@ use worklogger_mcp::{
 use worklogger_mcp::{
     DEFAULT_MAXIMUM_ISSUE_SEARCH_RESULTS, DEFAULT_MAXIMUM_REPORT_PERIOD_DAYS,
     JIRA_API_TOKEN_ENVIRONMENT_VARIABLE, JiraConfiguration, JiraHoursConfiguration,
-    JiraIssueService, JiraOwnHoursBackend, JiraWorklogService, MAXIMUM_REPORT_PERIOD_DAYS,
+    JiraIssueBackend, JiraIssueService, JiraOwnHoursBackend, JiraWorklogService,
+    MAXIMUM_REPORT_PERIOD_DAYS, RoutedJiraIssueBackend,
 };
 #[cfg(feature = "bitbucket")]
 use worklogger_profile::BitbucketModuleProfile;
@@ -755,9 +756,52 @@ fn with_jira_backends(
     let token = load_token(jira)?;
     let issues =
         JiraIssueService::new(jira, token.clone()).map_err(|error| message(error.to_string()))?;
-    let server = server.with_jira_issues(Arc::new(issues));
+    let server = server.with_jira_issues(issue_backend(configuration, Arc::new(issues)));
     let server = with_jira_worklog_backend(server, configuration, jira, token.clone())?;
     with_jira_hours_backend(server, configuration, jira, token)
+}
+
+/// Serves reads from the additional connections that already hold a credential.
+///
+/// A connection without a stored credential is skipped rather than refusing to
+/// start the server: the primary connection has to keep working even when a
+/// secondary one was configured on another machine.
+#[cfg(feature = "jira")]
+fn issue_backend(
+    configuration: &McpConfiguration,
+    primary: Arc<dyn JiraIssueBackend>,
+) -> Arc<dyn JiraIssueBackend> {
+    let named: BTreeMap<String, Arc<dyn JiraIssueBackend>> = configuration
+        .jira_connections
+        .iter()
+        .filter_map(|(name, connection)| {
+            let token = stored_token(connection)?;
+            let service = JiraIssueService::new(connection, token).ok()?;
+            Some((name.clone(), Arc::new(service) as Arc<dyn JiraIssueBackend>))
+        })
+        .collect();
+    if named.is_empty() {
+        primary
+    } else {
+        Arc::new(RoutedJiraIssueBackend::new(primary, named))
+    }
+}
+
+/// Reads one connection's token from the credential store.
+///
+/// Unlike `load_token`, the environment variable is deliberately not consulted:
+/// it carries a single token, and sending it to a second Jira site would hand a
+/// credential to a host the user never authorised for it.
+#[cfg(feature = "jira")]
+fn stored_token(configuration: &JiraConfiguration) -> Option<String> {
+    CredentialStore::for_purpose(CredentialPurpose::Mcp)
+        .ok()
+        .and_then(|store| {
+            store
+                .load_api_token(&configuration.base_url, &configuration.email)
+                .ok()
+                .flatten()
+        })
 }
 
 #[cfg(feature = "jira")]

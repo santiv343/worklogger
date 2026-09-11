@@ -72,6 +72,8 @@ pub enum JiraMutationRequest {
 pub enum JiraIssueBackendError {
     #[error("the Jira configuration is invalid")]
     InvalidConfiguration,
+    #[error("the requested Jira connection is not configured")]
+    UnknownConnection,
     #[error("the issue is not in the configured board")]
     IssueOutsideScope,
     #[error("the operation requires explicit confirmation")]
@@ -114,6 +116,10 @@ pub struct JiraGetIssueRequest {
     pub key: String,
     /// Jira field IDs to return. Omit to use a concise standard set.
     pub fields: Option<Vec<String>>,
+    /// Name of a configured additional Jira connection to read from. Omit to
+    /// use the primary connection, which is what every request targets unless
+    /// it says otherwise.
+    pub connection: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema)]
@@ -125,6 +131,10 @@ pub struct JiraSearchIssuesRequest {
     pub fields: Option<Vec<String>>,
     /// Maximum complete result count for this call.
     pub max_results: Option<usize>,
+    /// Name of a configured additional Jira connection to search. Omit to use
+    /// the primary connection. Each call states its own target, so results are
+    /// never a silent mix of two sites.
+    pub connection: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
@@ -752,7 +762,9 @@ impl<Data> JiraToolResponse<Data> {
 #[must_use]
 pub fn jira_backend_failure(error: &JiraIssueBackendError) -> ToolFailure {
     let code = match error {
-        JiraIssueBackendError::InvalidConfiguration => ERROR_INVALID_INPUT,
+        JiraIssueBackendError::InvalidConfiguration | JiraIssueBackendError::UnknownConnection => {
+            ERROR_INVALID_INPUT
+        }
         JiraIssueBackendError::IssueOutsideScope => ERROR_OUTSIDE_SCOPE,
         JiraIssueBackendError::ConfirmationRequired => ERROR_CONFIRMATION_REQUIRED,
         JiraIssueBackendError::StaleConfirmation => ERROR_STALE_CONFIRMATION,
@@ -958,7 +970,11 @@ mod tests {
         let key = required_environment("WORKLOGGER_TEST_JIRA_ISSUE_KEY");
         let service = JiraIssueService::new(&configuration, token).expect("test service is valid");
         let issue = service
-            .load_issue(JiraGetIssueRequest { key, fields: None })
+            .load_issue(JiraGetIssueRequest {
+                key,
+                fields: None,
+                connection: None,
+            })
             .await;
 
         assert!(issue.is_ok(), "live get issue failed: {issue:?}");
@@ -976,6 +992,7 @@ mod tests {
                 jql: format!("key = {key}"),
                 fields: Some(vec!["summary".to_owned()]),
                 max_results: Some(1),
+                connection: None,
             })
             .await
             .expect("bounded search");
