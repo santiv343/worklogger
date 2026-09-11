@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 #[cfg(test)]
 use std::env;
 use std::fs::{self, File};
@@ -40,6 +41,12 @@ pub(crate) struct AppSettings {
     pub hours: HoursSettings,
     #[serde(default)]
     pub reports: ReportsSettings,
+    /// Additional connections by name. The primary one stays in `jira`.
+    #[serde(default)]
+    pub connections: BTreeMap<String, JiraSettings>,
+    /// Which connection the window is showing. `None` is the primary one.
+    #[serde(default)]
+    pub active_connection: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -124,7 +131,36 @@ impl AppSettings {
     pub(crate) fn validate(&self) -> Result<(), SettingsError> {
         validate_schema(self.schema_version)?;
         validate_jira(&self.jira)?;
+        for (name, connection) in &self.connections {
+            if !worklogger_settings::is_valid_connection_name(name) {
+                return Err(invalid("jira.connections name is unusable"));
+            }
+            validate_jira(connection)?;
+        }
+        if self
+            .active_connection
+            .as_deref()
+            .is_some_and(|name| !self.connections.contains_key(name))
+        {
+            return Err(invalid("activeConnection does not name a connection"));
+        }
         validate_hours(&self.hours)
+    }
+
+    /// The connection the window is showing.
+    ///
+    /// Falls back to the primary one so the window always has something to
+    /// render, even if the pointer were left dangling by an external edit.
+    pub(crate) fn active_jira(&self) -> &JiraSettings {
+        self.active_connection
+            .as_deref()
+            .and_then(|name| self.connections.get(name))
+            .unwrap_or(&self.jira)
+    }
+
+    /// Names of the additional connections, for the account selector.
+    pub(crate) fn connection_names(&self) -> Vec<&str> {
+        self.connections.keys().map(String::as_str).collect()
     }
 }
 
@@ -597,6 +633,84 @@ mod tests {
         assert!(settings.validate().is_err());
     }
 
+    fn settings_with_connection() -> AppSettings {
+        let mut settings = valid_settings();
+        let mut other = settings.jira.clone();
+        other.board_id = settings.jira.board_id;
+        settings.connections.insert("legacy".to_owned(), other);
+        settings
+    }
+
+    #[test]
+    fn the_primary_connection_is_active_by_default() {
+        let settings = settings_with_connection();
+
+        assert_eq!(settings.connection_names(), vec!["legacy"]);
+        assert_eq!(settings.active_jira(), &settings.jira);
+    }
+
+    #[test]
+    fn selecting_a_connection_changes_what_the_window_shows() {
+        let mut settings = settings_with_connection();
+        settings.active_connection = Some("legacy".to_owned());
+
+        settings.validate().expect("the pointer resolves");
+        assert_eq!(settings.active_jira(), &settings.connections["legacy"]);
+    }
+
+    #[test]
+    fn an_active_connection_that_does_not_exist_is_rejected() {
+        let mut settings = valid_settings();
+        settings.active_connection = Some("legacy".to_owned());
+
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn an_unusable_connection_name_is_rejected() {
+        let mut settings = valid_settings();
+        settings
+            .connections
+            .insert("bad name".to_owned(), settings.jira.clone());
+
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn connections_and_the_selection_survive_the_shared_document() {
+        let mut settings = settings_with_connection();
+        settings.active_connection = Some("legacy".to_owned());
+        let mut document = worklogger_settings::SettingsDocument::default();
+
+        settings
+            .update_shared(&mut document)
+            .expect("the document accepts the settings");
+        let restored = AppSettings::from_shared(&document)
+            .expect("the document loads")
+            .expect("the primary connection is complete");
+
+        assert_eq!(restored.connection_names(), vec!["legacy"]);
+        assert_eq!(restored.active_connection.as_deref(), Some("legacy"));
+        assert_eq!(restored.active_jira(), &restored.connections["legacy"]);
+    }
+
+    #[test]
+    fn a_dangling_selection_from_an_outside_edit_falls_back_to_the_primary() {
+        let settings = valid_settings();
+        let mut document = worklogger_settings::SettingsDocument::default();
+        settings
+            .update_shared(&mut document)
+            .expect("the document accepts the settings");
+        document.active_connection = Some("legacy".to_owned());
+
+        let restored = AppSettings::from_shared(&document)
+            .expect("a dangling pointer must not fail the load")
+            .expect("the primary connection is complete");
+
+        assert!(restored.active_connection.is_none());
+        assert_eq!(restored.active_jira(), &restored.jira);
+    }
+
     fn valid_settings() -> AppSettings {
         let defaults = product_defaults();
         let (base_url, board_id) = valid_jira_scope();
@@ -627,6 +741,8 @@ mod tests {
             reports: ReportsSettings {
                 enable_team_reports: false,
             },
+            connections: BTreeMap::new(),
+            active_connection: None,
         }
     }
 
