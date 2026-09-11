@@ -82,6 +82,10 @@ pub struct McpConfiguration {
     pub jira: Option<JiraConfiguration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bitbucket: Option<BitbucketConfiguration>,
+    /// Additional named Jira connections. The primary connection stays in
+    /// `jira`; these are selected explicitly and never merged with it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub jira_connections: BTreeMap<String, JiraConfiguration>,
     pub modules: BTreeMap<ModuleId, ModuleConfiguration>,
 }
 
@@ -181,10 +185,52 @@ impl McpConfiguration {
             schema_version: CONFIGURATION_SCHEMA_VERSION,
             jira,
             bitbucket,
+            jira_connections: BTreeMap::new(),
             modules,
         };
         configuration.validate_persisted()?;
         Ok(configuration)
+    }
+
+    /// Adds a named secondary Jira connection and revalidates the result.
+    ///
+    /// The primary connection in `jira` is left untouched, so existing
+    /// behaviour is unchanged until a caller selects a name explicitly.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the name is unusable, the name is already taken,
+    /// or the connection itself is invalid.
+    pub fn with_jira_connection(
+        mut self,
+        name: &str,
+        jira: JiraConfiguration,
+    ) -> Result<Self, ConfigurationError> {
+        validate_connection_name(name)?;
+        if self.jira_connections.contains_key(name) {
+            return Err(invalid_jira("jiraConnections duplicate name"));
+        }
+        self.jira_connections.insert(name.to_owned(), jira);
+        self.validate_persisted()?;
+        Ok(self)
+    }
+
+    /// Resolves which Jira connection a request targets.
+    ///
+    /// `None` selects the primary connection, which is what every caller that
+    /// does not know about named connections keeps getting.
+    #[must_use]
+    pub fn resolve_jira(&self, connection: Option<&str>) -> Option<&JiraConfiguration> {
+        match connection {
+            None => self.jira.as_ref(),
+            Some(name) => self.jira_connections.get(name),
+        }
+    }
+
+    /// Lists the names of the configured secondary Jira connections.
+    #[must_use]
+    pub fn jira_connection_names(&self) -> Vec<&str> {
+        self.jira_connections.keys().map(String::as_str).collect()
     }
 
     /// Validates persisted configuration before use.
@@ -203,6 +249,10 @@ impl McpConfiguration {
         }
         if let Some(jira) = self.jira.as_ref() {
             validate_jira(jira)?;
+        }
+        for (name, connection) in &self.jira_connections {
+            validate_connection_name(name)?;
+            validate_jira(connection)?;
         }
         validate_bitbucket(self.bitbucket.as_ref())?;
         validate_persisted_modules(&self.modules)?;
@@ -688,6 +738,24 @@ fn storage_error(path: &Path, source: std::io::Error) -> ConfigurationError {
     ConfigurationError::Storage {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+/// Reserved name meaning "the primary connection", so it cannot label another.
+const PRIMARY_CONNECTION_NAME: &str = "default";
+const MAXIMUM_CONNECTION_NAME_LENGTH: usize = 64;
+
+fn validate_connection_name(name: &str) -> Result<(), ConfigurationError> {
+    let usable = !name.is_empty()
+        && name.len() <= MAXIMUM_CONNECTION_NAME_LENGTH
+        && name != PRIMARY_CONNECTION_NAME
+        && name
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
+    if usable {
+        Ok(())
+    } else {
+        Err(invalid_jira("jiraConnections name"))
     }
 }
 

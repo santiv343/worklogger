@@ -560,3 +560,148 @@ impl Drop for TestDirectory {
         let _result = fs::remove_dir_all(&self.path);
     }
 }
+
+#[cfg(feature = "jira")]
+fn jira_only_configuration() -> McpConfiguration {
+    configuration(ModuleConfiguration {
+        enabled: true,
+        capabilities: BTreeSet::from([Capability::ReadOwnTimeEntries]),
+    })
+}
+
+#[cfg(feature = "jira")]
+fn legacy_connection() -> JiraConfiguration {
+    JiraConfiguration {
+        board_id: 4242,
+        ..jira_configuration()
+    }
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn a_configuration_without_named_connections_resolves_the_primary() {
+    let configuration = jira_only_configuration();
+
+    assert!(configuration.jira_connection_names().is_empty());
+    assert_eq!(
+        configuration.resolve_jira(None).map(|jira| jira.board_id),
+        Some(jira_configuration().board_id)
+    );
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn an_unknown_connection_name_resolves_to_nothing() {
+    assert!(
+        jira_only_configuration()
+            .resolve_jira(Some("legacy"))
+            .is_none()
+    );
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn a_named_connection_does_not_displace_the_primary() {
+    let configuration = jira_only_configuration()
+        .with_jira_connection("legacy", legacy_connection())
+        .expect("the named connection is valid");
+
+    assert_eq!(configuration.jira_connection_names(), vec!["legacy"]);
+    assert_eq!(
+        configuration
+            .resolve_jira(Some("legacy"))
+            .map(|jira| jira.board_id),
+        Some(4242)
+    );
+    assert_eq!(
+        configuration.resolve_jira(None).map(|jira| jira.board_id),
+        Some(jira_configuration().board_id)
+    );
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn unusable_connection_names_are_rejected() {
+    let long_name = "x".repeat(65);
+    let rejected = [
+        "",
+        "default",
+        " legacy",
+        "legacy site",
+        "legacy/site",
+        long_name.as_str(),
+    ];
+
+    for name in rejected {
+        assert!(
+            jira_only_configuration()
+                .with_jira_connection(name, jira_configuration())
+                .is_err(),
+            "the name should be rejected: {name:?}"
+        );
+    }
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn a_duplicate_connection_name_is_rejected() {
+    let configuration = jira_only_configuration()
+        .with_jira_connection("legacy", jira_configuration())
+        .expect("the first named connection is valid");
+
+    assert!(
+        configuration
+            .with_jira_connection("legacy", jira_configuration())
+            .is_err()
+    );
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn an_invalid_named_connection_is_rejected() {
+    let broken = JiraConfiguration {
+        board_id: 0,
+        ..jira_configuration()
+    };
+
+    assert!(
+        jira_only_configuration()
+            .with_jira_connection("legacy", broken)
+            .is_err()
+    );
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn settings_without_named_connections_round_trip_unchanged() {
+    let configuration = jira_only_configuration();
+    let document = serde_json::to_value(&configuration).expect("the configuration serializes");
+
+    assert!(
+        document.get("jiraConnections").is_none(),
+        "an empty map must not be written into existing settings files"
+    );
+
+    let restored: McpConfiguration =
+        serde_json::from_value(document).expect("settings without the key still load");
+    assert_eq!(restored, configuration);
+}
+
+#[test]
+#[cfg(feature = "jira")]
+fn named_connections_survive_a_round_trip() {
+    let configuration = jira_only_configuration()
+        .with_jira_connection("legacy", legacy_connection())
+        .expect("the named connection is valid");
+    let document = serde_json::to_value(&configuration).expect("the configuration serializes");
+    let restored: McpConfiguration =
+        serde_json::from_value(document).expect("the configuration loads back");
+
+    assert_eq!(restored, configuration);
+    assert_eq!(
+        restored
+            .resolve_jira(Some("legacy"))
+            .map(|jira| jira.board_id),
+        Some(4242)
+    );
+}
