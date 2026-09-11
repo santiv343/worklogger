@@ -401,8 +401,15 @@ fn saved_request() -> Result<Option<ConnectionRequest>, String> {
     };
     let credentials = CredentialStore::for_purpose(CredentialPurpose::Desktop)
         .map_err(display_credential_error)?;
+    // The token has to belong to the connection being shown. Loading the
+    // primary one and handing it to another site would send a credential to a
+    // host it was never issued for.
+    let (site, email) = {
+        let jira = settings.active_jira();
+        (jira.base_url.clone(), jira.email.clone())
+    };
     let Some(token) = credentials
-        .load_api_token(&settings.jira.base_url, &settings.jira.email)
+        .load_api_token(&site, &email)
         .map_err(display_credential_error)?
     else {
         return Ok(None);
@@ -669,17 +676,23 @@ fn settings_from(request: &ConnectionRequest) -> Result<AppSettings, String> {
     })
 }
 
+/// Builds the request from the connection currently selected.
+///
+/// This is the single place the window turns settings into a live connection,
+/// so routing it through `active_jira` is what makes the grid, the reports and
+/// the export follow the selection without each of them deciding on its own.
 fn request_from(settings: AppSettings, token: String) -> ConnectionRequest {
+    let jira = settings.active_jira().clone();
     ConnectionRequest {
-        site: settings.jira.base_url,
-        email: settings.jira.email,
+        site: jira.base_url,
+        email: jira.email,
         token,
-        board_id: settings.jira.board_id,
-        request_timeout_seconds: settings.jira.request_timeout_seconds,
-        page_size: settings.jira.page_size,
-        maximum_collection_items: settings.jira.maximum_collection_items,
-        maximum_issue_search_results: settings.jira.maximum_issue_search_results,
-        maximum_concurrent_worklog_requests: settings.jira.maximum_concurrent_worklog_requests,
+        board_id: jira.board_id,
+        request_timeout_seconds: jira.request_timeout_seconds,
+        page_size: jira.page_size,
+        maximum_collection_items: jira.maximum_collection_items,
+        maximum_issue_search_results: jira.maximum_issue_search_results,
+        maximum_concurrent_worklog_requests: jira.maximum_concurrent_worklog_requests,
         weekly_target_hours: u32::from(settings.hours.weekly_target),
         utc_offset_minutes: settings.hours.utc_offset_minutes,
         maximum_daily_hours: settings.hours.maximum_daily_hours,
