@@ -741,18 +741,21 @@ fn storage_error(path: &Path, source: std::io::Error) -> ConfigurationError {
     }
 }
 
-/// Reserved name meaning "the primary connection", so it cannot label another.
-const PRIMARY_CONNECTION_NAME: &str = "default";
-const MAXIMUM_CONNECTION_NAME_LENGTH: usize = 64;
+impl JiraConfiguration {
+    /// Reports whether this connection passes the runtime checks.
+    ///
+    /// Used to skip an additional connection that the shared document accepts
+    /// as a draft but the runtime cannot serve, instead of refusing to start.
+    #[must_use]
+    pub fn is_usable(&self) -> bool {
+        validate_jira(self).is_ok()
+    }
+}
 
+/// Defers to the shared crate so a name means the same thing in the settings
+/// document, the Desktop and the MCP tool surface.
 fn validate_connection_name(name: &str) -> Result<(), ConfigurationError> {
-    let usable = !name.is_empty()
-        && name.len() <= MAXIMUM_CONNECTION_NAME_LENGTH
-        && name != PRIMARY_CONNECTION_NAME
-        && name
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
-    if usable {
+    if worklogger_settings::is_valid_connection_name(name) {
         Ok(())
     } else {
         Err(invalid_jira("jiraConnections name"))

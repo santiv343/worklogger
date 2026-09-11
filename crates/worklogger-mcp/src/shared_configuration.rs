@@ -27,7 +27,9 @@ impl McpConfiguration {
         if !runtime_complete(&modules, jira.as_ref(), bitbucket.as_ref()) {
             return Ok(None);
         }
-        Self::build(jira, bitbucket, modules).map(Some)
+        let mut configuration = Self::build(jira, bitbucket, modules)?;
+        configuration.jira_connections = project_connections(document);
+        Ok(Some(configuration))
     }
 
     /// Imports explicit MCP settings while preserving preferences owned by Desktop.
@@ -39,6 +41,7 @@ impl McpConfiguration {
             update_jira(document, jira);
             update_hours(document, jira.hours.as_ref());
         }
+        update_connections(document, &self.jira_connections);
         if let Some(bitbucket) = &self.bitbucket {
             document.bitbucket = Some(worklogger_settings::BitbucketSettings {
                 email: Some(bitbucket.email.clone()),
@@ -104,6 +107,75 @@ fn project_jira(document: &SettingsDocument) -> Option<JiraConfiguration> {
         maximum_issue_search_results: jira.maximum_issue_search_results?,
         hours: project_hours(document),
     })
+}
+
+/// Projects the additional connections the runtime can actually serve.
+///
+/// A connection the shared document accepts as a draft but the runtime cannot
+/// use is skipped rather than failing the whole projection: a half-configured
+/// secondary connection must not stop the primary one from working.
+fn project_connections(document: &SettingsDocument) -> BTreeMap<String, JiraConfiguration> {
+    document
+        .jira_connections
+        .iter()
+        .filter_map(|(name, settings)| {
+            let connection = project_connection(settings)?;
+            if connection.is_usable() {
+                Some((name.clone(), connection))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Projects one additional connection.
+///
+/// Hours are deliberately left out: only issue reads are routed to a named
+/// connection, so a secondary site never needs the time-entry limits, and the
+/// shared `hours` section describes the person rather than any one site.
+fn project_connection(settings: &JiraSettings) -> Option<JiraConfiguration> {
+    Some(JiraConfiguration {
+        base_url: settings.base_url.clone()?,
+        email: settings.email.clone()?,
+        board_id: settings.board_id?,
+        request_timeout_seconds: settings.request_timeout_seconds?,
+        page_size: settings.page_size?,
+        maximum_collection_items: settings.maximum_collection_items?,
+        maximum_issue_search_results: settings.maximum_issue_search_results?,
+        hours: None,
+    })
+}
+
+/// Writes the known connections back without disturbing the rest.
+///
+/// This merges instead of replacing on purpose. A connection that
+/// `project_connections` skipped is absent from the runtime, and replacing the
+/// map wholesale would delete it from the user's settings file. The Desktop's
+/// `activeConnection` is left untouched for the same reason.
+fn update_connections(
+    document: &mut SettingsDocument,
+    connections: &BTreeMap<String, JiraConfiguration>,
+) {
+    for (name, connection) in connections {
+        let maximum_concurrent_worklog_requests = document
+            .jira_connections
+            .get(name)
+            .and_then(|current| current.maximum_concurrent_worklog_requests);
+        document.jira_connections.insert(
+            name.clone(),
+            JiraSettings {
+                base_url: Some(connection.base_url.clone()),
+                email: Some(connection.email.clone()),
+                board_id: Some(connection.board_id),
+                request_timeout_seconds: Some(connection.request_timeout_seconds),
+                page_size: Some(connection.page_size),
+                maximum_collection_items: Some(connection.maximum_collection_items),
+                maximum_issue_search_results: Some(connection.maximum_issue_search_results),
+                maximum_concurrent_worklog_requests,
+            },
+        );
+    }
 }
 
 fn project_hours(document: &SettingsDocument) -> Option<JiraHoursConfiguration> {

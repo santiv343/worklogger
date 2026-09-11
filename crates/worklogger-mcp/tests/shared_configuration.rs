@@ -149,3 +149,89 @@ fn shared_store_observes_other_frontend_and_uninstall_preserves_shared_preferenc
     assert!(persisted.mcp.is_none());
     fs::remove_dir_all(directory).unwrap();
 }
+
+fn connection(board_id: Option<u64>) -> worklogger_settings::JiraSettings {
+    worklogger_settings::JiraSettings {
+        base_url: Some("https://legacy.atlassian.net".into()),
+        email: Some("person@example.com".into()),
+        board_id,
+        request_timeout_seconds: Some(30),
+        page_size: Some(50),
+        maximum_collection_items: Some(1_000),
+        maximum_issue_search_results: Some(1_000),
+        maximum_concurrent_worklog_requests: Some(4),
+    }
+}
+
+fn document_with(connection_settings: worklogger_settings::JiraSettings) -> SettingsDocument {
+    let mut document = SettingsDocument::default();
+    runtime().update_shared(&mut document).unwrap();
+    document
+        .jira_connections
+        .insert("legacy".into(), connection_settings);
+    document
+}
+
+#[test]
+fn a_named_connection_reaches_the_runtime_without_hours() {
+    let document = document_with(connection(Some(99)));
+
+    let configuration = McpConfiguration::from_shared(&document).unwrap().unwrap();
+    let legacy = configuration.resolve_jira(Some("legacy")).unwrap();
+
+    assert_eq!(configuration.jira_connection_names(), vec!["legacy"]);
+    assert_eq!(legacy.board_id, 99);
+    assert!(
+        legacy.hours.is_none(),
+        "hours describe the person and the primary site, not a secondary one"
+    );
+}
+
+#[test]
+fn an_incomplete_connection_is_skipped_instead_of_failing_the_projection() {
+    let document = document_with(connection(None));
+
+    let configuration = McpConfiguration::from_shared(&document).unwrap().unwrap();
+
+    assert!(configuration.jira_connection_names().is_empty());
+    assert_eq!(configuration.resolve_jira(None), runtime().jira.as_ref());
+}
+
+#[test]
+fn writing_back_keeps_a_connection_the_runtime_skipped() {
+    let mut document = document_with(connection(None));
+    let configuration = McpConfiguration::from_shared(&document).unwrap().unwrap();
+    assert!(configuration.jira_connection_names().is_empty());
+
+    configuration.update_shared(&mut document).unwrap();
+
+    assert!(
+        document.jira_connections.contains_key("legacy"),
+        "a draft the runtime could not serve must survive a write-back"
+    );
+    assert_eq!(document.jira_connections["legacy"].board_id, None);
+}
+
+#[test]
+fn writing_back_leaves_the_desktop_active_connection_alone() {
+    let mut document = document_with(connection(Some(99)));
+    document.active_connection = Some("legacy".into());
+
+    let configuration = McpConfiguration::from_shared(&document).unwrap().unwrap();
+    configuration.update_shared(&mut document).unwrap();
+
+    assert_eq!(document.active_connection.as_deref(), Some("legacy"));
+}
+
+#[test]
+fn a_connection_round_trips_through_the_shared_document() {
+    let mut document = document_with(connection(Some(99)));
+    let configuration = McpConfiguration::from_shared(&document).unwrap().unwrap();
+
+    configuration.update_shared(&mut document).unwrap();
+
+    assert_eq!(
+        McpConfiguration::from_shared(&document).unwrap(),
+        Some(configuration)
+    );
+}

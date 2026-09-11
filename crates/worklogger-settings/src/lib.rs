@@ -16,6 +16,24 @@ const MAXIMUM_WEEKLY_HOURS: u16 = 168;
 const MAXIMUM_OFFSET_MINUTES: i16 = 14 * 60;
 const MAXIMUM_DAILY_HOURS: u8 = 24;
 const MINUTES_PER_HOUR: u8 = 60;
+/// Reserved name meaning "the primary connection", so it cannot label another.
+pub const PRIMARY_CONNECTION_NAME: &str = "default";
+/// Upper bound for a connection name, which also travels as an MCP argument.
+pub const MAXIMUM_CONNECTION_NAME_LENGTH: usize = 64;
+
+/// Reports whether `name` can label an additional provider connection.
+///
+/// Names reach the MCP tool surface and the settings file, so they are kept to
+/// a conservative character set instead of being trusted as free text.
+#[must_use]
+pub fn is_valid_connection_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= MAXIMUM_CONNECTION_NAME_LENGTH
+        && name != PRIMARY_CONNECTION_NAME
+        && name
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -28,6 +46,14 @@ pub struct SettingsDocument {
     pub reports: Option<ReportsSettings>,
     pub bitbucket: Option<BitbucketSettings>,
     pub mcp: Option<McpSettings>,
+    /// Additional Jira connections by name. The primary one stays in `jira`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub jira_connections: BTreeMap<String, JiraSettings>,
+    /// Which connection the Desktop is currently showing. `None` is the
+    /// primary one. The MCP ignores this: it takes a target per call instead,
+    /// so no hidden state decides what an assistant reads.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_connection: Option<String>,
 }
 
 impl Default for SettingsDocument {
@@ -41,6 +67,8 @@ impl Default for SettingsDocument {
             reports: None,
             bitbucket: None,
             mcp: None,
+            jira_connections: BTreeMap::new(),
+            active_connection: None,
         }
     }
 }
@@ -132,8 +160,23 @@ impl SettingsDocument {
         if let Some(bitbucket) = &self.bitbucket {
             validate_bitbucket(bitbucket)?;
         }
+        validate_connections(&self.jira_connections, self.active_connection.as_deref())?;
         validate_consent(self.mcp.as_ref())
     }
+}
+
+fn validate_connections(
+    connections: &BTreeMap<String, JiraSettings>,
+    active: Option<&str>,
+) -> Result<(), SettingsError> {
+    for (name, connection) in connections {
+        require(is_valid_connection_name(name), "jiraConnections.name")?;
+        validate_jira(connection)?;
+    }
+    require(
+        active.is_none_or(|name| connections.contains_key(name)),
+        "activeConnection",
+    )
 }
 
 fn validate_jira(jira: &JiraSettings) -> Result<(), SettingsError> {
@@ -249,5 +292,90 @@ fn require(valid: bool, field: &'static str) -> Result<(), SettingsError> {
         Ok(())
     } else {
         Err(SettingsError::Invalid(field))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{JiraSettings, SettingsDocument, is_valid_connection_name};
+
+    fn connection() -> JiraSettings {
+        JiraSettings {
+            base_url: Some("https://legacy.atlassian.net".to_owned()),
+            email: Some("person@example.com".to_owned()),
+            board_id: Some(99),
+            ..JiraSettings::default()
+        }
+    }
+
+    #[test]
+    fn usable_connection_names_are_accepted() {
+        for name in ["legacy", "old-site", "site_2", "A"] {
+            assert!(is_valid_connection_name(name), "should accept {name:?}");
+        }
+    }
+
+    #[test]
+    fn unusable_connection_names_are_rejected() {
+        let long_name = "x".repeat(65);
+        for name in ["", "default", " legacy", "legacy site", "a/b", &long_name] {
+            assert!(!is_valid_connection_name(name), "should reject {name:?}");
+        }
+    }
+
+    #[test]
+    fn a_document_without_connections_is_valid_and_omits_the_keys() {
+        let document = SettingsDocument::default();
+        document
+            .validate()
+            .expect("an empty document is a valid draft");
+
+        let encoded = serde_json::to_value(&document).expect("the document serializes");
+        assert!(encoded.get("jiraConnections").is_none());
+        assert!(encoded.get("activeConnection").is_none());
+
+        let restored: SettingsDocument =
+            serde_json::from_value(encoded).expect("a document without the keys still loads");
+        assert_eq!(restored, document);
+    }
+
+    #[test]
+    fn a_connection_with_an_unusable_name_is_rejected() {
+        let mut document = SettingsDocument::default();
+        document
+            .jira_connections
+            .insert("bad name".to_owned(), connection());
+
+        assert!(document.validate().is_err());
+    }
+
+    #[test]
+    fn an_active_connection_must_name_a_configured_one() {
+        let mut document = SettingsDocument {
+            active_connection: Some("legacy".to_owned()),
+            ..SettingsDocument::default()
+        };
+        assert!(document.validate().is_err());
+
+        document
+            .jira_connections
+            .insert("legacy".to_owned(), connection());
+        document.validate().expect("the name now resolves");
+    }
+
+    #[test]
+    fn a_draft_connection_is_allowed_to_be_incomplete() {
+        let mut document = SettingsDocument::default();
+        document.jira_connections.insert(
+            "legacy".to_owned(),
+            JiraSettings {
+                board_id: None,
+                ..connection()
+            },
+        );
+
+        document
+            .validate()
+            .expect("an incomplete connection is still an editable draft");
     }
 }
