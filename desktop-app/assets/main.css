@@ -85,7 +85,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .identity { color: var(--color-text-muted); font-size: .875rem; gap: 9px; justify-self: end; }
 .avatar { align-items: center; background: var(--color-accent-subtle); border: 1px solid var(--color-avatar-border); border-radius: 50%; color: var(--color-primary); display: inline-flex; font-size: .75rem; font-weight: 700; height: 34px; justify-content: center; width: 34px; }
 .avatar.small { flex: 0 0 auto; height: 32px; width: 32px; }
-.connection-dot { background: var(--color-success); border: 2px solid var(--color-surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--color-success-border); height: 9px; margin-left: -15px; margin-top: 22px; width: 9px; }
 
 .app-content { margin: 0 auto; max-width: 1440px; padding: 32px; }
 .home-section-title { font-size: 1rem; margin: 0 0 12px; }
@@ -434,7 +433,7 @@ textarea { resize: vertical; }
   .configuration-choice { grid-template-columns: 1fr; }
   .configuration-choice .button { width: 100%; }
   .app-header { padding: 0 18px; }
-  .identity > span:nth-child(3), .identity .button span { display: none; }
+  .identity > span:nth-child(2), .identity .button span { display: none; }
   .app-content { padding: 24px; }
   .metrics { grid-template-columns: 1fr 1fr; row-gap: 20px; }
   .metric:nth-child(3) { border-left: 0; padding-left: 0; }

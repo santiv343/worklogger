@@ -824,7 +824,7 @@ fn AppHeader(
                 strong { "{section}" }
             }
             div { class: "identity", span { class: "avatar", "{initials(&identity)}" }
-                span { class: "connection-dot", aria_hidden: "true" } span { "{identity}" }
+                span { "{identity}" }
                 if !demo { button { class: "icon-button header-action", aria_label: text("action.preferences"), title: text("action.preferences"), onclick: move |_| preferences_open.set(true),
                     Icon { kind: IconKind::Settings }
                 } }
