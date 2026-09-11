@@ -83,6 +83,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .module-context { display: grid; line-height: 1.15; }
 .module-context strong { font-size: 1rem; margin-top: 3px; }
 .identity { color: var(--color-text-muted); font-size: .875rem; gap: 9px; justify-self: end; }
+.account-selector { background: var(--color-surface); border: 1px solid var(--color-avatar-border); border-radius: var(--radius-md); color: var(--color-text-muted); font: inherit; max-width: 180px; padding: 4px 8px; }
+.account-selector:focus-visible { border-color: var(--color-primary); color: var(--color-primary); outline: none; }
 .avatar { align-items: center; background: var(--color-accent-subtle); border: 1px solid var(--color-avatar-border); border-radius: 50%; color: var(--color-primary); display: inline-flex; font-size: .75rem; font-weight: 700; height: 34px; justify-content: center; width: 34px; }
 .avatar.small { flex: 0 0 auto; height: 32px; width: 32px; }
 

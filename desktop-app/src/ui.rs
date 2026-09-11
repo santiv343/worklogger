@@ -10,8 +10,9 @@ use time::{
 use crate::async_request::AsyncRequestId;
 use crate::connection::restore;
 use crate::connection::{
-    connect_and_save, create_worklog, delete_worklog, disconnect, load_period, search_issues,
-    unlogged_assigned_sprint_issues, update_configuration, update_worklog,
+    ConnectionChoices, available_connections, connect_and_save, create_worklog, delete_worklog,
+    disconnect, load_period, search_issues, select_connection, unlogged_assigned_sprint_issues,
+    update_configuration, update_worklog,
 };
 use crate::connection_model::{
     AccessibleIssue, ConfigurationUpdate, ConnectedSession, ConnectionConfiguration,
@@ -336,6 +337,8 @@ fn LiveDashboard(
             on_configuration_loaded: move |()| reload_after_configuration_import(state, configuration_revision),
             on_error_close: move |_| state.set(AppState::Connected(Box::new(clear_fallback.clone()), None)),
             on_disconnect: move |_| start_disconnect(state),
+            connections: available_connections(),
+            on_select_connection: move |name| start_connection_switch(name, state),
         }
     }
 }
@@ -399,6 +402,8 @@ fn Dashboard(
     on_configuration_loaded: EventHandler<()>,
     on_error_close: EventHandler<MouseEvent>,
     on_disconnect: EventHandler<MouseEvent>,
+    connections: ConnectionChoices,
+    on_select_connection: EventHandler<Option<String>>,
 ) -> Element {
     let dialog_worklogs = worklogs.clone();
     let today = local_today(configuration.as_ref());
@@ -431,7 +436,7 @@ fn Dashboard(
         div { class: "application-shell",
             ModuleNavigation { active: active_view, on_select: move |target| active_view.set(target) }
             div { class: "shell-content",
-                AppHeader { active: active_view(), identity, demo, preferences_open, disconnect_confirmation, on_disconnect }
+                AppHeader { active: active_view(), identity, demo, preferences_open, disconnect_confirmation, on_disconnect, connections, on_select_connection }
                 main { class: "app-content",
                     if let Some(message) = error { ErrorNotice { message, on_close: on_error_close } }
                     if notice() { DemoNotice { on_close: move |_| notice.set(false) } }
@@ -634,6 +639,20 @@ fn HomeModuleCard(
     } }
 }
 
+/// Switches the window to another account and reconnects.
+///
+/// Reconnecting is not optional: the session holds a report, an identity and a
+/// token that all belong to the previous account, so none of it can be reused.
+fn start_connection_switch(name: Option<String>, mut state: Signal<AppState>) {
+    if let Err(error) = select_connection(name) {
+        return state.set(AppState::Setup(Some(error), false));
+    }
+    state.set(AppState::Setup(None, true));
+    spawn(async move {
+        state.set(restored_state(restore().await));
+    });
+}
+
 fn start_disconnect(mut state: Signal<AppState>) {
     state.set(AppState::Disconnecting);
     let next = match disconnect() {
@@ -810,6 +829,8 @@ fn AppHeader(
     mut preferences_open: Signal<bool>,
     mut disconnect_confirmation: Signal<bool>,
     on_disconnect: EventHandler<MouseEvent>,
+    connections: ConnectionChoices,
+    on_select_connection: EventHandler<Option<String>>,
 ) -> Element {
     let action = if demo {
         text("action.leaveDemo")
@@ -825,6 +846,31 @@ fn AppHeader(
             }
             div { class: "identity", span { class: "avatar", "{initials(&identity)}" }
                 span { "{identity}" }
+                if !connections.names.is_empty() {
+                    select {
+                        class: "account-selector",
+                        aria_label: text("action.selectAccount"),
+                        onchange: move |event| {
+                            let value = event.value();
+                            on_select_connection.call(
+                                if value.is_empty() { None } else { Some(value) },
+                            );
+                        },
+                        option {
+                            value: "",
+                            selected: connections.active.is_none(),
+                            "{connections.primary}"
+                        }
+                        for name in connections.names.iter() {
+                            option {
+                                key: "{name}",
+                                value: "{name}",
+                                selected: connections.active.as_deref() == Some(name.as_str()),
+                                "{name}"
+                            }
+                        }
+                    }
+                }
                 if !demo { button { class: "icon-button header-action", aria_label: text("action.preferences"), title: text("action.preferences"), onclick: move |_| preferences_open.set(true),
                     Icon { kind: IconKind::Settings }
                 } }

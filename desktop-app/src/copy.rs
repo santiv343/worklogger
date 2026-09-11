@@ -66,9 +66,52 @@ mod tests {
     fn embedded_copy_has_no_empty_values() {
         let values: HashMap<String, String> =
             serde_json::from_str(ENGLISH_COPY).expect("English copy resource is valid JSON");
+        assert!(values.values().all(|value| !value.trim().is_empty()));
+    }
+
+    /// Compares the key sets rather than their sizes.
+    ///
+    /// `text` panics on a key it cannot find, so a key present in only one
+    /// language crashes the window for whoever selected that language. Equal
+    /// counts do not rule that out: two files can hold the same number of
+    /// different keys.
+    #[test]
+    fn both_languages_define_exactly_the_same_keys() {
+        let english: HashMap<String, String> =
+            serde_json::from_str(ENGLISH_COPY).expect("English copy resource is valid JSON");
         let spanish: HashMap<String, String> =
             serde_json::from_str(SPANISH_COPY).expect("Spanish copy resource is valid JSON");
-        assert!(values.values().all(|value| !value.trim().is_empty()));
-        assert_eq!(values.len(), spanish.len());
+
+        let mut only_english: Vec<&str> = english
+            .keys()
+            .filter(|key| !spanish.contains_key(*key))
+            .map(String::as_str)
+            .collect();
+        let mut only_spanish: Vec<&str> = spanish
+            .keys()
+            .filter(|key| !english.contains_key(*key))
+            .map(String::as_str)
+            .collect();
+        only_english.sort_unstable();
+        only_spanish.sort_unstable();
+
+        assert!(
+            only_english.is_empty() && only_spanish.is_empty(),
+            "missing translations -> only in English: {only_english:?}; only in Spanish: {only_spanish:?}"
+        );
+        assert!(spanish.values().all(|value| !value.trim().is_empty()));
+    }
+
+    /// Guards the key the header needs, without assuming a language.
+    ///
+    /// `text` resolves against whichever language is selected, so asserting an
+    /// English string here would fail on a Spanish machine.
+    #[test]
+    fn the_account_selector_has_copy_in_both_languages() {
+        for resource in [ENGLISH_COPY, SPANISH_COPY] {
+            let values: HashMap<String, String> =
+                serde_json::from_str(resource).expect("copy resource is valid JSON");
+            assert!(values.contains_key("action.selectAccount"));
+        }
     }
 }

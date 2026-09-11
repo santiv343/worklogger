@@ -386,6 +386,60 @@ fn committed_refresh_result(refresh: Result<ConnectedSession, String>) -> Worklo
     }
 }
 
+/// The accounts the header can offer, and which one is showing.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ConnectionChoices {
+    /// Host of the primary connection, which has no name of its own.
+    pub primary: String,
+    pub names: Vec<String>,
+    pub active: Option<String>,
+}
+
+/// Reads the accounts available to switch between.
+///
+/// Returns an empty set rather than an error: a header that cannot list the
+/// accounts should render without a selector, not refuse to render.
+pub(crate) fn available_connections() -> ConnectionChoices {
+    let Ok(store) = SettingsStore::for_current_user() else {
+        return ConnectionChoices::default();
+    };
+    let Ok(Some(settings)) = store.load() else {
+        return ConnectionChoices::default();
+    };
+    ConnectionChoices {
+        primary: site_host(&settings.jira.base_url),
+        names: settings
+            .connection_names()
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        active: settings.active_connection.clone(),
+    }
+}
+
+/// Records which account the window should show. `None` selects the primary.
+///
+/// # Errors
+///
+/// Fails when the settings cannot be read or written.
+pub(crate) fn select_connection(name: Option<String>) -> Result<(), String> {
+    let store = SettingsStore::for_current_user().map_err(display_settings_error)?;
+    let Some(mut settings) = store.load().map_err(display_settings_error)? else {
+        return Ok(());
+    };
+    settings.active_connection = name;
+    store.save(&settings).map_err(display_settings_error)
+}
+
+/// Labels a connection by its host, which is what tells two accounts apart.
+fn site_host(base_url: &str) -> String {
+    base_url
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .trim_end_matches('/')
+        .to_owned()
+}
+
 fn required_saved_request() -> Result<ConnectionRequest, String> {
     saved_request()?.ok_or_else(|| text("connection.requiredForChange").to_owned())
 }

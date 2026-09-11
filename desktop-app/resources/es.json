@@ -100,6 +100,7 @@
   "action.close": "Cerrar",
   "action.retry": "Reintentar",
   "action.disconnect": "Desconectar",
+  "action.selectAccount": "Cambiar de cuenta",
   "action.preferences": "Configuración",
   "action.leaveDemo": "Salir de la demostración",
   "worklog.issue": "Tarea *",
