@@ -1,5 +1,9 @@
 # Worklogger documentation
 
+Start with the user guide for setup and everyday use. These documents follow
+`main`; any behavior newer than the [published release](https://github.com/santiv343/worklogger/releases/latest)
+is labeled as requiring a source build.
+
 ## Start here
 
 - [User guide](user-guide/README.md): choose Desktop or MCP, configure your
@@ -8,6 +12,7 @@
   requesting or handling a token in chat.
 - [Supported MCP clients](mcp-client-support.md): registration targets and
   client-specific limits.
+- [MCP tools](tools.md): Jira and Bitbucket operations, scope, and confirmation.
 - [Permissions and privacy](security/permission-model.md): provider scope,
   confirmations, credentials, and data shared with an assistant.
 
@@ -21,7 +26,6 @@
 ## Development reference
 
 - [Modular architecture](architecture/modularity.md)
-- [MCP provider tools](architecture/mcp-provider-tools.md)
 - [Architecture decisions](adr/README.md)
 - [Contributing](../CONTRIBUTING.md)
 

@@ -19,7 +19,7 @@ registration implementation.
 | Qwen Code | `qwen-code` | `~/.qwen/settings.json` |
 | Gemini CLI | `gemini-cli` | `~/.gemini/settings.json` |
 | Kiro | `kiro` | `~/.kiro/settings/mcp.json` |
-| GitHub Copilot | `github-copilot` | `~/.copilot/mcp-config.json` |
+| GitHub Copilot CLI | `github-copilot` | `~/.copilot/mcp-config.json` |
 
 The common MCP stdio shape is:
 
@@ -80,7 +80,7 @@ it does not assume that every MCP client also loads skills.
 - [Qwen Code MCP configuration](https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/)
 - [Gemini CLI MCP setup](https://geminicli.com/docs/cli/tutorials/mcp-setup/)
 - [Kiro MCP configuration](https://kiro.dev/docs/mcp/configuration/)
-- [GitHub Copilot MCP configuration](https://code.visualstudio.com/docs/agents/reference/mcp-configuration)
+- [GitHub Copilot CLI MCP configuration](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers)
 - [Trae Code CLI configuration](https://docs.trae.cn/cli_config-file)
 - [Trae IDE MCP servers](https://docs.trae.cn/ide_add-mcp-servers)
 - [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills)

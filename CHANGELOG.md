@@ -93,100 +93,101 @@ Semantic Versioning and dates use the `YYYY-MM-DD` format.
 
 ## [0.7.8] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- La TUI adopta una interfaz de paneles con navegación contextual, foco visible
-  y una jerarquía visual uniforme en todos los flujos interactivos.
-- Skills presenta una tarjeta por asistente con métricas de instalación,
-  actualización y conflictos, antes y después de ejecutar el flujo.
-- Los selectores, confirmaciones, campos, mensajes y estados de progreso usan
-  superficies compactas que se adaptan al contenido y al tamaño de terminal.
+- The TUI uses panels with contextual navigation, visible focus, and a consistent
+  visual hierarchy across interactive flows.
+- Skills shows one card per assistant with installation, update, and conflict
+  counts before and after the workflow.
+- Selectors, confirmations, fields, messages, and progress states use compact
+  layouts that adapt to their content and the terminal size.
 
 ## [0.7.7] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- La TUI presenta progreso, resultados y errores dentro de la misma sesión,
-  sin devolver mensajes a la consola al terminar el flujo.
-- El dashboard elimina paneles anidados y usa una jerarquía visual más limpia
-  para estado, acciones y foco.
-- La instalación de skills muestra primero el estado por asistente, detecta
-  conflictos sin sobrescribir archivos ajenos y verifica el resultado final.
+- The TUI shows progress, results, and errors within the same session instead of
+  returning messages to the console after a workflow ends.
+- The dashboard removes nested panels and simplifies the visual hierarchy for
+  status, actions, and focus.
+- Skill installation first shows each assistant's status, detects conflicts
+  without overwriting unrelated files, and verifies the final result.
 
 ## [0.7.6] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- La TUI mantiene una única sesión visual al navegar entre sus pantallas; volver
-  con `Esc` ya no expone la consola entre pasos.
-- La configuración de Bitbucket puede conservar reviewers adicionales y la
-  preferencia de cerrar la rama fuente para los PRs futuros.
+- The TUI keeps one visual session when navigating between screens; returning
+  with `Esc` no longer exposes the console between steps.
+- Bitbucket settings can retain additional reviewers and a source-branch
+  closure preference for future pull requests.
 
-### Corregido
+### Fixed
 
-- Un merge asíncrono informa que sigue pendiente e incluye el identificador de
-  tarea en lugar de reportarse como terminado.
-- Desktop conserva la hora, zona horaria y segundos al editar una carga sin
-  cambiar esos campos.
-- Se corrigieron la espera de procesos de clientes, la instalación parcial de
-  skills, el roster de reportes y la propagación de errores de Clippy en Windows.
+- An asynchronous merge reports that it is still pending and includes the task
+  identifier instead of reporting completion.
+- Desktop preserves the time, time zone, and seconds when editing a worklog
+  without changing those fields.
+- Fixed waits for client processes, partial skill installation, report rosters,
+  and propagation of Clippy errors on Windows.
 
 ## [0.7.5] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- La configuración presenta Jira y Bitbucket como tarjetas descriptivas y
-  agrupa las capacidades de cada integración en una única selección.
-- Los campos de texto ahora permiten editar valores predeterminados, mover el
-  cursor y pegar contenido; los secretos permanecen enmascarados.
-- Las listas usan una jerarquía visual consistente, color de foco y navegación
-  por teclado o mouse.
+- Settings presents Jira and Bitbucket as descriptive cards and groups each
+  integration's capabilities into a single selection.
+- Text fields support editing default values, moving the cursor, and pasting;
+  secrets remain masked.
+- Lists use a consistent visual hierarchy, focus color, and keyboard or mouse
+  navigation.
 
-### Corregido
+### Fixed
 
-- `Esc` y `q` cancelan el paso actual sin elegir accidentalmente otra opción;
-  al volver desde el menú principal se conserva el dashboard.
-- Los clics fuera de una lista y los clics sobre listas desplazadas ya no
-  seleccionan elementos incorrectos.
+- `Esc` and `q` cancel the current step without accidentally choosing another
+  option; returning from the main menu preserves the dashboard.
+- Clicking outside a list or inside a scrolled list no longer selects the wrong
+  item.
 
 ## [0.7.4] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- Todo el asistente MCP usa la TUI: proveedores, sitios, tableros,
-  repositorios, capacidades, clientes, confirmaciones y campos de texto.
-- Los tokens se ingresan en un campo enmascarado dentro de la TUI.
+- The entire MCP setup flow uses the TUI: providers, sites, boards, repositories,
+  capabilities, clients, confirmations, and text fields.
+- Tokens are entered in a masked field within the TUI.
 
 ## [0.7.3] - 2026-09-09
 
-### Cambiado
+### Changed
 
-- El menú interactivo ahora usa una TUI con paneles, colores, navegación por
-  teclado y selección mediante mouse.
+- The interactive menu uses a TUI with panels, colors, keyboard navigation, and
+  mouse selection.
 
 ## [0.7.2] - 2026-09-09
 
-### Corregido
+### Fixed
 
-- La publicación npm configura explícitamente la autenticación del registro
-  público mediante el secreto de CI.
+- npm publication explicitly configures authentication for the public registry
+  using the CI secret.
 
 ## [0.7.1] - 2026-09-09
 
-### Corregido
+### Fixed
 
-- El paquete npm se valida y publica independientemente del instalador desktop.
-- El fixture de estado de Codex es portable entre shells Unix de CI.
+- The npm package is validated and published independently of the Desktop
+  installer.
+- The Codex status fixture is portable across Unix shells in CI.
 
 ## [0.7.0] - 2026-09-09
 
-### Agregado
+### Added
 
-- Bootstrap MCP público y skills de flujo instalables sin una cuenta o token de
-  Worklogger.
-- Licencia MIT para el código y el paquete npm.
+- Public MCP bootstrap and installable workflow skills without a Worklogger
+  account or token.
+- MIT license for the source code and npm package.
 
-### Cambiado
+### Changed
 
-- El pipeline público distribuye solamente la edición Community. Los perfiles
-  Managed se construyen por separado, con configuración externa.
+- The public pipeline distributes only the Community edition. Managed profiles
+  are built separately with external configuration.

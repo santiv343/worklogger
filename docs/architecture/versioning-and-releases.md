@@ -28,9 +28,10 @@ with the Community Windows Desktop installer and portable ZIP, Windows and
 Linux MCP binaries, and their checksums. GitHub Releases are the durable download
 location; Actions artifacts are build outputs with limited retention.
 
-This release-upload path takes effect with the next successful `v*` tag after
-its introduction. Until that tag has run, the releases page may have no assets.
-Do not advertise a Desktop download as available until the release contains it.
+[v0.9.3](https://github.com/santiv343/worklogger/releases/tag/v0.9.3) includes
+these public downloads. Changes on `main` are not automatically included in a
+published binary; use the matching tag when checking behavior or examples.
+
 Managed profiles and binaries are built and distributed separately through the
 organization's private process.
 

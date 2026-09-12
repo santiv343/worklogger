@@ -73,8 +73,7 @@ The binary location depends on the user and operating system. Tokens are never
 written to MCP client configuration. Desktop and the TUI use a versioned
 per-user location, so moving a portable app does not break existing registrations.
 
-The original client catalog included Codex, Claude Code, Claude Desktop, Cursor,
-and Windsurf. See the [client support guide](../mcp-client-support.md) for the
+See the [client support guide](../mcp-client-support.md) for the
 current catalog and configuration targets. Codex registration uses its official
 CLI. On Windows, the standard npm installation is resolved from `codex.cmd` to
 Node and `codex.js` without executing the shim through a shell. JSON clients
@@ -190,16 +189,5 @@ Runtime configuration can only reduce compiled functionality. The distribution
 plan calls for a small number of tested combinations, such as Community,
 Managed/PM, and Developer where needed, rather than a `2^N` variant matrix.
 
-## Incremental evolution
-
-The original migration sequence and recorded milestones are preserved below.
-These describe architectural progress, not release availability; see the
-[changelog](../../CHANGELOG.md) for shipped behavior.
-
-1. Register existing add-ons without changing behavior. Completed.
-2. Extract UI orchestration into use cases. In progress in the migration plan.
-3. Add ports to Time Tracking. Completed.
-4. Separate Jira transport while adding general CRUD. Completed in MCP.
-5. Extract reusable Reports analytics and renderers. Planned.
-6. Introduce Bitbucket as an independent module. Completed in MCP.
-7. Expose the same use cases through MCP, CLI, or web. In progress in the plan.
+See the [architecture decisions](../adr/README.md) for the reasoning behind
+these boundaries and the [changelog](../../CHANGELOG.md) for released behavior.

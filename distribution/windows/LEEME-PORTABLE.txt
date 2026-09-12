@@ -1,13 +1,13 @@
-WORKLOGGER PORTABLE PARA WINDOWS X64
+WORKLOGGER PORTABLE FOR WINDOWS X64
 
-1. Extraé la carpeta completa del ZIP.
-2. Ejecutá Worklogger.exe sin moverlo fuera de esa carpeta.
+1. Extract the entire folder from the ZIP.
+2. Run Worklogger.exe without moving it out of that folder.
 
-La carpeta assets debe permanecer junto al ejecutable. Worklogger usa Microsoft
-Edge WebView2 Runtime, incluido normalmente en Windows 10 y Windows 11. Si no
-está disponible, instalalo desde:
+The assets folder must stay beside the executable. Worklogger uses Microsoft
+Edge WebView2 Runtime, normally included with Windows 10 and Windows 11. If it
+is unavailable, install it from:
 https://developer.microsoft.com/microsoft-edge/webview2/
 
-La edición portable no guarda credenciales junto al ejecutable. El API token se
-guarda en Windows Credential Manager y la configuración personal en
+The portable edition does not store credentials beside the executable. API
+tokens are stored in Windows Credential Manager and personal settings in
 %APPDATA%\Worklogger.

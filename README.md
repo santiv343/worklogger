@@ -1,5 +1,7 @@
 # Worklogger
 
+![Worklogger wordmark beside a clock](docs/assets/readme-banner.png)
+
 > Personal Jira time tracking and reviewed Jira and Bitbucket workflows for AI assistants.
 
 [Install MCP](#install-mcp) · [Use Desktop](docs/user-guide/README.md#use-desktop) · [Documentation](docs/README.md) · [Troubleshooting](docs/user-guide/README.md#security-and-troubleshooting)
@@ -10,9 +12,20 @@ Worklogger brings three kinds of everyday work into one local tool:
 - Jira issues and worklogs in an AI assistant; and
 - Bitbucket pull-request work in an AI assistant.
 
-It runs on your computer and connects directly to the provider accounts you
-choose. There is no Worklogger account, shared cloud workspace, or built-in
-organization configuration.
+## Why Worklogger
+
+You already have access to Jira and Bitbucket. Worklogger brings that work into
+your assistant without a separate integration to install for the whole
+organization, where your organization's policy allows personal API-token access.
+
+It runs on your computer and connects directly with your own tokens. There is
+no hosted Worklogger workspace, shared service account, or OAuth application to
+register. Your tokens still need the appropriate access, and provider permissions
+and company policies still apply.
+
+The focus is the work you repeat: checking your hours, finding issues that need
+a worklog, preparing a comment, or reviewing a pull request. You choose which
+actions the assistant can use and review changes before they are submitted.
 
 ## What you can do
 
@@ -26,7 +39,7 @@ fields or transitions, and prepare a comment or update for review.
 reviewers, and pull-request activity before creating, editing, reviewing, or
 merging a pull request.
 
-## Choose a surface
+## Choose how you work
 
 | Surface | Best for | Start here |
 | --- | --- | --- |
@@ -37,27 +50,12 @@ Desktop and MCP share local preferences such as language and provider choices.
 They do not share credentials or automatically grant one surface access because
 the other was configured.
 
-## Why Worklogger
-
-Worklogger is a local companion for teams that want to use Jira and Bitbucket
-from an assistant without introducing another hosted workspace. It connects
-directly to the provider accounts you choose and keeps credentials on your
-computer.
-
-Its focus is the work an individual repeats every week: a bounded personal time
-report, assigned issues that still need a worklog, and deliberate Jira or
-Bitbucket changes with a visible, single-use preview before any write.
-
-[Atlassian Rovo MCP](https://developer.atlassian.com/cloud/rovo-mcp/) can be a
-good complement for Atlassian's broader agent experience. Worklogger is useful
-when a local API-token setup, focused time-reporting tools, shareable
-organization limits, or reviewable provider writes fit the team better. The
-two servers can coexist in the same assistant.
-
 ## Install MCP
 
 Worklogger MCP supports Windows x64 and Linux x64, including WSL on a supported
 Linux distribution. Node.js 18 or newer is needed only to start the installer.
+Check the [supported API tokens](docs/security/permission-model.md#supported-api-tokens)
+before connecting a provider.
 Run it in the same environment as the client that will use MCP: PowerShell for a
 Windows app, or the corresponding WSL terminal for a WSL client.
 
@@ -108,6 +106,7 @@ the setup flow.
 - [User guide](docs/user-guide/README.md): Desktop, MCP, settings, teams, and troubleshooting.
 - [Guide for assistants](docs/assistant-guide.md): install and verify MCP without asking for a token in chat.
 - [Supported MCP clients](docs/mcp-client-support.md): client-specific registration targets.
+- [MCP tools](docs/tools.md): available operations and their confirmation contracts.
 - [Permissions and privacy](docs/security/permission-model.md): provider scope, confirmation, and credential boundaries.
 - [Architecture and release notes](docs/README.md): implementation and contributor references.
 

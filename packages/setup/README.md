@@ -28,6 +28,11 @@ needed while the server is running.
 
 ## Guided setup
 
+Check [supported API tokens](https://github.com/santiv343/worklogger/blob/main/docs/security/permission-model.md#supported-api-tokens)
+before starting. The current Jira connector requires a token without scopes;
+Bitbucket uses a separate scoped token. Organization policy must allow the
+token type you use.
+
 Run the installer in the same environment as the client: PowerShell for Windows
 applications, or the relevant WSL terminal for Codex or Claude Code in WSL.
 
@@ -58,14 +63,15 @@ npx @santiv343/worklogger setup --profile /path/organization.json
 
 The profile is validated and installed in the user's configuration directory. It
 may define branding, modules, scopes, limits, and allowed capabilities, but never
-accounts or secrets. The wizard stores every person's token in Windows Credential
+accounts or secrets. Worklogger stores every person's token in Windows Credential
 Manager or a Linux atomic store protected by `0700/0600`; no token is copied to
 JSON or MCP clients.
 
 ## Manual or headless setup
 
-Copy a reviewed `mcp.json` to a private location. Start from the read-only Jira
-example in the repository, enter any required token in the same shell without
+Copy a reviewed `mcp.json` to a private location. Start from the
+[read-only Jira example](https://github.com/santiv343/worklogger/blob/v0.9.3/config/example.jira-readonly.mcp.json)
+for the matching release, enter any required token in the same shell without
 putting it in shell history, then run:
 
 ```shell
@@ -81,7 +87,7 @@ unset WORKLOGGER_JIRA_API_TOKEN
 The first `--yes` accepts npm's install prompt. The final `--yes` confirms
 Worklogger changes. `--clients` accepts `all`, `codex`, `claude-code`,
 `claude-desktop`, `cursor`, `windsurf`, `qwen-code`, `gemini-cli`, `kiro`,
-`github-copilot`, and `trae-code`. See the [MCP client support guide](../../docs/mcp-client-support.md)
+`github-copilot`, and `trae-code`. See the [MCP client support guide](https://github.com/santiv343/worklogger/blob/main/docs/mcp-client-support.md)
 for the target configuration used by each client. Add `--skills` only when
 workflow skills should be installed for every compatible assistant destination
 detected on that account.

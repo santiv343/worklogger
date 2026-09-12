@@ -1,5 +1,8 @@
 # Worklogger user guide
 
+The current public release is [v0.9.3](https://github.com/santiv343/worklogger/releases/tag/v0.9.3).
+Features available only in newer source builds are marked below.
+
 Worklogger has two complementary uses:
 
 - **Desktop:** view tasks, log time, and read reports.
@@ -22,11 +25,15 @@ configuration files.
 
 ## Use Desktop
 
+Download the Windows installer or portable ZIP from the
+[release page](https://github.com/santiv343/worklogger/releases/tag/v0.9.3).
+The portable build must stay beside its bundled `assets` folder.
+
 ### Connect Jira
 
 1. Open Worklogger and choose **Connect Jira**.
 2. Choose **Import JSON** if your team gave you an `organization.json`; otherwise configure the connection manually. Community Desktop creates this safe team file through **Export JSON**.
-3. Enter your Jira site, Atlassian email address, and API token.
+3. Enter your Jira site, Atlassian email address, and an API token **without scopes**, if your organization permits that token type. See [supported API tokens](../security/permission-model.md#supported-api-tokens).
 4. Choose **Verify and find boards**, then select a board, weekly target, and time zone.
 5. Choose **Save and continue**.
 
@@ -38,10 +45,12 @@ Open **Jira** and choose **+ Log time**. Select an issue, enter a date and durat
 
 If your edition includes **Reports**, choose a period from the sidebar. Personal reports contain only your worklogs. Team reports appear only when enabled and authorized, and are always read-only. Both can be exported to XLSX or PDF.
 
-Under **Configuration → Jira → Hours**, set the **Report period limit** for
-assistant-generated personal reports. It defaults to seven days and can be set
-up to the limit allowed by the selected organization profile (31 days by
-default).
+**Source builds after v0.9.3:** under **Configuration → Jira → Hours**, the
+**Report period limit** controls explicit date ranges in assistant-generated
+personal reports. It defaults to seven days and can be set up to the limit
+allowed by the organization profile (31 days by default). v0.9.3 uses a fixed
+seven-day limit. Requests without dates use the current week; a smaller
+configured limit does not shorten that default period.
 
 ### Enable MCP from Desktop
 
@@ -70,6 +79,9 @@ you enable.
 
 ### Guided installation
 
+Check the [supported API tokens](../security/permission-model.md#supported-api-tokens)
+before connecting a provider. Jira and Bitbucket use different token types.
+
 Run the installer in the same environment as the client: PowerShell for Windows applications, or the relevant WSL terminal for Codex or Claude Code inside WSL.
 
 ```shell
@@ -82,9 +94,11 @@ from that same menu. Each section shows whether it still needs configuration,
 saves only its own values, and preserves the rest. Restart the client when it
 finishes.
 
-For Jira time tools, use **Settings → Jira → Hours** to change the **Report
-period limit**. It applies to both `jira_get_my_hours` and
-`jira_get_my_unlogged_issues`; an assistant cannot increase it in a request.
+**Source builds after v0.9.3:** **Settings → Jira → Hours** also exposes the
+**Report period limit**. It controls explicit date ranges for
+`jira_get_my_hours` and `jira_get_my_unlogged_issues`; an assistant cannot raise
+that configured limit in a request. The default current-week request follows
+the behavior described [above](#log-time-and-read-reports).
 
 For a shared profile:
 
@@ -94,20 +108,28 @@ npx @santiv343/worklogger setup --profile /path/organization.json
 
 ### Manual or headless installation
 
-Use this only after a person has reviewed a configuration. Copy [`config/example.mcp.json`](../../config/example.mcp.json) to a private location, fill in real values, and keep tokens out of the file.
+Use this only after a person has reviewed the configuration. Start with the
+[read-only Jira example](../../config/example.jira-readonly.mcp.json), or use
+the [full example](../../config/example.mcp.json) when you need additional
+providers or write capabilities. Remove unused providers and capabilities,
+fill in your own values, and keep tokens out of the file.
+
+Use examples from the tag matching your installed binary. Examples on `main`
+may include settings added after the latest published release.
 
 ```shell
 read -rsp "Jira API token: " WORKLOGGER_JIRA_API_TOKEN; echo
 export WORKLOGGER_JIRA_API_TOKEN
-read -rsp "Bitbucket API token: " WORKLOGGER_BITBUCKET_API_TOKEN; echo
-export WORKLOGGER_BITBUCKET_API_TOKEN
 npx --yes @santiv343/worklogger install \
   --config /private/path/mcp.json \
   --clients codex,claude-code \
   --skills \
   --yes
-unset WORKLOGGER_JIRA_API_TOKEN WORKLOGGER_BITBUCKET_API_TOKEN
+unset WORKLOGGER_JIRA_API_TOKEN
 ```
+
+This example configures Jira. For Bitbucket, use guided settings or supply
+`WORKLOGGER_BITBUCKET_API_TOKEN` locally with a reviewed Bitbucket configuration.
 
 In PowerShell, prefer the interactive setup so the person can enter the token
 locally. `--clients` accepts `all`, `codex`, `claude-code`, `claude-desktop`,
