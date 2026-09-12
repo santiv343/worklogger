@@ -1,4 +1,4 @@
-# Provider MCP tools
+# MCP tools
 
 ## Scope
 
@@ -14,16 +14,6 @@ and does not depend on Jira.
 There is no universal ticket or pull-request API. Interfaces can combine
 information, but each mutation retains the semantics and permissions of the
 provider that performs it.
-
-## Design background
-
-The following records the original adapter replacement scope, rather than a
-separate compatibility layer:
-
-| Provider | Retained operations | Replaced implementation | Removed assumptions |
-| --- | --- | --- | --- |
-| Jira | Details, JQL, transitions, comments | Typed responses, discovered editable fields, confirmation, separate capabilities | Fixed custom-field IDs and status names |
-| Bitbucket | Details, lists, activity, reviews, creation, comments, approval, closure | Full PR editing, configured scopes, current token authentication | Organization-specific branches, repositories, reviewers, notifications |
 
 ## Tool catalog
 
@@ -135,15 +125,3 @@ An adapter's official endpoint is a protocol constant, not an organization
 customization. It cannot be replaced with an arbitrary URL that could receive
 credentials. Jira Data Center, Bitbucket Data Center, and other providers require
 separate adapters.
-
-## Delivery sequence
-
-The original implementation sequence was:
-
-1. Define and test the configuration contract and catalog.
-2. Implement Jira and test it against isolated HTTP endpoints.
-3. Implement Bitbucket Cloud and test it against isolated HTTP endpoints.
-4. Add provider and capability selection to the TUI, with management of
-   capabilities and configured clients in Desktop.
-5. Add isolated MCP tests, builds with excluded add-ons, and optional read-only
-   checks against real accounts.

@@ -4,5 +4,7 @@
 /config/*
 !/config/example.organization.json
 !/config/example.mcp.json
+!/config/example.jira-readonly.mcp.json
 *.pdb
 /desktop-app/Dioxus.toml
+/.local/

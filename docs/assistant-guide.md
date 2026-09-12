@@ -2,6 +2,11 @@
 
 Use this guide when helping a person install or use Worklogger MCP from this public repository.
 
+Check [supported API tokens](security/permission-model.md#supported-api-tokens)
+before setup. The current Jira connector requires an API token without scopes;
+it cannot be used where organization policy prohibits that token type. Bitbucket
+uses its own scoped API token. Let the person enter credentials locally.
+
 ## Safety rules
 
 - Never ask for, repeat, store, or commit API tokens in chat, source code, logs, pull requests, or shared files.
@@ -42,6 +47,9 @@ delete @santiv343:registry` once.
 Start from [`config/example.jira-readonly.mcp.json`](../config/example.jira-readonly.mcp.json) for Jira read-only access, or [`config/example.mcp.json`](../config/example.mcp.json) when both providers and broader capabilities are deliberately required. Copy the selected file to a private location, replace the example site, email, board, and scope values, and do not commit it.
 
 The full example enables both providers and write capabilities. Remove every unused provider from both its connection section and `modules`, and retain only the minimum capabilities needed. `mcp.json` never contains a token.
+
+Use configuration examples from the tag matching the installed version.
+Examples on `main` may include settings that are not in the published binary yet.
 
 If a credential was already saved by the interactive installer, it can be
 reused. Otherwise, have the person enter a token in the same shell without

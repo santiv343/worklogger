@@ -1,128 +1,83 @@
-# Reglas de trabajo de Worklogger
+# Working on Worklogger
 
-Este archivo complementa las reglas del repositorio padre. Si existe un
-conflicto, se aplica la regla más restrictiva.
+Read the README and the relevant guides in `docs/` before changing behavior.
+These instructions complement any applicable workspace rules.
 
-## Continuidad obligatoria
+## Scope and continuity
 
-1. Leer `status.md` antes de explorar o modificar código.
-2. Antes de implementar, actualizar su checklist y dejar un único ítem marcado
-   como `[-]` en la sección **En curso**.
-3. Actualizar `status.md` después de cada decisión, cambio funcional, validación,
-   bloqueo o modificación relevante del alcance.
-4. Antes de finalizar, registrar qué quedó terminado, la evidencia ejecutada y
-   la próxima acción concreta.
-5. Nunca marcar una tarea como completa si sus checks requeridos no pasaron.
+- Keep public code, documentation, examples, and comments in English. Use the
+  owner's language in conversation.
+- Start with the user problem, the smallest useful change, and its verification.
+  Distinguish planned, implemented, tested, and blocked work.
+- Keep private plans and review receipts under ignored `.local/`. If a local
+  `.local/status.md` exists, read and update its objective, one active task,
+  accepted decisions, evidence, blockers, and next action. A fresh checkout
+  must remain usable without that file.
+- Record durable decisions in ADRs and update the relevant public guide when
+  behavior or an architectural boundary changes. Do not publish session logs.
+- Preserve other people's changes and keep unrelated fixes out of scope.
+- Report meaningful progress during extended work. Do not call work complete
+  while required checks are pending, and do not hide warnings or assumptions.
+- When asked to continue, execute the recorded next action. Explain the scope,
+  consequences, and deferred work of material decisions.
 
-`status.md` es el estado operativo para retomar trabajo. Los ADR explican las
-decisiones duraderas y los documentos de producto conservan el roadmap amplio;
-no se debe duplicar todo su contenido en el status.
+## Product boundaries
 
-## Comunicación sin ambigüedades
+- Keep the product generic. Organization names, sites, boards, fields, branding,
+  and rules belong in external profiles or discovered provider data.
+- Managed builds prevent organizational configuration changes. Community builds
+  allow manual configuration and JSON import.
+- Capabilities remain optional and removable at build time where dependencies
+  allow. Desktop and MCP already ship; interfaces reuse the same business logic.
+- Identity comes from the authenticated account. Only its own worklogs may be
+  changed. Other people's hours are read-only when explicitly authorized.
+- Sensitive writes show the actor, target, and effect before confirmation.
+- Secrets belong in the platform credential store, never JSON, source, docs,
+  logs, reports, or conversation.
+- Commits, pull requests, and meetings may inform a person's decision; never
+  derive and submit worklogs automatically from them.
+- Prefer a useful, verifiable slice. Reuse existing code before adding a
+  dependency, service, or abstraction. Validate real use before generalizing.
+- Obtain independent review for architecture, security, and significant releases;
+  record objections as well as conclusions.
+- Real-account checks are read-only unless the owner explicitly authorizes a
+  mutation. Automated tests use doubles or isolated servers.
 
-- Escribir en español y comenzar por el resultado o estado real.
-- Distinguir siempre entre `planificado`, `en implementación`, `implementado`,
-  `probado` y `bloqueado`.
-- No usar “listo”, “funciona” o “terminado” si falta algún check requerido.
-- Para trabajo parcial, indicar exactamente qué flujo ya funciona, cuál no y
-  cuál es la próxima acción.
-- Toda decisión debe explicitar alcance, consecuencia y elementos postergados.
-- No ocultar warnings, fallos, supuestos ni limitaciones detrás de un resumen.
-- Durante trabajo prolongado, informar cada avance material sin dejar al usuario
-  sin contexto de qué se está ejecutando.
+## User experience and distribution
 
-## Preferencias de producto y colaboración
+- Top-level navigation represents modules such as Jira and Reports. Hours is
+  part of Jira, not a separate module.
+- Configuration is a global modal with navigation for General and each module.
+- Partial refreshes use skeletons only for the affected data.
+- Compact actions use recognizable icons and tooltips. Keep visible labels for
+  actions whose purpose is not obvious, such as export.
+- Board, issue, and date selectors support search when needed, dismiss on outside
+  clicks, and reject future worklog dates.
+- Date presets keep stable meanings; navigation uses the selected preset's unit,
+  and labels describe the actual period.
+- Onboarding verifies credentials before discovering and selecting resources.
+- Personal and team reports remain separate. Team views require explicit access
+  and never enable changes to another person's worklogs.
+- Team filters include the scoped collaborators, including people with zero hours.
+- Exports represent the full view and include traceable raw data. Do not advertise
+  an unavailable or disabled format.
+- End-user Desktop runs without Node, Rust, or development commands. Preserve
+  hot reload and a direct way to see development changes.
 
-- Priorizar utilidad demostrable del MVP y una UX clara, moderna e iterable.
-- Mantener una forma directa de ejecutar y ver cambios durante el desarrollo;
-  evitar reinstalaciones para cada iteración.
-- La aplicación canónica es genérica: ningún nombre, URL, tablero, campo, color,
-  texto o regla de una empresa puede quedar hardcodeado.
-- Las personalizaciones corporativas entran mediante perfiles externos de build.
-- Las ediciones Managed excluyen el cambio de configuración organizacional; las
-  ediciones Community permiten configuración manual y JSON.
-- Las capacidades son modulares, opcionales y desbundlables cuando sus
-  dependencias lo permitan.
-- Desktop es la superficie principal actual; MCP, CLI y web son adaptadores
-  opcionales futuros, no implementaciones paralelas del negocio.
-- La identidad siempre proviene de la cuenta autenticada. Horas de terceros son
-  sólo lectura cuando el proveedor lo autoriza; nunca se modifican.
-- Toda mutación sensible muestra identidad, destino, efecto y confirmación.
-- Los secretos viven en el almacén seguro del sistema y nunca en JSON, código,
-  documentación, logs, reportes o mensajes al usuario.
-- No calcular ni cargar horas automáticamente desde commits, PRs o reuniones;
-  sólo presentarlos como evidencia para una decisión humana.
-- No crear abstracciones, dependencias o servicios “por si acaso”. Implementar
-  el corte mínimo robusto y validar con datos reales antes de generalizar.
-- Para decisiones arquitectónicas, seguridad o releases importantes, solicitar
-  revisiones independientes y registrar tanto objeciones como conclusiones.
-- Preservar cambios ajenos y no mezclar correcciones fuera de alcance.
-- Favorecer calidad, claridad y evidencia por encima de ahorrar tokens o dejar
-  una implementación a medias.
-- Si el usuario pide continuar, ejecutar la próxima acción registrada; no
-  reemplazar trabajo concreto por otra explicación del plan.
+## Architecture and implementation
 
-## Preferencias de UX y distribución
-
-- La navegación principal representa módulos (`Jira`, `Reportes`, futuros
-  addons); Horas pertenece a Jira y no se presenta como módulo independiente.
-- Configuración se abre como modal global, con navegación lateral para General
-  y cada módulo instalado.
-- Una actualización parcial usa skeletons sólo sobre los datos afectados; no
-  bloquea ni reemplaza toda la pantalla.
-- Acciones compactas usan iconos reconocibles y tooltip. Acciones cuyo propósito
-  no es evidente, como exportar, conservan una etiqueta visible.
-- Selectores de tablero, tarea y fechas son buscables cuando el volumen lo
-  requiere, cierran al hacer click afuera y nunca aceptan fechas futuras.
-- Los presets de fecha tienen semántica estable; las flechas navegan con la misma
-  unidad del preset seleccionado y el texto describe el período real.
-- El onboarding pide sólo datos disponibles en ese momento: valida credenciales,
-  descubre recursos y recién después permite seleccionar el ámbito.
-- Reportes personales y de equipo son vistas separadas. La vista de equipo sólo
-  aparece con permiso/configuración explícitos y nunca habilita mutaciones de
-  horas ajenas.
-- Los filtros de equipo se construyen desde el ámbito y sus colaboradores, no
-  sólo desde quienes ya cargaron horas; cero horas también es información.
-- Una exportación representa la vista completa y agrega datos crudos trazables;
-  un formato no implementado o deshabilitado no se presenta como disponible.
-- La edición para usuarios finales debe ejecutarse sin Node, Rust ni comandos.
-  El desarrollo debe conservar hot reload y una iteración directa.
-- Las pruebas con cuentas reales son read-only salvo orden expresa de mutar; los
-  tests automáticos usan dobles o servidores aislados.
-
-## Formato del status
-
-- `[ ]`: pendiente.
-- `[-]`: única tarea activa.
-- `[x]`: terminada con evidencia.
-- `[!]`: bloqueada, incluyendo causa y condición para desbloquear.
-
-Mantener siempre actualizados: fecha UTC, rama, objetivo actual, checklist,
-decisiones recientes, riesgos, validaciones y próxima acción. No guardar tokens,
-credenciales, correos personales ni datos privados.
-
-## Arquitectura
-
-- Los puertos pertenecen al caso de uso consumidor.
-- El dominio no importa UI, HTTP ni adaptadores de proveedores.
-- Normalizar sólo conceptos comprobados por al menos un caso de uso real.
-- Conservar identidad, permisos y referencias dentro del namespace de su
-  conexión.
-- Una capacidad mostrada por la UI nunca sustituye autorización ni ownership en
-  la operación real.
-- Los errores parciales conservan origen y trazabilidad.
-- Evitar migraciones horizontales masivas; preferir cortes verticales probados.
-
-## Implementación
-
-- Empezar con un test que falle para comportamiento nuevo o refactors de riesgo.
-- Mantener una sola fuente de verdad para cada concepto compartido: IDs y nombres
-  de tools salen de su catálogo; módulos y permisos de sus enums; defaults y
-  límites de configuración tipada; textos visibles de los recursos de idioma.
-  Consumidores, UI y tests deben derivarlos de esa fuente en vez de repetir
-  literales. No extraer literales incidentales sin semántica compartida.
-- Mantener funciones nuevas por debajo de 20 líneas.
-- No crear interfaces especulativas ni dependencias sin un uso actual.
-- Actualizar documentación y `status.md` en el mismo cambio que una frontera
-  arquitectónica.
-- Ejecutar formato, Clippy, tests y checks de features afectados antes de cerrar.
+- Ports belong to their consuming use cases. The domain does not import UI,
+  HTTP, or provider adapters.
+- Normalize concepts only after a real use case proves they are shared.
+- Keep identity, permissions, and references within their connection namespace.
+- A visible UI capability never replaces authorization or ownership checks.
+- Partial errors retain their origin and traceability. Prefer tested vertical
+  slices to broad horizontal migrations.
+- Begin with a failing test for new behavior or a risky refactor.
+- Maintain one source of truth: tool identifiers in their catalog, modules and
+  permissions in enums, defaults and limits in typed configuration, and visible
+  text in language resources. Consumers and tests derive shared values from
+  these sources; incidental literals need no abstraction.
+- Keep new functions under 20 lines. Do not add speculative interfaces.
+- Run formatting, Clippy, tests, and feature checks relevant to the change.
+  The [contributor guide](CONTRIBUTING.md) and CI workflows define validation.

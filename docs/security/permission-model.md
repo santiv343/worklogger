@@ -18,6 +18,23 @@ An operation is available only when all of these controls allow it:
 An organization profile can narrow configuration. It cannot grant a provider
 permission that the authenticated account does not have.
 
+The local setup uses personal API tokens where organizational policy permits
+them. It avoids a separate shared Worklogger integration; it does not bypass
+provider access controls or token scopes.
+
+## Supported API tokens
+
+**Jira Cloud:** the current connector uses an API token **without scopes**
+against your `https://<site>.atlassian.net` address. Scoped Jira API tokens
+require a different API route that Worklogger does not support yet. If your
+organization requires scoped tokens or prohibits unscoped tokens, the current
+Jira connector does not meet that policy. See Atlassian's
+[account API-token guide](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/).
+
+**Bitbucket Cloud:** use a separate API token with scopes for the enabled
+operations. Jira's token limitation does not apply to the Bitbucket connector.
+See the [Bitbucket API-token guide](https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/).
+
 ## Worklogs and identity
 
 Worklogger gets identity from the authenticated provider account. Creating a
