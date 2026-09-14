@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 atomic-write-file = { version = "0.3", optional = true }
 # Restringe la dependencia transitiva de printpdf al MSRV 1.88 del workspace.
-aes = { version = "=0.9.2", optional = true }
+aes = { version = "=0.9.3", optional = true }
 dioxus = { workspace = true, optional = true }
 dioxus-charts = { version = "0.4.0", optional = true }
 hours-core = { path = "../crates/hours-core", optional = true }
