@@ -4,7 +4,7 @@
 
 > Personal Jira time tracking and reviewed Jira and Bitbucket workflows for AI assistants.
 
-[Install MCP](#install-mcp) · [Use Desktop](docs/user-guide/README.md#use-desktop) · [Documentation](docs/README.md) · [Troubleshooting](docs/user-guide/README.md#security-and-troubleshooting)
+[Release v0.9.3](https://github.com/santiv343/worklogger/releases/tag/v0.9.3) · [Install MCP](#install-mcp) · [Use Desktop](docs/user-guide/README.md#use-desktop) · [Documentation](docs/README.md) · [Troubleshooting](docs/user-guide/README.md#security-and-troubleshooting)
 
 Worklogger brings three kinds of everyday work into one local tool:
 
